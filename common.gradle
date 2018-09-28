@@ -66,6 +66,7 @@ dependencies {
     compile 'io.grpc:grpc-protobuf:1.14.0'
     compile 'io.grpc:grpc-stub:1.14.0'
     compile("org.slf4j:slf4j-api:1.7.25")
+    testCompile 'org.springframework.boot:spring-boot-starter-test'
 
 
     compileOnly 'org.projectlombok:lombok:1.18.2'
