@@ -1,0 +1,12 @@
+xln.service-config:
+  RedisConfig:
+    uri:
+      - http://127.0.0.1:6379
+  resourcePath:
+    - classpath:xln-beans-test.xml
+  cronSchedule:
+      - jobName: "AppJob"
+        jobClassName: "xln.common.test.SchedulerTest$AppJob"
+        cron: "0 0/1 * * * ?"
+
+

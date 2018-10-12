@@ -35,6 +35,14 @@ bootRun {
     systemProperties = System.properties
 }
 
+test {
+    systemProperties = System.properties
+    testLogging {
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
+    }
+}
+
 dependencies {
 
     compile "org.springframework.boot:spring-boot-gradle-plugin:2.0.3.RELEASE"
@@ -68,7 +76,7 @@ dependencies {
     compile("org.slf4j:slf4j-api:1.7.25")
     testCompile 'org.springframework.boot:spring-boot-starter-test'
 
-
+    testCompileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:2.0.4.RELEASE"
 

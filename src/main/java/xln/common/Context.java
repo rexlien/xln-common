@@ -27,7 +27,7 @@ public class Context {
     @Autowired
     private ServiceConfig serviceConfig;
 
-    private static Logger logger = LoggerFactory.getLogger(ServiceConfig.class);
+    private static Logger logger = LoggerFactory.getLogger(Context.class);
 
     @PostConstruct
     void postConstruct()
