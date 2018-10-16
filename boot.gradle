@@ -1,0 +1,16 @@
+apply plugin: 'org.springframework.boot'
+
+
+
+bootRun {
+    // support passing -Dsystem.property=value to bootRun task
+    systemProperties = System.properties
+}
+
+test {
+    systemProperties = System.properties
+    testLogging {
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
+    }
+}

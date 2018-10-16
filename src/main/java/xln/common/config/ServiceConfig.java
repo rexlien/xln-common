@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @ConfigurationProperties(prefix="xln.service-config")
@@ -16,7 +17,7 @@ public class ServiceConfig
 {
 
     private final RedisConfig redisConfig = new RedisConfig();
-    private final List<CronSchedule> cronSchedule;// = new List<CronSchedule>();
+    private final List<CronSchedule> cronSchedule = new ArrayList<CronSchedule>();
     private List<String> resourcePath;
 
     @Data
