@@ -1,0 +1,2 @@
+org.springframework.context.ApplicationContextInitializer=xln.common.AppInitializer
+org.springframework.boot.env.EnvironmentPostProcessor=xln.common.EnvironmentProcessor
