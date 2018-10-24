@@ -25,6 +25,7 @@ public class ServiceConfig
     @Data
     public static class RedisConfig
     {
+        private String password;
         private List<String> URI;
 
     }

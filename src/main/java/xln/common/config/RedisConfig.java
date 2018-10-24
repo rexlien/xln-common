@@ -57,8 +57,15 @@ public class RedisConfig {
     }
 
     @Bean(name="xln-redisReactiveStringTemplate")
-    ReactiveRedisTemplate<String, String> reactiveRedisTemplate(ReactiveRedisConnectionFactory factory) {
-        return new ReactiveRedisTemplate<>(factory, RedisSerializationContext.string());
+    ReactiveRedisTemplate<String, String> reactiveRedisTemplate(@Qualifier("redisConnectionFactory") ReactiveRedisConnectionFactory factory) {
+        RedisSerializationContext<String, String> serializationContext = RedisSerializationContext
+                .<String, String>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
+                .value(new StringRedisSerializer()).hashKey(new StringRedisSerializer()).hashValue(new StringRedisSerializer()).build();
+
+        ReactiveRedisTemplate<String, String> template =  new ReactiveRedisTemplate<String, String>(factory, serializationContext);
+
+        return template;
+
     }
 
 
@@ -67,7 +74,7 @@ public class RedisConfig {
     public static LettuceConnectionFactory clusterConnectionFactory(ServiceConfig config) {
 
         RedisClusterConfiguration redisConfig = new RedisClusterConfiguration();
-
+        redisConfig.setPassword(config.getRedisConfig().getPassword());
         for(String s : config.getRedisConfig().getURI()) {
 
             URI uri = null;
@@ -88,9 +95,8 @@ public class RedisConfig {
     public static LettuceConnectionFactory singleConnectionFactory(ServiceConfig config) {
 
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-
+        redisConfig.setPassword(config.getRedisConfig().getPassword());
         for(String s : config.getRedisConfig().getURI()) {
-
             URI uri = null;
             try {
                 uri = new URI(s);
@@ -101,6 +107,28 @@ public class RedisConfig {
 
                 redisConfig.setHostName(uri.getHost());
                 redisConfig.setPort(uri.getPort());
+
+            }
+        }
+        return new LettuceConnectionFactory(redisConfig);
+    }
+
+    public static LettuceConnectionFactory sentinelConnectionFactory(ServiceConfig config) {
+
+        RedisSentinelConfiguration redisConfig = new RedisSentinelConfiguration().master("xlnMaster");
+        redisConfig.setPassword(config.getRedisConfig().getPassword());
+        for(String s : config.getRedisConfig().getURI()) {
+
+            URI uri = null;
+            try {
+                uri = new URI(s);
+            }catch(URISyntaxException ex) {
+                logger.error(ex.toString());
+            }
+            if(uri != null) {
+
+                redisConfig.sentinel(uri.getHost(), uri.getPort());
+
 
             }
         }
