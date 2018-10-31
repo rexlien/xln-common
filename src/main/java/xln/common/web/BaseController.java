@@ -16,4 +16,9 @@ public class BaseController
         //List<Response> res = new ArrayList<Response>();
         return new ResponseEntity("Bad request", HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(HttpException.class)
+    public ResponseEntity handleAPIRequestException(HttpException ex) {
+        return new ResponseEntity(ex.getStatus());
+    }
 }
