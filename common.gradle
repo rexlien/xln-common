@@ -1,7 +1,9 @@
 allprojects {
 
     repositories {
+
         jcenter()
+        maven {url "http://oss.jfrog.org/artifactory/oss-snapshot-local"}
 
     }
 }
@@ -30,14 +32,14 @@ dependencies {
     //compile 'javax.annotation:javax.annotation-api:1.2'
 
 
-    compile group: 'org.springframework', name: 'spring-context', version: '5.1.1.RELEASE'
-    compile 'org.springframework:spring-aop:5.1.1.RELEASE'
-    compile group: 'org.springframework', name: 'spring-core', version: '5.1.1.RELEASE'
+    //compile group: 'org.springframework', name: 'spring-context', version: '5.1.1.RELEASE'
+    //compile 'org.springframework:spring-aop:5.1.1.RELEASE'
+    //compile group: 'org.springframework', name: 'spring-core', version: '5.1.1.RELEASE'
     //compile group: 'org.springframework', name: 'spring-webflux', version: '5.1.1.RELEASE'
     //compile 'io.projectreactor.netty:reactor-netty:0.8.1.RELEASE'
     //compile "io.projectreactor:reactor-core:3.2.1.RELEASE"
     //compile group: 'org.springframework', name: 'spring-web', version: '5.1.1.RELEASE'
-    compile group: 'org.springframework', name: 'spring-beans', version: '5.1.1.RELEASE'
+    //compile group: 'org.springframework', name: 'spring-beans', version: '5.1.1.RELEASE'
     compile group: 'org.springframework.boot', name: 'spring-boot', version: '2.0.6.RELEASE'
     //compile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.6.RELEASE'
     //compile group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version: '2.0.6.RELEASE'
@@ -63,10 +65,15 @@ dependencies {
     compile 'io.grpc:grpc-stub:1.14.0'
     compile("org.slf4j:slf4j-api:1.7.25")
     compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
-    testCompile 'org.springframework.boot:spring-boot-starter-test'
+    //testCompile 'org.springframework.boot:spring-boot-starter-test'
+    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.6.RELEASE'
 
     testCompileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:2.0.6.RELEASE"
+
+    compile group: 'io.springfox', name: 'springfox-swagger2', version: '3.0.0-SNAPSHOT'
+    compile group: 'io.springfox', name: 'springfox-spring-webflux', version: '3.0.0-SNAPSHOT'
+    compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '3.0.0-SNAPSHOT'
 
 }
