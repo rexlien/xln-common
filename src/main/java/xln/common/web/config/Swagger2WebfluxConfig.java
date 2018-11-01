@@ -13,7 +13,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebFlux;
 
 @Configuration
 @EnableSwagger2WebFlux
-@Profile({"dev", "stage"})
+@Profile({"xln-swagger2"})
 public class Swagger2WebfluxConfig implements WebFluxConfigurer {
 
     @Bean
