@@ -7,21 +7,24 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.serializer.*;
+import org.springframework.scripting.ScriptSource;
+import org.springframework.scripting.support.ResourceScriptSource;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 @Slf4j
 @Configuration
 public class RedisConfig {
-
 
 
     @Bean(name="xln-redisClusterConnection", destroyMethod = "close")
@@ -58,16 +61,46 @@ public class RedisConfig {
 
     @Bean(name="xln-redisReactiveStringTemplate")
     ReactiveRedisTemplate<String, String> reactiveRedisTemplate(@Qualifier("redisConnectionFactory") ReactiveRedisConnectionFactory factory) {
-        RedisSerializationContext<String, String> serializationContext = RedisSerializationContext
-                .<String, String>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
-                .value(new StringRedisSerializer()).hashKey(new StringRedisSerializer()).hashValue(new StringRedisSerializer()).build();
+
+        RedisSerializer<String> serializer = new StringRedisSerializer();
+        RedisSerializationContext<String , String> serializationContext = RedisSerializationContext
+                .<String, String>newSerializationContext()
+                .key(serializer)
+                .value(serializer)
+                .hashKey(serializer)
+                .hashValue(serializer)
+                .build();
 
         ReactiveRedisTemplate<String, String> template =  new ReactiveRedisTemplate<String, String>(factory, serializationContext);
+        return template;
+
+    }
+
+    @Bean(name="xln-redisReactiveObjTemplate")
+    ReactiveRedisTemplate<String, Object> reactiveRedisObjTemplate(@Qualifier("redisConnectionFactory") ReactiveRedisConnectionFactory factory) {
+        RedisSerializationContext<String, Object> serializationContext = RedisSerializationContext
+                .<String, Object>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
+                .value(new GenericJackson2JsonRedisSerializer()).build();
+
+        ReactiveRedisTemplate<String, Object> template =  new ReactiveRedisTemplate<String, Object>(factory, serializationContext);
 
         return template;
 
     }
 
+    /*
+    @Bean(name="xln-redisReactiveListTemplate")
+    ReactiveRedisTemplate<String, List> reactiveRedisListTemplate(@Qualifier("redisConnectionFactory") ReactiveRedisConnectionFactory factory) {
+
+        //RedisSerializationContext<String, List<Long>> serializationContext = RedisSerializationContext//
+        //        .<String, List<Long>>newSerializationContext(new StringRedisSerializer()).value(new Red).build();
+
+        //ReactiveRedisTemplate<String, List<Long>> template =  new ReactiveRedisTemplate<String, List<Long>>(factory, serializationContext);
+
+        return template;
+
+    }
+*/
 
     static Logger logger = LoggerFactory.getLogger(RedisConfig.class);
 

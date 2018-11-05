@@ -10,6 +10,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 @ConfigurationProperties(prefix="xln.service-config")
@@ -27,6 +29,7 @@ public class ServiceConfig
     {
         private String password;
         private List<String> URI;
+        private List<RedisScript> script = Collections.EMPTY_LIST;
 
     }
 
@@ -37,6 +40,14 @@ public class ServiceConfig
         String jobName;
         String jobClassName;
         String cron;
+    }
+
+    @Configuration
+    @Data
+    public static class RedisScript
+    {
+        String name;
+        String path;
     }
 
  
