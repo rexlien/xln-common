@@ -66,6 +66,7 @@ public class RedisService {
         if(script != null)
             return reactiveRedisTemplate.execute(script, keyParams, argParams);
         else {
+            logger.error("script name {} not exist", name);
             return null;
         }
     }
