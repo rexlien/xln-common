@@ -50,7 +50,7 @@ public class RedisService {
             redisScripts.put(name, script);
             return script;
         }catch(IOException ex) {
-            logger.error("load saddAndGetSize lua failed");
+            logger.error("load {} failed", name);
             return null;
         }
     }
@@ -66,7 +66,6 @@ public class RedisService {
         if(script != null)
             return reactiveRedisTemplate.execute(script, keyParams, argParams);
         else {
-            logger.error("script name {} not exist", name);
             return null;
         }
     }
