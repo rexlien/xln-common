@@ -10,11 +10,4 @@ sourceCompatibility = 1.8
 
 apply from : "common.gradle"
 apply from : "boot.gradle"
-
-jar {
-    enabled = true
-}
-
-bootJar {
-    classifier = 'boot'
-}
+apply from : "jar.gradle"
