@@ -82,7 +82,10 @@ public class RedisService {
             LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
                     .readFrom(ReadFrom.SLAVE)
                     .build();
-            return new LettuceConnectionFactory(redisConfig, clientConfig);
+
+            LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
+            factory.afterPropertiesSet();
+            return factory;
         }
 
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig);
@@ -188,18 +191,11 @@ public class RedisService {
         }
 
         if(set.getStringTemplate() == null) {
-            RedisSerializer<String> serializer = new StringRedisSerializer();
-            RedisSerializationContext<String, String> serializationContext = RedisSerializationContext
-                    .<String, String>newSerializationContext()
-                    .key(serializer)
-                    .value(serializer)
-                    .hashKey(serializer)
-                    .hashValue(serializer)
-                    .build();
 
             RedisTemplate<String, String> template = new RedisTemplate<String, String>();
             template.setConnectionFactory(connectionFactories.get(name));
             template.setDefaultSerializer(new StringRedisSerializer());
+            template.afterPropertiesSet();
             set.setStringTemplate(template);
         }
         return set.getStringTemplate();
