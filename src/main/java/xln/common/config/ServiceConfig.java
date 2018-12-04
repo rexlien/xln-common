@@ -31,7 +31,7 @@ public class ServiceConfig
     public static class RedisConfig
     {
         private String password;
-        private List<String> URI;
+        private List<String> URI = Collections.singletonList("redis://127.0.0.1:6379");
         private boolean slaveRead = false;
         private List<RedisScript> script = Collections.EMPTY_LIST;
 

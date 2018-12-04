@@ -1,7 +1,7 @@
 xln.service-config:
   RedisConfig:
     uri:
-      - http://127.0.0.1:6379
+      - redis://127.0.0.1:6379
     script:
       - name: saddAndGetSize
         path: "META-INF/script/saddAndGetSize.lua"
@@ -10,7 +10,7 @@ xln.service-config:
       redis0:
         type: single
         uri:
-          - http://127.0.0.1:6379
+          - redis://127.0.0.1:6379
         slaveRead: true
 
     script:
