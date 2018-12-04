@@ -47,6 +47,18 @@ public class RedisTest {
                         logger.warn("res: {}", i);
                     }
                 });
+
+
+        redisService.runScript("redis0", "saddAndGetSize", Collections.singletonList("testKey123"), Collections.singletonList("testValue")).
+                publishOn(Schedulers.elastic()).subscribe(l -> {
+            Gson gson = new Gson();
+            Type type = new TypeToken<List<Integer>>(){}.getType();
+            List<Integer> list = gson.fromJson(l.toString(), type);
+
+            for(int i : list) {
+                logger.warn("res: {}", i);
+            }
+        });
     }
 
 }

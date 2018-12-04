@@ -13,12 +13,6 @@ public class CommonConfig
     public static String timeZone;
 
 
-    @PostConstruct
-    public void init()
-    {
-        int test = 10;
-    }
-
     @Value("${xln-timeZone:Asia/Taipei}")
     public void setTimeZone(String timeZone)
     {

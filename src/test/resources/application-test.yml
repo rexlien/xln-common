@@ -5,7 +5,22 @@ xln.service-config:
     script:
       - name: saddAndGetSize
         path: "META-INF/script/saddAndGetSize.lua"
+  RedisConfig2:
+    redisServerConfigs:
+      redis0:
+        type: single
+        uri:
+          - http://127.0.0.1:6379
+        slaveRead: true
 
+    script:
+      - name: saddAndGetSize
+        path: "META-INF/script/saddAndGetSize.lua"
+  KafkaProducerConfig:
+      serverUrls:
+        - 10.127.161.6:9092
+      acks: all
+      requestTimeout: 30000
   resourcePath:
     - classpath:xln-beans-test.xml
   cronSchedule:
