@@ -21,6 +21,22 @@ xln.service-config:
         - 10.127.161.6:9092
       acks: all
       requestTimeout: 30000
+  KafkaConfig:
+    consumersConifgs:
+      kafkaC0:
+        serverUrls:
+          - 10.127.161.6:9092
+        subscribeTopics:
+          - test-xln
+        keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
+        valueDeserializer:  org.apache.kafka.common.serialization.StringDeserializer
+        groupID: testGroup
+        autoCommit: true
+        autoCommitInterval : 1000
+        autoOffsetResetConfig: "earliest"
+
+
+
   resourcePath:
     - classpath:xln-beans-test.xml
   cronSchedule:

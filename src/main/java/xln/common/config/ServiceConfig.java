@@ -18,13 +18,20 @@ import java.util.*;
 @Data
 public class ServiceConfig
 {
-    private final RedisConfig redisConfig = new RedisConfig();
-    private final KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
-    private final List<CronSchedule> cronSchedule = new ArrayList<CronSchedule>();
+    private RedisConfig redisConfig = new RedisConfig();
+    private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
+    private List<CronSchedule> cronSchedule = new ArrayList<CronSchedule>();
     private List<String> resourcePath;
 
-    //private final Map<String, RedisConfig2> redisServerConfigs = Collections.EMPTY_MAP;//new HashMap<>()
+
     private RedisConfig2 redisConfig2 = new RedisConfig2();
+    private KafkaConfig kafkaConfig = new KafkaConfig();
+
+    @Data
+    public class KafkaConfig
+    {
+        private Map<String, KafkaConsumerConfig> consumersConifgs = Collections.EMPTY_MAP;
+    }
 
 
     @Data
@@ -77,24 +84,29 @@ public class ServiceConfig
     @Data
     public static class KafkaConsumerConfig
     {
-        //private List<>
+        private List<String> serverUrls = Collections.EMPTY_LIST;
+        private String groupID;
+        private String keyDeserializer = "org.apache.kafka.common.serialization.IntegerDeserializer";
+        private String valueDeserializer = "org.apache.kafka.common.serialization.StringDeserializer";
+        private boolean enableAutoCommit = false;
+        private int autoCommitInterval = 1000;
+        private String autoOffsetResetConfig = "none";
+
     }
 
-    @Configuration
     @Data
     public static class CronSchedule
     {
-        String jobName;
-        String jobClassName;
-        String cron;
+        private String jobName;
+        private String jobClassName;
+        private String cron;
     }
 
-    @Configuration
     @Data
     public static class RedisScript
     {
-        String name;
-        String path;
+        private String name;
+        private String path;
     }
 
  
