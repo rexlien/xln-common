@@ -1,0 +1,5 @@
+dependencies {
+
+    compile "org.springframework.boot:spring-boot-starter-web:$boot_version"
+    compile "org.springframework.boot:spring-boot-starter-thymeleaf:$boot_version"
+}
