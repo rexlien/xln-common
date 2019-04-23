@@ -18,14 +18,14 @@ xln.service-config:
         path: "META-INF/script/saddAndGetSize.lua"
   KafkaProducerConfig:
       serverUrls:
-        - 10.127.161.6:9092
+        - 10.127.161.6:30080 #10.231.226.167:9094
       acks: all
       requestTimeout: 30000
   KafkaConfig:
     consumersConifgs:
       kafkaC0:
         serverUrls:
-          - 10.127.161.6:9092
+          - 10.127.161.6:30080
         subscribeTopics:
           - test-xln
         keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -35,8 +35,6 @@ xln.service-config:
         autoCommitInterval : 1000
         autoOffsetResetConfig: "earliest"
 
-
-
   resourcePath:
     - classpath:xln-beans-test.xml
   cronSchedule:
@@ -44,4 +42,9 @@ xln.service-config:
         jobClassName: "xln.common.test.SchedulerTest$AppJob"
         cron: "0 0/1 * * * ?"
 
-
+xln.cache-config:
+  redisCacheConfig:
+    redis0:
+      type: redis
+      redisServerName: redis0
+      ttl: 60000
