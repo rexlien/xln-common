@@ -1,2 +1,12 @@
+
+pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id.startsWith("org.springframework.boot"))
+                useVersion("2.0.6.RELEASE")
+        }
+    }
+}
+
 rootProject.name = 'xln-common'
 
