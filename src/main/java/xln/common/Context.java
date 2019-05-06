@@ -4,9 +4,11 @@ package xln.common;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.Resource;
@@ -19,13 +21,32 @@ import java.util.List;
 
 @Configuration
 @Slf4j
-public class Context {
+public class Context implements ApplicationContextAware {
+
+
+    private static final String DEV_PROFILE = "dev";
+    private static final String LOCAL_PROFILE = "local";
 
     @Autowired
     private GenericApplicationContext context;
 
     @Autowired
     private ServiceConfig serviceConfig;
+
+    private volatile ApplicationContext curContext;
+    private volatile boolean isDev = false;
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        curContext = applicationContext;
+
+        String[] profiles = curContext.getEnvironment().getActiveProfiles();
+        if(profiles.length > 0) {
+            if(profiles[0].equals(DEV_PROFILE) || profiles[0].equals(LOCAL_PROFILE)) {
+                isDev = true;
+            }
+        }
+    }
 
     private static Logger logger = LoggerFactory.getLogger(Context.class);
 
@@ -48,9 +69,10 @@ public class Context {
             logger.error("Resource Load failed");
         }
 
+    }
 
-
-
+    public boolean isDevEnv() {
+        return isDev;
     }
 
 }
