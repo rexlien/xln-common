@@ -37,10 +37,6 @@ xln.service-config:
 
   resourcePath:
     - classpath:xln-beans-test.xml
-  cronSchedule:
-      #- jobName: "AppJob"
-      #  jobClassName: "xln.common.test.SchedulerTest$AppJob"
-      #  cron: "0 0/1 * * * ?"
 
 xln.cache-config:
   redisCacheConfig:
@@ -48,6 +44,14 @@ xln.cache-config:
       type: redis
       redisServerName: redis0
       ttl: 60000
+
+xln.scheduler-config:
+  enable: true
+  threadCount: 1
+  cronSchedule:
+  - jobName: "AppJob"
+    jobClassName: "xln.common.test.SchedulerTest$AppJob"
+    cron: "0 0/1 * * * ?"
 
 xln.mongo-config:
   mongoConfigs:

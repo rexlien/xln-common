@@ -1,31 +1,42 @@
-package xln.common;
+package xln.common.service;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import xln.common.config.SchedulerConfig;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
 
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 
 @Service
+@Slf4j
 public class SchedulerService {
 
+    @Autowired
+    SchedulerConfig config;
 
     @Autowired
-    @Qualifier("xln-QuartzScheduler")
+    ConfigurableBeanFactory beanFactory;
+
+
     Scheduler scheduler;
 
 
-    @Autowired
-    ServiceConfig config;
+    //@Autowired
+    //ServiceConfig config;
 
     public interface Runner
     {
@@ -78,6 +89,23 @@ public class SchedulerService {
     @PostConstruct
     void init()
     {
+        if(!config.isEnable())
+            return;
+
+        SchedulerFactoryBean bean = new SchedulerFactoryBean();
+        Properties prop = new Properties();
+        prop.setProperty("org.quartz.threadPool.threadCount", String.valueOf(config.getThreadCount()));
+        bean.setQuartzProperties(prop);
+        try {
+            bean.afterPropertiesSet();
+        }catch(Exception e) {
+            log.error("scheduler bean create failed", e);
+            return;
+        }
+        beanFactory.registerSingleton("xln-schedulerFactory", bean);
+        //bean = beanFactory.getBean(SchedulerFactoryBean.class);
+        scheduler = bean.getScheduler();
+
         try {
             scheduler.start();
         }catch(Exception e) {
@@ -86,7 +114,7 @@ public class SchedulerService {
         }
 
         //schedule configured cron
-        for(ServiceConfig.CronSchedule schedule : config.getCronSchedule()) {
+        for(SchedulerConfig.CronSchedule schedule : config.getCronSchedule()) {
             try {
                 schedule(schedule.getJobName(), schedule.getJobClassName(), schedule.getCron());
             }catch(ClassNotFoundException ex) {

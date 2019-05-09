@@ -20,7 +20,6 @@ public class ServiceConfig
 {
     private RedisConfig redisConfig = new RedisConfig();
     private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
-    private List<CronSchedule> cronSchedule = new ArrayList<CronSchedule>();
     private List<String> resourcePath;
 
 
@@ -92,14 +91,6 @@ public class ServiceConfig
         private int autoCommitInterval = 1000;
         private String autoOffsetResetConfig = "none";
 
-    }
-
-    @Data
-    public static class CronSchedule
-    {
-        private String jobName;
-        private String jobClassName;
-        private String cron;
     }
 
     @Data
