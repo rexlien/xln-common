@@ -16,7 +16,7 @@ buildscript {
     }
 
     ext {
-        boot_version = '2.0.6.RELEASE'
+        boot_version = '2.1.4.RELEASE'
         enable_webflux = true
         enable_cache = false
     }
