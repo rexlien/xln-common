@@ -25,4 +25,9 @@ public class Operator implements Element {
 
     Element left;
     Element right;
+
+    @Override
+    public Object eval(Evaluator evaluator) {
+        return evaluator.eval(this);
+    }
 }
