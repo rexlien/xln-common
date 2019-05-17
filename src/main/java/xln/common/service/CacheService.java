@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.stereotype.Service;
 import xln.common.cache.CustomCacheResolver;
 import xln.common.config.CacheConfig;
@@ -44,16 +46,19 @@ public class CacheService {
             CacheConfig.RedisCacheConfig config = entry.getValue();
             String redisName = entry.getKey();
 
-            RedisTemplate template = redisService.getStringTemplate(redisName);
+            RedisSerializationContext.SerializationPair<Object> jsonSerializer =
+                    RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer());
+
+            RedisTemplate template = redisService.getObjectTemplate(redisName);
             RedisCacheConfiguration redisCacheConfiguration = RedisCacheConfiguration.defaultCacheConfig();
-            if(config.isAddPrefix())
-                redisCacheConfiguration.usePrefix();
+            if(!config.isAddPrefix())
+                redisCacheConfiguration = redisCacheConfiguration.disableKeyPrefix();
             if(!config.isCacheWhenNull())
-                redisCacheConfiguration.disableCachingNullValues();
-            redisCacheConfiguration.entryTtl(Duration.ofMillis(config.getTtl()));
+                redisCacheConfiguration = redisCacheConfiguration.disableCachingNullValues();
+            redisCacheConfiguration = redisCacheConfiguration.entryTtl(Duration.ofMillis(config.getTtl())).serializeValuesWith(jsonSerializer);
 
             RedisCacheManager redisCacheManager = RedisCacheManager.RedisCacheManagerBuilder.fromConnectionFactory(
-                    template.getConnectionFactory()).build();
+                    template.getConnectionFactory()).cacheDefaults(redisCacheConfiguration).build();
 
             cacheManagers.put(redisName, redisCacheManager);
         }

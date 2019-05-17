@@ -32,7 +32,7 @@ public class CacheConfig {
     public static class RedisCacheConfig {
         private String redisServerName;
         private int ttl = 0;
-        private boolean addPrefix = false;
+        private boolean addPrefix = true;
         private boolean cacheWhenNull = true;
 
     }
