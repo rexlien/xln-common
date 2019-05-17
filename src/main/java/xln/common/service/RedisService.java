@@ -48,6 +48,7 @@ public class RedisService {
         private ReactiveRedisTemplate<String, String> reactStringTemplate;
         private ReactiveRedisTemplate<String, Object> reactObjectTemplate;
         private RedisTemplate<String, String> stringTemplate;
+        private RedisTemplate<String, Object> objTemplate;
     }
     @Autowired
     private ServiceConfig serviceConfig;
@@ -181,6 +182,25 @@ public class RedisService {
             set.setReactObjectTemplate(template);
         }
         return set.getReactObjectTemplate();
+    }
+
+    public RedisTemplate<String, Object> getObjectTemplate(String name) {
+        RedisTemplateSet set = redisTemplateSets.get(name);
+        if (set == null) {
+            return null;
+        }
+        if(set.getObjTemplate() == null) {
+
+            RedisTemplate<String, Object> template = new RedisTemplate<>();
+            template.setConnectionFactory(connectionFactories.get(name));
+            template.setDefaultSerializer(new StringRedisSerializer());
+            template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+            template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+            template.afterPropertiesSet();
+            set.setObjTemplate(template);
+        }
+        return set.getObjTemplate();
+
     }
 
     public RedisTemplate<String, String> getStringTemplate(String name) {

@@ -27,7 +27,7 @@ public class ServiceConfig
     private KafkaConfig kafkaConfig = new KafkaConfig();
 
     @Data
-    public class KafkaConfig
+    public static class KafkaConfig
     {
         private Map<String, KafkaConsumerConfig> consumersConifgs = Collections.EMPTY_MAP;
     }
