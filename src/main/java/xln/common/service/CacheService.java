@@ -44,12 +44,12 @@ public class CacheService {
         for(Map.Entry<String, CacheConfig.RedisCacheConfig> entry : cacheConfig.getRedisCacheConfig().entrySet()) {
 
             CacheConfig.RedisCacheConfig config = entry.getValue();
-            String redisName = entry.getKey();
+            String cacheName = entry.getKey();
 
             RedisSerializationContext.SerializationPair<Object> jsonSerializer =
                     RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer());
 
-            RedisTemplate template = redisService.getObjectTemplate(redisName);
+            RedisTemplate template = redisService.getTemplate(config.getRedisServerName(), Object.class);
             RedisCacheConfiguration redisCacheConfiguration = RedisCacheConfiguration.defaultCacheConfig();
             if(!config.isAddPrefix())
                 redisCacheConfiguration = redisCacheConfiguration.disableKeyPrefix();
@@ -60,7 +60,7 @@ public class CacheService {
             RedisCacheManager redisCacheManager = RedisCacheManager.RedisCacheManagerBuilder.fromConnectionFactory(
                     template.getConnectionFactory()).cacheDefaults(redisCacheConfiguration).build();
 
-            cacheManagers.put(redisName, redisCacheManager);
+            cacheManagers.put(cacheName, redisCacheManager);
         }
 
     }
