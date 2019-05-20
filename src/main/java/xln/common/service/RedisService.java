@@ -30,6 +30,7 @@ import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -184,7 +185,7 @@ public class RedisService {
         return set.getReactObjectTemplate();
     }
 
-    public RedisTemplate<String, Object> getObjectTemplate(String name) {
+    private RedisTemplate<String, Object> getObjectTemplate(String name) {
         RedisTemplateSet set = redisTemplateSets.get(name);
         if (set == null) {
             return null;
@@ -203,7 +204,7 @@ public class RedisService {
 
     }
 
-    public RedisTemplate<String, String> getStringTemplate(String name) {
+    private RedisTemplate<String, String> getStringTemplate(String name) {
 
         RedisTemplateSet set = redisTemplateSets.get(name);
         if (set == null) {
@@ -219,6 +220,16 @@ public class RedisService {
             set.setStringTemplate(template);
         }
         return set.getStringTemplate();
+
+    }
+
+    public <T extends Object> RedisTemplate<String, T> getTemplate(String name, Class<T> valueType) {
+
+        if(valueType == String.class) {
+            return (RedisTemplate<String, T>) getStringTemplate(name);
+        } else {
+            return (RedisTemplate<String, T>) getObjectTemplate(name);
+        }
 
     }
 
