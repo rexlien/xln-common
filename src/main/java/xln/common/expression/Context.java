@@ -1,9 +1,13 @@
 package xln.common.expression;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class Context {
+
+    private Map<String, Map<String, Object>> contextMap = new HashMap<>();
+
 
     public Context(DataProvider provider) {
 
@@ -12,7 +16,12 @@ public class Context {
 
     public interface DataProvider {
 
-        CompletableFuture<Object> resolve(String path);
+        CompletableFuture<Object> resolve(Context context, String path);
+
+    }
+
+    public Map<String, Map<String, Object>> getContextMap() {
+        return contextMap;
     }
 
     public void gatherSource(Evaluator evaluator, Element root) {
@@ -21,7 +30,7 @@ public class Context {
         evaluator.traverse(root, (e) -> {
             if(e instanceof Condition) {
                 Condition c = (Condition) e;
-                sources.put(c.getSrcPath(), provider.resolve(c.getSrcPath()));
+                sources.put(c.getSrcPath(), provider.resolve(this, c.getSrcPath()));
             }
         }, null);
 
@@ -36,4 +45,5 @@ public class Context {
 
     //private Evaluator evaluator;
     private DataProvider provider;
+
 }
