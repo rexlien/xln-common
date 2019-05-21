@@ -223,6 +223,10 @@ public class RedisService {
 
     }
 
+    public LettuceConnectionFactory getConnectionFactory(String name) {
+        return connectionFactories.get(name);
+    }
+
     public RedisScript<Object> loadScript(String name, String path) {
         ScriptSource scriptSource = new ResourceScriptSource(new ClassPathResource(path));
         try {
