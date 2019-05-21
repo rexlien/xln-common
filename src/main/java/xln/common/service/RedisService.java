@@ -6,8 +6,6 @@ import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisNode;
@@ -25,15 +23,12 @@ import org.springframework.scripting.ScriptSource;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import xln.common.config.RedisConfig;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,11 +48,6 @@ public class RedisService {
     }
     @Autowired
     private ServiceConfig serviceConfig;
-
-    @Autowired
-    @Qualifier("xln-redisReactiveObjTemplate")
-    private ReactiveRedisTemplate<String, Object> reactiveRedisTemplate;
-
 
     private HashMap<String, LettuceConnectionFactory> connectionFactories = new HashMap<>();
     private HashMap<String, RedisTemplateSet> redisTemplateSets = new HashMap<>();
@@ -127,7 +117,7 @@ public class RedisService {
             loadScript(scriptConfig.getName(), scriptConfig.getPath());
         }
 
-        for(Map.Entry<String, ServiceConfig.RedisServerConfig> kv : serviceConfig.getRedisConfig2().getRedisServerConfigs().entrySet()) {
+        for(Map.Entry<String, ServiceConfig.RedisServerConfig> kv : serviceConfig.getRedisConfig().getRedisServerConfigs().entrySet()) {
             if(kv.getValue().getType() == ServiceConfig.RedisServerConfig.RedisType.SINGLE) {
                 connectionFactories.put(kv.getKey(), singleConnectionFactory(kv.getValue()));
                 redisTemplateSets.put(kv.getKey(), new RedisTemplateSet());
@@ -250,15 +240,6 @@ public class RedisService {
         return redisScripts.get(name);
     }
 
-    public Flux<Object> runScript(String name, List<String> keyParams, List<String> argParams) {
-
-        RedisScript<Object> script = redisScripts.get(name);
-        if(script != null)
-            return reactiveRedisTemplate.execute(script, keyParams, argParams);
-        else {
-            return null;
-        }
-    }
 
     public Flux<Object> runScript(String serverName, String name, List<String> keyParams, List<String> argParams) {
 

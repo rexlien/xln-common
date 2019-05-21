@@ -18,12 +18,11 @@ import java.util.*;
 @Data
 public class ServiceConfig
 {
-    private RedisConfig redisConfig = new RedisConfig();
     private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
     private List<String> resourcePath;
 
 
-    private RedisConfig2 redisConfig2 = new RedisConfig2();
+    private RedisConfig redisConfig = new RedisConfig();
     private KafkaConfig kafkaConfig = new KafkaConfig();
 
     @Data
@@ -35,16 +34,6 @@ public class ServiceConfig
 
     @Data
     public static class RedisConfig
-    {
-        private String password;
-        private List<String> URI = Collections.singletonList("redis://127.0.0.1:6379");
-        private boolean slaveRead = false;
-        private List<RedisScript> script = Collections.EMPTY_LIST;
-
-    }
-
-    @Data
-    public static class RedisConfig2
     {
         private Map<String, RedisServerConfig> redisServerConfigs = Collections.EMPTY_MAP;
         private List<RedisScript> script = Collections.EMPTY_LIST;
