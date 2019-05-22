@@ -11,6 +11,8 @@ dependencies {
     compile group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
     if(project.enable_cache == true) {
         compile group: 'org.springframework.boot', name: 'spring-boot-starter-cache', version: "$boot_version"
+        compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'
+
     }
     compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "$boot_version"
     compile 'org.mongodb:mongodb-driver-reactivestreams:1.11.0'

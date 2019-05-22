@@ -37,8 +37,14 @@ public class CacheConfig {
 
     }
 
-    private Map<String, RedisCacheConfig> redisCacheConfig = new HashMap<>();
+    @Data
+    public static class CaffeineConfig {
+        private int maxSize = -1;
+        private int expireAccess = -1;
+    }
 
+    private Map<String, RedisCacheConfig> redisCacheConfig = new HashMap<>();
+    private Map<String, CaffeineConfig> caffeineConfig = new HashMap<>();
 
 
 
