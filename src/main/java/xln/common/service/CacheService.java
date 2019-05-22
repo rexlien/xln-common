@@ -2,6 +2,7 @@ package xln.common.service;
 
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.CacheManager;
@@ -26,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class CacheService {
 
 
@@ -48,6 +50,12 @@ public class CacheService {
         for(Map.Entry<String, CacheConfig.RedisCacheConfig> entry : cacheConfig.getRedisCacheConfig().entrySet()) {
 
             CacheConfig.RedisCacheConfig config = entry.getValue();
+
+            if(!redisService.containsServer(config.getRedisServerName())) {
+                log.error("cache server not exist:" + config.getRedisServerName());
+                return;
+
+            }
             String cacheName = entry.getKey();
 
             RedisSerializationContext.SerializationPair<Object> jsonSerializer =

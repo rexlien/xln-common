@@ -239,6 +239,10 @@ public class RedisService {
         }
     }
 
+    public boolean containsServer(String name) {
+        return (redisTemplateSets.get(name) != null);
+    }
+
 
     public RedisScript<Object> getScript(String name) {
         return redisScripts.get(name);
