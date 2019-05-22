@@ -53,7 +53,7 @@ public class CacheService {
 
             if(!redisService.containsServer(config.getRedisServerName())) {
                 log.error("cache server not exist:" + config.getRedisServerName());
-                return;
+                continue;
 
             }
             String cacheName = entry.getKey();
