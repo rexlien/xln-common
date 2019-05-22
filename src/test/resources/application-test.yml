@@ -36,9 +36,12 @@ xln.service-config:
 xln.cache-config:
   redisCacheConfig:
     redis0:
-      type: redis
       redisServerName: redis0
       ttl: 60000
+  caffeineConfig:
+    ca0:
+      maxSize: 1
+      #expireAccess: 1000
 
 xln.scheduler-config:
   enable: true

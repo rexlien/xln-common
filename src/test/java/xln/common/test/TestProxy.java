@@ -10,11 +10,16 @@ import xln.common.annotation.XLNCacheable;
 public class TestProxy {
 
     @XLNCacheable(cacheManagerID = "redis0")
-    @Cacheable(cacheResolver = "xln-CacheResolver", cacheNames = "myKey")
+    @Cacheable(cacheResolver = "xln-CacheResolver", cacheNames = "myCache")
     public String cache(String key) {
-        return "test";
+        return "value";
     }
 
+    @XLNCacheable(cacheManagerID = "ca0")
+    @Cacheable(cacheResolver = "xln-CacheResolver", cacheNames = "myCache")
+    public String caffieneCache(String key) {
+        return "value";
+    }
 
 
 }
