@@ -89,7 +89,7 @@ public class MongoService {
     private ConcurrentMap<String, MongoServer> mongoServers = new ConcurrentHashMap<>();
 
     public MongoTemplate getMongoTemplate(String name) {
-        return mongoServers.get(name).getMongoTemplate();
+        return mongoServers.get(name) != null?mongoServers.get(name).getMongoTemplate():null;
     }
 
 
