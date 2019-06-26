@@ -4,7 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /*
-null & null -> false
+null & null -> true
 left & null -> left
  */
 
@@ -16,6 +16,7 @@ public class Operator implements Element {
     public static final int OP_TYPE_EQUAL = 2;
     public static final int OP_TYPE_GREATER = 3;
     public static final int OP_TYPE_LESS = 4;
+    public static final int OP_TYPE_CONTAINS = 5;
 
     public Operator(Element left) {
         this.left = left;

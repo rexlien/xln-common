@@ -1,9 +1,15 @@
 package xln.common.expression;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 public class Context {
 
     private Map<String, Map<String, Object>> contextMap = new HashMap<>();
@@ -12,11 +18,44 @@ public class Context {
     public Context(DataProvider provider) {
 
         this.provider = provider;
+        this.provider.initialize(this);
+
     }
 
-    public interface DataProvider {
+    public static abstract class DataProvider {
 
-        CompletableFuture<Object> resolve(Context context, String path);
+        public abstract CompletableFuture<Object> resolve(Context context, String scheme, String path, MultiValueMap params);
+
+        public void initialize(Context context) {
+
+        }
+
+        public CompletableFuture<Object> resolve(Context context, String path) {
+
+            URI uri;
+            try {
+                uri = new URI(path);
+            }catch (Exception ex) {
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                ex.printStackTrace();
+                future.complete(null);
+                return future;
+            }
+            if(uri.getScheme() != null) {
+
+                MultiValueMap<String, String> parameters =
+                        UriComponentsBuilder.fromUri(uri).build().getQueryParams();
+
+                //String key = parameters.getFirst("key");
+                return resolve(context, uri.getScheme(), uri.getPath(),  parameters);
+            } else {
+
+                log.warn("path needs to have scheme");
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                future.complete(null);
+                return future;
+            }
+        }
 
     }
 

@@ -24,7 +24,7 @@ public class ConditionEvaluator implements Evaluator{
     //implementation assuming all boolean
     public Object eval(Operator operator) {
         if(operator.left == null && operator.right == null) {
-            return false;
+            return true;
         }
         else if(operator.left != null && operator.right != null) {
             if(operator.op == Operator.OP_TYPE_AND) {
@@ -39,6 +39,36 @@ public class ConditionEvaluator implements Evaluator{
         else {
             return operator.right.eval(this);
         }
+    }
+
+    @Override
+    public boolean eval(LogicalOperator operator) {
+        if(operator.getOp() != Operator.OP_TYPE_AND && operator.getOp() != Operator.OP_TYPE_OR) {
+            log.error("Operator type can only be OR or AND");
+            return false;
+        }
+        if(operator.getElements() == null || operator.getElements().isEmpty()) {
+            return true;
+        }
+        Boolean ret = null;
+        for(Element elem : operator.getElements()) {
+
+            if(elem instanceof Condition || elem instanceof Operator) {
+                if (ret == null) {
+                    ret = (boolean) elem.eval(this);
+                } else {
+                    if (operator.getOp() == Operator.OP_TYPE_AND) {
+                        ret &= (boolean) elem.eval(this);
+                    } else {
+                        ret |= (boolean) elem.eval(this);
+                    }
+                }
+            } else {
+                log.error("element must be Condition or Operator");
+                return false;
+            }
+        }
+        return ret;
     }
 
 
@@ -79,7 +109,6 @@ public class ConditionEvaluator implements Evaluator{
     @Override
     public void traverse(Element root, Consumer<Element> visitCB, Runnable finishCB) {
 
-        //in-order traverse
         Stack<Element> s = new Stack<>();
         s.push(root);
         while(!s.empty()) {
@@ -92,6 +121,12 @@ public class ConditionEvaluator implements Evaluator{
                 }
                 if(op.left != null) {
                     s.push(op.left);
+                }
+            } else if(e instanceof LogicalOperator) {
+                LogicalOperator op = (LogicalOperator)e;
+                visitCB.accept(e);
+                for(Element elem : op.getElements()) {
+                    s.push(elem);
                 }
             }
             else {
