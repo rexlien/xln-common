@@ -26,6 +26,7 @@ public class Context implements ApplicationContextAware {
 
     private static final String DEV_PROFILE = "dev";
     private static final String LOCAL_PROFILE = "local";
+    private static final String TEST_PROFILE = "test";
 
     @Autowired
     private GenericApplicationContext context;
@@ -35,17 +36,23 @@ public class Context implements ApplicationContextAware {
 
     private volatile ApplicationContext curContext;
     private volatile boolean isDev = false;
+    private volatile boolean isTest = false;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         curContext = applicationContext;
 
         String[] profiles = curContext.getEnvironment().getActiveProfiles();
-        if(profiles.length > 0) {
-            if(profiles[0].equals(DEV_PROFILE) || profiles[0].equals(LOCAL_PROFILE)) {
+
+        for(String profile : profiles) {
+
+            if (profile.equals(DEV_PROFILE) || profile.equals(LOCAL_PROFILE)) {
                 isDev = true;
+            } else if(profile.equals(TEST_PROFILE)) {
+                isTest = true;
             }
         }
+        //}
     }
 
     private static Logger logger = LoggerFactory.getLogger(Context.class);
@@ -73,6 +80,10 @@ public class Context implements ApplicationContextAware {
 
     public boolean isDevEnv() {
         return isDev;
+    }
+
+    public boolean isTestEnv() {
+        return isTest;
     }
 
 }
