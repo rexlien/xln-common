@@ -8,6 +8,8 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class Context {
@@ -24,13 +26,40 @@ public class Context {
 
     public static abstract class DataProvider {
 
-        public abstract CompletableFuture<Object> resolve(Context context, String scheme, String path, MultiValueMap params);
+        public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String path, MultiValueMap params);
+
+        public String getPathReplacement(String placeholder) {
+            return "";
+        }
 
         public void initialize(Context context) {
 
         }
 
+
+        private String patternReplace(String path) {
+
+
+            Pattern p = Pattern.compile(REGEX_PATTERN);
+            Matcher m = p.matcher(path);
+            StringBuffer sb = new StringBuffer();
+
+            while(m.find()) {
+
+                String placeholder = m.group(1);
+                if(placeholder != null) {
+                    m.appendReplacement(sb, getPathReplacement(placeholder));
+                }
+            }
+            m.appendTail(sb);
+
+            return sb.toString();
+        }
+
         public CompletableFuture<Object> resolve(Context context, String path) {
+
+            path = patternReplace(path);
 
             URI uri;
             try {
@@ -47,7 +76,7 @@ public class Context {
                         UriComponentsBuilder.fromUri(uri).build().getQueryParams();
 
                 //String key = parameters.getFirst("key");
-                return resolve(context, uri.getScheme(), uri.getPath(),  parameters);
+                return resolveURL(context, uri.getScheme(), uri.getPath(),  parameters);
             } else {
 
                 log.warn("path needs to have scheme");

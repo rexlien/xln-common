@@ -2,6 +2,8 @@ package xln.common.expression;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -80,25 +82,36 @@ public class ConditionEvaluator implements Evaluator{
             log.error("could not get context source", e);
         }
         if(src != null) {
+            if(condition.getOp() == Operator.OP_TYPE_CONTAINS) {
 
-            //only same type is comparable
-            if(src.getClass() !=  condition.getTarget().getClass()) {
-                return false;
-            }
+                if(src instanceof Map) {
+                    Map map = (Map)src;
+                    return map.containsKey(condition.getTarget());
+                } else {
+                    log.error("Only map src can check contains condition");
+                    return false;
+                }
+            } else {
 
-            //only type is comparable can compare
-            if(src instanceof Comparable && condition.getTarget() instanceof Comparable) {
-                Comparable comp1 = (Comparable)src;
-                Comparable comp2 = (Comparable)condition.getTarget();
-                int res = comp1.compareTo(comp2);
-                if(condition.getOp() == Operator.OP_TYPE_GREATER) {
-                    return res > 0;
-                } else if(condition.getOp() == Operator.OP_TYPE_LESS) {
-                    return res < 0;
-                } else if(condition.getOp() == Operator.OP_TYPE_EQUAL) {
-                    return res == 0;
+                //only same type is comparable
+                if (src.getClass() != condition.getTarget().getClass()) {
+                    return false;
                 }
 
+                //only type is comparable can compare
+                if (src instanceof Comparable && condition.getTarget() instanceof Comparable) {
+                    Comparable comp1 = (Comparable) src;
+                    Comparable comp2 = (Comparable) condition.getTarget();
+                    int res = comp1.compareTo(comp2);
+                    if (condition.getOp() == Operator.OP_TYPE_GREATER) {
+                        return res > 0;
+                    } else if (condition.getOp() == Operator.OP_TYPE_LESS) {
+                        return res < 0;
+                    } else if (condition.getOp() == Operator.OP_TYPE_EQUAL) {
+                        return res == 0;
+                    }
+
+                }
             }
 
         }
