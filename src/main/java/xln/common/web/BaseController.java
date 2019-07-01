@@ -26,7 +26,7 @@ public class BaseController
     @ExceptionHandler(HttpException.class)
     public ResponseEntity handleAPIRequestException(HttpException ex) {
 
-        return new ResponseEntity(ex.getStatus());
+        return new ResponseEntity(ex.getBody(), ex.getStatus());
     }
 
 
