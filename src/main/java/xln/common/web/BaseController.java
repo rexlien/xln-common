@@ -29,6 +29,15 @@ public class BaseController
         return new ResponseEntity(ex.getBody(), ex.getStatus());
     }
 
+    @ExceptionHandler(BaseResponseException.class)
+    public ResponseEntity handleBaseResponseException(BaseResponseException ex) {
+
+        BaseResponse response = new BaseResponse();
+        response.setResult(ex.getErrorCode(), ex.getErrorDescription());
+        return new ResponseEntity(response, HttpStatus.OK);
+
+    }
+
 
     protected void addCookie(ServerHttpResponse response, String key, String value, int seconds) {
         response.addCookie(ResponseCookie.from(key, value).
