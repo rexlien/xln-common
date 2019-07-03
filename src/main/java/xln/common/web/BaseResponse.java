@@ -23,7 +23,7 @@ public class BaseResponse {
 
     @JsonIgnore
     public void setResult(int resultCode, String description) {
-        resultCode = resultCode;
+        this.resultCode = resultCode;
         addProperty("_description", description);
     }
 

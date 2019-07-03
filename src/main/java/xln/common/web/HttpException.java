@@ -12,7 +12,7 @@ import org.springframework.http.HttpStatus;
 @NoArgsConstructor
 public class HttpException extends RuntimeException {
 
-    HttpStatus status;
-    String body;
+    private HttpStatus status;
+    private String body;
 
 }
