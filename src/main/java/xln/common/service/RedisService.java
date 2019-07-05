@@ -223,6 +223,16 @@ public class RedisService {
 
     }
 
+    public <T extends Object> ReactiveRedisTemplate<String, T> getReactiveTemplate(String name, Class<T> valueType) {
+
+        if(valueType == String.class) {
+            return (ReactiveRedisTemplate<String, T>) getStringReactiveTemplate(name);
+        } else {
+            return (ReactiveRedisTemplate<String, T>) getObjectReactiveTemplate(name);
+        }
+
+    }
+
     public LettuceConnectionFactory getConnectionFactory(String name) {
         return connectionFactories.get(name);
     }
@@ -230,7 +240,7 @@ public class RedisService {
     public RedisScript<Object> loadScript(String name, String path) {
         ScriptSource scriptSource = new ResourceScriptSource(new ClassPathResource(path));
         try {
-            RedisScript<Object> script = RedisScript.of(scriptSource.getScriptAsString());
+            RedisScript<Object> script = RedisScript.of(scriptSource.getScriptAsString(), Object.class);
             redisScripts.put(name, script);
             return script;
         }catch(IOException ex) {
@@ -248,7 +258,7 @@ public class RedisService {
         return redisScripts.get(name);
     }
 
-
+/*
     public Flux<Object> runScript(String serverName, String name, List<String> keyParams, List<String> argParams) {
 
         ReactiveRedisTemplate<String, Object> template = getObjectReactiveTemplate(serverName);
@@ -258,6 +268,26 @@ public class RedisService {
         RedisScript<Object> script = redisScripts.get(name);
         if(script != null)
             return template.execute(script, keyParams, argParams);
+        else {
+            return null;
+        }
+    }
+*/
+    public Flux<Object> runScript(ReactiveRedisTemplate<String, Object> redisTemplate, String scriptName, List<String> keyParams, List<String> argParams) {
+
+        RedisScript<Object> script = redisScripts.get(scriptName);
+        if(script != null)
+            return redisTemplate.execute(script, keyParams, argParams);
+        else {
+            return null;
+        }
+    }
+
+    public Object runScript(RedisTemplate<String, Object> redisTemplate, String scriptName, List<String> keyParams, Object... argParams) {
+
+        RedisScript<Object> script = redisScripts.get(scriptName);
+        if(script != null)
+            return redisTemplate.execute(script, keyParams, argParams);
         else {
             return null;
         }
