@@ -78,6 +78,19 @@ public class Context implements ApplicationContextAware {
 
     }
 
+    public boolean profilesContain(String profileName) {
+
+        String[] profiles = curContext.getEnvironment().getActiveProfiles();
+
+        for(String profile : profiles) {
+
+            if (profile.equals(profileName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean isDevEnv() {
         return isDev;
     }
