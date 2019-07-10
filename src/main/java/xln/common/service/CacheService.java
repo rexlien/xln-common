@@ -21,6 +21,7 @@ import xln.common.config.CacheConfig;
 
 import javax.annotation.PostConstruct;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -70,7 +71,7 @@ public class CacheService {
 
             RedisCacheManager redisCacheManager = RedisCacheManager.RedisCacheManagerBuilder.fromConnectionFactory(
                     redisService.getConnectionFactory(config.getRedisServerName())).cacheDefaults(redisCacheConfiguration).build();
-
+            redisCacheManager.getCache(entry.getKey());
             cacheManagers.put(cacheName, redisCacheManager);
         }
 
@@ -87,6 +88,7 @@ public class CacheService {
                 builder = builder.expireAfterAccess(entry.getValue().getExpireAccess(), TimeUnit.MILLISECONDS);
             }
             caffeineCacheManager.setCaffeine(builder);
+            caffeineCacheManager.setCacheNames(Collections.singletonList(entry.getKey()));
             cacheManagers.put(entry.getKey(), caffeineCacheManager);
         }
 

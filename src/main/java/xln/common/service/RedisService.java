@@ -15,6 +15,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -45,6 +46,7 @@ public class RedisService {
         private ReactiveRedisTemplate<String, Object> reactObjectTemplate;
         private RedisTemplate<String, String> stringTemplate;
         private RedisTemplate<String, Object> objTemplate;
+        //private RedisMessageListenerContainer container;
     }
     @Autowired
     private ServiceConfig serviceConfig;
