@@ -41,6 +41,8 @@ xln.cache-config:
   caffeineConfig:
     ca0:
       maxSize: 1
+      expirePolicy : "write"
+      expireTime: -1
       #expireAccess: 1000
 
 xln.scheduler-config:

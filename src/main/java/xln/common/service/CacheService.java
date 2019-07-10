@@ -2,7 +2,10 @@ package xln.common.service;
 
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.CacheManager;
@@ -84,8 +87,29 @@ public class CacheService {
             if(entry.getValue().getMaxSize() > 0) {
                 builder = builder.maximumSize(entry.getValue().getMaxSize());
             }
-            if(entry.getValue().getExpireAccess() > 0) {
-                builder = builder.expireAfterAccess(entry.getValue().getExpireAccess(), TimeUnit.MILLISECONDS);
+            if(entry.getValue().getExpireTime() > 0) {
+                if(entry.getValue().getExpirePolicy() == CacheConfig.CaffeineConfig.ExpirePolicy.WRITE) {
+                    builder = builder.expireAfterWrite(entry.getValue().getExpireTime(), TimeUnit.MILLISECONDS);
+                } else if(entry.getValue().getExpirePolicy() == CacheConfig.CaffeineConfig.ExpirePolicy.ACCESS) {
+                    builder = builder.expireAfterAccess(entry.getValue().getExpireTime(), TimeUnit.MILLISECONDS);
+                } else {
+                    builder = builder.expireAfter(new Expiry<Object, Object>() {
+                        @Override
+                        public long expireAfterCreate(@NonNull Object key, @NonNull Object value, long currentTime) {
+                            return TimeUnit.MILLISECONDS.toNanos(entry.getValue().getExpireTime());
+                        }
+                        @Override
+                        public long expireAfterUpdate(@NonNull Object key, @NonNull Object value, long currentTime, @NonNegative long currentDuration) {
+                            return currentDuration;
+                        }
+
+                        @Override
+                        public long expireAfterRead(@NonNull Object key, @NonNull Object value, long currentTime, @NonNegative long currentDuration) {
+                            return currentDuration;
+                        }
+                    });
+
+                }
             }
             caffeineCacheManager.setCaffeine(builder);
             caffeineCacheManager.setCacheNames(Collections.singletonList(entry.getKey()));

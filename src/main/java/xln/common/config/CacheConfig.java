@@ -40,7 +40,22 @@ public class CacheConfig {
     @Data
     public static class CaffeineConfig {
         private int maxSize = -1;
-        private int expireAccess = -1;
+
+        public enum ExpirePolicy {
+            ACCESS("access"),
+            WRITE("write"),
+            CREATION("creation");
+
+            private String type;
+
+            ExpirePolicy(String type) {
+                this.type = type;
+            }
+        }
+
+        ExpirePolicy expirePolicy = ExpirePolicy.WRITE;
+        private int expireTime = -1;
+
     }
 
     private Map<String, RedisCacheConfig> redisCacheConfig = new HashMap<>();
