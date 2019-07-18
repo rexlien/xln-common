@@ -3,6 +3,7 @@ package xln.common.service;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderOptions;
+import xln.common.config.KafkaConfig;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
@@ -31,13 +33,14 @@ public class KafkaService
 {
     private static Logger logger = LoggerFactory.getLogger(KafkaService.class);
 
-    private ServiceConfig.KafkaProducerConfig producerConfig;
-    private Map<String, ServiceConfig.KafkaConsumerConfig> consumerConfigs;
+    private Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
+    private Map<String, KafkaConfig.KafkaConsumerConfig> consumerConfigs;
 
     private KafkaSender<Integer, Object> sender;
 
-    private Map<String, Object> producerProp = new HashMap<>();
+    //private Map<String, Object> producerProp = new HashMap<>();
 
+    private Map<String, Map<String, Object>> producerProps = new HashMap<>();
     private Map<String, Map<String, Object>> consumerProps = new HashMap<>();
 
 
@@ -45,7 +48,7 @@ public class KafkaService
     private AtomicInteger uid = new AtomicInteger(0);
 
     @Autowired
-    private ServiceConfig serviceConfig;
+    private KafkaConfig kafkaConfig;
 
     public KafkaService() {
 
@@ -53,30 +56,36 @@ public class KafkaService
 
     @PostConstruct
     private void init() {
-        producerConfig = serviceConfig.getKafkaProducerConfig();
-        if(producerConfig != null) {
+        producerConfigs = kafkaConfig.getProducerConfigs();
+        if(producerConfigs != null) {
+            for(Map.Entry<String, KafkaConfig.KafkaProducerConfig> kv : producerConfigs.entrySet()) {
 
-            StringBuilder builder = new StringBuilder();
-            boolean firstIter = true;
-            for(String url : producerConfig.getServerUrls()) {
+                StringBuilder builder = new StringBuilder();
+                boolean firstIter = true;
+                for (String url : kv.getValue().getServerUrls()) {
 
-                if(firstIter) {
-                    firstIter = false;
-                } else {
-                    builder.append(",");
+                    if (firstIter) {
+                        firstIter = false;
+                    } else {
+                        builder.append(",");
+                    }
+                    builder.append(url);
                 }
-                builder.append(url);
+
+                Map<String, Object> props = new HashMap<>();
+                props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, builder.toString());
+
+                props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, kv.getValue().getRequestTimeout());
+                props.put(ProducerConfig.ACKS_CONFIG, kv.getValue().getAcks());
+                props.put(ProducerConfig.RETRIES_CONFIG, kv.getValue().getRetryCount());
+
+
+                producerProps.put(kv.getKey(), props);
             }
-            producerProp.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, builder.toString());
-
-            producerProp.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, producerConfig.getRequestTimeout());
-            producerProp.put(ProducerConfig.ACKS_CONFIG, producerConfig.getAcks());
-
-
         }
 
-        consumerConfigs = serviceConfig.getKafkaConfig().getConsumersConifgs();
-        for(Map.Entry<String, ServiceConfig.KafkaConsumerConfig> kv : consumerConfigs.entrySet()) {
+        consumerConfigs = kafkaConfig.getConsumersConfigs();
+        for(Map.Entry<String, KafkaConfig.KafkaConsumerConfig> kv : consumerConfigs.entrySet()) {
 
             StringBuilder builder = new StringBuilder();
             boolean firstIter = true;
@@ -111,9 +120,9 @@ public class KafkaService
         }
     }
 
-    public <K, V, T, U> KafkaSender<K, V> createProducer(Class<T> kClass, Class<U> vClass) {
+    public <K, V, T, U> KafkaSender<K, V> createProducer(String producerConfig, Class<T> kClass, Class<U> vClass) {
 
-        HashMap<String, Object> newMap = new HashMap<String, Object>(producerProp);
+        HashMap<String, Object> newMap = new HashMap<String, Object>(producerProps.get(producerConfig));
 
         newMap.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kClass);
         newMap.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, vClass);
@@ -123,9 +132,9 @@ public class KafkaService
 
     };
 
-    public <T> KafkaSender<String, Object> createProducer(String name, Class<T> valueSerializer) {
+    public <T> KafkaSender<String, Object> createProducer(String name, String producerConfig, Class<T> valueSerializer) {
 
-        KafkaSender<String, Object> sender = createProducer(String.class, valueSerializer);
+        KafkaSender<String, Object> sender = createProducer(producerConfig, StringSerializer.class, valueSerializer);
         kafkaSenders.put(name, sender);
         return sender;
 

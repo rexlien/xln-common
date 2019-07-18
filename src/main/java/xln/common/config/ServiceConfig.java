@@ -18,18 +18,11 @@ import java.util.*;
 @Data
 public class ServiceConfig
 {
-    private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
+    //private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
     private List<String> resourcePath;
 
 
     private RedisConfig redisConfig = new RedisConfig();
-    private KafkaConfig kafkaConfig = new KafkaConfig();
-
-    @Data
-    public static class KafkaConfig
-    {
-        private Map<String, KafkaConsumerConfig> consumersConifgs = Collections.EMPTY_MAP;
-    }
 
 
     @Data
@@ -59,7 +52,7 @@ public class ServiceConfig
         private List<String> URI;
         private boolean slaveRead = false;
     }
-
+/*
     @Data
     public static class KafkaProducerConfig
     {
@@ -81,7 +74,7 @@ public class ServiceConfig
         private String autoOffsetResetConfig = "none";
 
     }
-
+*/
     @Data
     public static class RedisScript
     {
