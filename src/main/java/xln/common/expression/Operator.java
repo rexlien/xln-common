@@ -17,6 +17,8 @@ public class Operator implements Element {
     public static final int OP_TYPE_GREATER = 3;
     public static final int OP_TYPE_LESS = 4;
     public static final int OP_TYPE_CONTAINS = 5;
+    public static final int OP_TYPE_GREATER_OR_EQUAL = 6;
+    public static final int OP_TYPE_LESS_OR_EQUAL = 7;
 
     public Operator(Element left) {
         this.left = left;

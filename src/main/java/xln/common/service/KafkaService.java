@@ -122,7 +122,10 @@ public class KafkaService
 
     public <K, V, T, U> KafkaSender<K, V> createProducer(String producerConfig, Class<T> kClass, Class<U> vClass) {
 
-        HashMap<String, Object> newMap = new HashMap<String, Object>(producerProps.get(producerConfig));
+        if(producerProps.get(producerConfig) == null) {
+            return null;
+        }
+        HashMap<String, Object> newMap = new HashMap<>(producerProps.get(producerConfig));
 
         newMap.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kClass);
         newMap.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, vClass);
@@ -135,7 +138,9 @@ public class KafkaService
     public <T> KafkaSender<String, Object> createProducer(String name, String producerConfig, Class<T> valueSerializer) {
 
         KafkaSender<String, Object> sender = createProducer(producerConfig, StringSerializer.class, valueSerializer);
-        kafkaSenders.put(name, sender);
+        if(sender != null) {
+            kafkaSenders.put(name, sender);
+        }
         return sender;
 
     };
