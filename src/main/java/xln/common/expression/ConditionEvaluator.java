@@ -110,9 +110,9 @@ public class ConditionEvaluator implements Evaluator{
                     } else if (condition.getOp() == Operator.OP_TYPE_EQUAL) {
                         return res == 0;
                     } else if (condition.getOp() == Operator.OP_TYPE_GREATER_OR_EQUAL) {
-                        return (res > 0 || res == 0);
+                        return (res >= 0);
                     } else if(condition.getOp() == Operator.OP_TYPE_LESS_OR_EQUAL) {
-                        return (res < 0 || res == 0);
+                        return (res <= 0);
                     }
 
                 }

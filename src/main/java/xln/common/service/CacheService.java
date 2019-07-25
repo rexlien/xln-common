@@ -9,9 +9,11 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.cache.config.CacheManagementConfigUtils;
 import org.springframework.cache.interceptor.CacheResolver;
+import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
@@ -25,6 +27,8 @@ import xln.common.config.CacheConfig;
 import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -39,6 +43,8 @@ public class CacheService {
     public CacheResolver cacheResolver() {
         return new CustomCacheResolver(this);
     }
+
+    public static final String CAFFEINE_CACHE_MANAGER_NAME = "caffeine";
 
     @Autowired
     private RedisService redisService;
@@ -79,9 +85,12 @@ public class CacheService {
         }
 
 
+        SimpleCacheManager simpleCacheManager = new SimpleCacheManager();
+        List<CaffeineCache> caffeineCacheList = new LinkedList<>();
+
         for(Map.Entry<String, CacheConfig.CaffeineConfig> entry : cacheConfig.getCaffeineConfig().entrySet()) {
 
-            CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+            //CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
             Caffeine<Object, Object> builder = Caffeine.newBuilder();
 
             if(entry.getValue().getMaxSize() > 0) {
@@ -111,10 +120,13 @@ public class CacheService {
 
                 }
             }
-            caffeineCacheManager.setCaffeine(builder);
-            caffeineCacheManager.setCacheNames(Collections.singletonList(entry.getKey()));
-            cacheManagers.put(entry.getKey(), caffeineCacheManager);
+            CaffeineCache caffeineCache = new CaffeineCache(entry.getKey(), builder.build());
+            caffeineCacheList.add(caffeineCache);
+
         }
+        simpleCacheManager.setCaches(caffeineCacheList);
+        simpleCacheManager.initializeCaches();
+        cacheManagers.put(CAFFEINE_CACHE_MANAGER_NAME, simpleCacheManager);
 
 
     }
