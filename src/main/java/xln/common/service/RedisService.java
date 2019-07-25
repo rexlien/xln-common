@@ -1,8 +1,14 @@
 package xln.common.service;
 
 
+import io.lettuce.core.KeyValue;
 import io.lettuce.core.ReadFrom;
 import lombok.Data;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.ClusterServersConfig;
+import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +21,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -27,6 +32,7 @@ import reactor.core.publisher.Flux;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -41,18 +47,19 @@ public class RedisService {
     private static Logger logger = LoggerFactory.getLogger(RedisService.class);
 
     @Data
-    private static class RedisTemplateSet {
+    private static class RedisClientSet {
         private ReactiveRedisTemplate<String, String> reactStringTemplate;
         private ReactiveRedisTemplate<String, Object> reactObjectTemplate;
         private RedisTemplate<String, String> stringTemplate;
         private RedisTemplate<String, Object> objTemplate;
+        private RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
     @Autowired
     private ServiceConfig serviceConfig;
 
     private HashMap<String, LettuceConnectionFactory> connectionFactories = new HashMap<>();
-    private HashMap<String, RedisTemplateSet> redisTemplateSets = new HashMap<>();
+    private HashMap<String, RedisClientSet> redisClientSets = new HashMap<>();
 
     private static LettuceConnectionFactory clusterConnectionFactory(ServiceConfig.RedisServerConfig config) {
 
@@ -122,20 +129,59 @@ public class RedisService {
         for(Map.Entry<String, ServiceConfig.RedisServerConfig> kv : serviceConfig.getRedisConfig().getRedisServerConfigs().entrySet()) {
             if(kv.getValue().getType() == ServiceConfig.RedisServerConfig.RedisType.SINGLE) {
                 connectionFactories.put(kv.getKey(), singleConnectionFactory(kv.getValue()));
-                redisTemplateSets.put(kv.getKey(), new RedisTemplateSet());
+                RedisClientSet clientSet = new RedisClientSet();
+                if(kv.getValue().isUseRedisson()) {
+                    Config config = new Config();
+                    SingleServerConfig singleConfig = config.useSingleServer();
+
+                    for (String uri : kv.getValue().getURI()) {
+                        singleConfig.setAddress(uri);
+                    }
+                    singleConfig.setPassword(kv.getValue().getPassword());
+                    clientSet.redisson = Redisson.create(config);
+                }
+                redisClientSets.put(kv.getKey(),clientSet);
             }
             else if(kv.getValue().getType() == ServiceConfig.RedisServerConfig.RedisType.CLUSTER) {
+
                 connectionFactories.put(kv.getKey(), clusterConnectionFactory(kv.getValue()));
-                redisTemplateSets.put(kv.getKey(), new RedisTemplateSet());
+                RedisClientSet clientSet = new RedisClientSet();
+
+                if(kv.getValue().isUseRedisson()) {
+                    Config config = new Config();
+                    ClusterServersConfig clusterConfig = config.useClusterServers();
+
+                    for (String uri : kv.getValue().getURI()) {
+                        clusterConfig.addNodeAddress(uri);
+                    }
+                    clusterConfig.setPassword(kv.getValue().getPassword());
+                    clientSet.redisson = Redisson.create(config);
+                }
+                redisClientSets.put(kv.getKey(), clientSet);
+
+
             }
         }
 
     }
 
+    @PreDestroy
+    private void destroy() {
+        for(Map.Entry<String, RedisClientSet> kv : redisClientSets.entrySet()) {
+            if(kv.getValue().getRedisson() != null) {
+                kv.getValue().getRedisson().shutdown();
+            }
+        }
+
+        for(Map.Entry<String, LettuceConnectionFactory> kv : connectionFactories.entrySet()) {
+            kv.getValue().destroy();
+        }
+    }
+
     //TODO: thread-safe
     public ReactiveRedisTemplate<String, String> getStringReactiveTemplate(String name) {
 
-        RedisTemplateSet set = redisTemplateSets.get(name);
+        RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
             return null;
         }
@@ -159,7 +205,7 @@ public class RedisService {
 
     public ReactiveRedisTemplate<String, Object> getObjectReactiveTemplate(String name) {
 
-        RedisTemplateSet set = redisTemplateSets.get(name);
+        RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
             return null;
         }
@@ -178,7 +224,7 @@ public class RedisService {
     }
 
     private RedisTemplate<String, Object> getObjectTemplate(String name) {
-        RedisTemplateSet set = redisTemplateSets.get(name);
+        RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
             return null;
         }
@@ -198,7 +244,7 @@ public class RedisService {
 
     private RedisTemplate<String, String> getStringTemplate(String name) {
 
-        RedisTemplateSet set = redisTemplateSets.get(name);
+        RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
             return null;
         }
@@ -252,7 +298,7 @@ public class RedisService {
     }
 
     public boolean containsServer(String name) {
-        return (redisTemplateSets.get(name) != null);
+        return (redisClientSets.get(name) != null);
     }
 
 
@@ -293,6 +339,14 @@ public class RedisService {
         else {
             return null;
         }
+    }
+
+    public RedissonClient getRedisson(String name) {
+        RedissonClient redissonClient = redisClientSets.get(name).getRedisson();
+        if(redissonClient == null) {
+            logger.error("redisson client not enable");
+        }
+        return redissonClient;
     }
 
     private ConcurrentHashMap<String, RedisScript<Object>> redisScripts = new ConcurrentHashMap<String, RedisScript<Object>>();

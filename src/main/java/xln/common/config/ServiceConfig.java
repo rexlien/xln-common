@@ -51,6 +51,7 @@ public class ServiceConfig
         private String password;
         private List<String> URI;
         private boolean slaveRead = false;
+        private boolean useRedisson = false;
     }
 /*
     @Data

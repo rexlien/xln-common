@@ -1,26 +1,25 @@
 package xln.common.service;
 
 
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoClientURI;
-import lombok.extern.slf4j.Slf4j;
-import org.redisson.misc.URIBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.config.AbstractMongoConfiguration;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
-import org.springframework.stereotype.Service;
-import xln.common.config.CacheConfig;
-import xln.common.config.MongoConfig;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
+import org.springframework.stereotype.Service;
+
+import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoClientURI;
+
+import lombok.extern.slf4j.Slf4j;
+import xln.common.config.MongoConfig;
 
 @Service
 @Slf4j
