@@ -8,7 +8,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix="xln.mongo-config")
@@ -19,10 +21,10 @@ public class MongoConfig {
 
     @Data
     public static class MongoServerConfig {
-        private String host = "127.0.0.1";
-        private int port = 27017;
+        private String hosts = "127.0.0.1:27017";
         private String user = "root";
         private String pw = "1234";
+        private String replSetName = null;
 
         //TODO: multiple database possible?
         private String database = "test";

@@ -33,18 +33,23 @@ public class MongoService {
         private SimpleMongoDbFactory mongoDBFactory;
         private MongoTemplate mongoTemplate;
 
-        private static final String MONGO_SCHEME = "mongodb";
+        private static final String MONGO_SCHEME = "mongodb://";
 
         public MongoServer(MongoConfig.MongoServerConfig config) throws URISyntaxException{
 
             MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
             builder.connectTimeout(config.getConnectionTimeout());
             builder.minConnectionsPerHost(config.getMinHostConnection());
+            if(config.getReplSetName() != null) {
+                builder.requiredReplicaSetName(config.getReplSetName());
+            }
+            StringBuilder strBuilder = new StringBuilder();
+            strBuilder.append(MONGO_SCHEME).append(config.getUser()).append(":").append(config.getPw()).
+                    append("@").append(config.getHosts()).append("/").append(config.getDatabase()).
+                    append("?").append("authSource=admin");
 
-
-            URI uri = new URI(MONGO_SCHEME, config.getUser() + ":" + config.getPw(), config.getHost(), config.getPort(),
-                    "/" + config.getDatabase(), "authSource=admin", null);
-            MongoClientURI mongoClientURI = new MongoClientURI(uri.toString(), builder);
+            String mongoURI = strBuilder.toString();
+            MongoClientURI mongoClientURI = new MongoClientURI(mongoURI, builder);
             mongoDBFactory = new SimpleMongoDbFactory(mongoClientURI);
             mongoTemplate = new MongoTemplate(mongoDBFactory);
 
