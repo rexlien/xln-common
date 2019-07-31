@@ -6,10 +6,12 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import com.mongodb.WriteConcern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
@@ -52,6 +54,17 @@ public class MongoService {
             MongoClientURI mongoClientURI = new MongoClientURI(mongoURI, builder);
             mongoDBFactory = new SimpleMongoDbFactory(mongoClientURI);
             mongoTemplate = new MongoTemplate(mongoDBFactory);
+            if(config.getWriteConcern() != null) {
+                String w = config.getWriteConcern();
+                try {
+                    int wInt = Integer.parseInt(w);
+                    mongoTemplate.setWriteConcern(new WriteConcern(wInt, config.getWriteAckTimeout()));
+
+                }catch (NumberFormatException ex) {
+                    mongoTemplate.setWriteConcern(new WriteConcern(w).withWTimeout(config.getWriteAckTimeout(), TimeUnit.MILLISECONDS));
+                }
+
+            }
 
         }
 

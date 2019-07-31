@@ -32,6 +32,9 @@ public class MongoConfig {
         //millis
         private int connectionTimeout = 10 * 1000;
         private int minHostConnection = 0;
+
+        private String writeConcern = null;
+        private int writeAckTimeout = 15000;
     }
 
     private Map<String, MongoServerConfig> mongoConfigs = new HashMap<>();
