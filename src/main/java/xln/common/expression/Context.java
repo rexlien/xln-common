@@ -40,6 +40,9 @@ public class Context {
 
         private String patternReplace(String path) {
 
+            if(path == null) {
+                return null;
+            }
 
             Pattern p = Pattern.compile(REGEX_PATTERN);
             Matcher m = p.matcher(path);
