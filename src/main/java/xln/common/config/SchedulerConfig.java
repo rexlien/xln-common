@@ -10,7 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 @ConfigurationProperties(prefix="xln.scheduler-config")
-@Validated
 @Configuration
 @Data
 public class SchedulerConfig

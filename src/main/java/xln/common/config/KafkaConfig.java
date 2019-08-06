@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix="xln.kafka-config")
-@Validated
 @Configuration
 @Data
 public class KafkaConfig {

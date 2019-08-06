@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix="xln.mongo-config")
-@Validated
 @Configuration
 @Data
 public class MongoConfig {

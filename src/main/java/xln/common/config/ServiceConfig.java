@@ -13,13 +13,12 @@ import javax.annotation.PostConstruct;
 import java.util.*;
 
 @ConfigurationProperties(prefix="xln.service-config")
-@Validated
 @Configuration("XLNServiceConfig")
 @Data
 public class ServiceConfig
 {
     //private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
-    private List<String> resourcePath;
+    private List<String> resourcePath = Collections.EMPTY_LIST;
 
 
     private RedisConfig redisConfig = new RedisConfig();

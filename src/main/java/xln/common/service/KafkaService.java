@@ -36,15 +36,15 @@ public class KafkaService
     private Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
     private Map<String, KafkaConfig.KafkaConsumerConfig> consumerConfigs;
 
-    private KafkaSender<Integer, Object> sender;
+    //private KafkaSender<Integer, Object> sender;
 
     //private Map<String, Object> producerProp = new HashMap<>();
 
-    private Map<String, Map<String, Object>> producerProps = new HashMap<>();
-    private Map<String, Map<String, Object>> consumerProps = new HashMap<>();
+    private ConcurrentHashMap<String, Map<String, Object>> producerProps = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Map<String, Object>> consumerProps = new ConcurrentHashMap<>();
 
 
-    private Map<String, KafkaSender<String, Object>> kafkaSenders = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, KafkaSender<String, Object>> kafkaSenders = new ConcurrentHashMap<>();
     private AtomicInteger uid = new AtomicInteger(0);
 
     @Autowired

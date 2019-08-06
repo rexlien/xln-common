@@ -22,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @ConfigurationProperties(prefix="xln.cache-config")
-@Validated
 @Configuration
 @Data
 @EnableCaching

@@ -48,18 +48,18 @@ public class RedisService {
 
     @Data
     private static class RedisClientSet {
-        private ReactiveRedisTemplate<String, String> reactStringTemplate;
-        private ReactiveRedisTemplate<String, Object> reactObjectTemplate;
-        private RedisTemplate<String, String> stringTemplate;
-        private RedisTemplate<String, Object> objTemplate;
-        private RedissonClient redisson;
+        private volatile ReactiveRedisTemplate<String, String> reactStringTemplate;
+        private volatile ReactiveRedisTemplate<String, Object> reactObjectTemplate;
+        private volatile RedisTemplate<String, String> stringTemplate;
+        private volatile RedisTemplate<String, Object> objTemplate;
+        private volatile RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
     @Autowired
     private ServiceConfig serviceConfig;
 
-    private HashMap<String, LettuceConnectionFactory> connectionFactories = new HashMap<>();
-    private HashMap<String, RedisClientSet> redisClientSets = new HashMap<>();
+    private ConcurrentHashMap<String, LettuceConnectionFactory> connectionFactories = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RedisClientSet> redisClientSets = new ConcurrentHashMap<>();
 
     private static LettuceConnectionFactory clusterConnectionFactory(ServiceConfig.RedisServerConfig config) {
 

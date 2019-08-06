@@ -7,9 +7,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
+import org.springframework.boot.context.ApplicationPidFileWriter;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.ContextStartedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -52,8 +56,11 @@ public class Context implements ApplicationContextAware {
                 isTest = true;
             }
         }
-        //}
+
     }
+
+
+
 
     private static Logger logger = LoggerFactory.getLogger(Context.class);
 
@@ -73,7 +80,7 @@ public class Context implements ApplicationContextAware {
                 }
             }
         }catch(Exception e) {
-            logger.error("Resource Load failed");
+            logger.error("Resource Load failed", e);
         }
 
     }
