@@ -5,10 +5,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.PropertySource;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+
+import java.util.List;
 
 @Slf4j
 public class AppInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
@@ -28,7 +33,13 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
 
         ConfigurableEnvironment env = applicationContext.getEnvironment();
         try {
-            env.getPropertySources().addFirst(new ResourcePropertySource("classpath:xln-common" + suffix + ".properties"));
+            Resource resource = applicationContext.getResource("classpath:xln-common" + suffix + ".yml");
+            YamlPropertySourceLoader sourceLoader = new YamlPropertySourceLoader();
+            List<PropertySource<?>> yml = sourceLoader.load("commonYmlProperties",resource);
+            for(PropertySource<?> propertySource : yml) {
+                env.getPropertySources().addLast(propertySource);
+            }
+            //env.getPropertySources().addFirst(new ResourcePropertySource("classpath:xln-common" + suffix + ".properties"));
         }catch (Exception e)
         {
 
