@@ -2,9 +2,7 @@ package xln.common.web;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import xln.common.web.config.ResultDescribable;
 
 @Data
 @NoArgsConstructor
