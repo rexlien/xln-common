@@ -15,7 +15,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import sun.misc.Cache;
 import xln.common.cache.CacheController;
 import xln.common.service.RedisService;
 
@@ -65,17 +64,15 @@ public class RedisTest {
     public void testPubSub() {
 
         Semaphore resultLock = new Semaphore(0);
-        cacheController.asPublisher("redis0");
-        cacheController.asSubscriber("redis0");
-        cacheController.addSubscription().publishOn(Schedulers.immediate()).
-                subscribe((object)-> {
+
+        cacheController.subscribeMessageSrc( (object)-> {
                     log.info(object.toString());
                     resultLock.release();
                 });
 
         try {
             while(!resultLock.tryAcquire(500, TimeUnit.MILLISECONDS )) {
-                cacheController.publishCacheInvalidation(new CacheController.CacheInvalidateTask("redis0", "test"));
+                cacheController.publishCacheInvalidation(new CacheController.CacheInvalidateTask("caffeine", "cache", "cache"));
             }
 
         }catch (Exception ex) {

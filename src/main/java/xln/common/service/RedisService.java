@@ -12,15 +12,17 @@ import org.redisson.config.SingleServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.connection.RedisClusterConfiguration;
-import org.springframework.data.redis.connection.RedisNode;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -29,6 +31,7 @@ import org.springframework.scripting.ScriptSource;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import xln.common.cache.CacheController;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
@@ -36,6 +39,7 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,11 +59,32 @@ public class RedisService {
         private volatile RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
-    @Autowired
-    private ServiceConfig serviceConfig;
+
+    public static class RedisMessagePublisher  {
+
+        private final RedisTemplate<String, Object> redisTemplate;
+        public RedisMessagePublisher(RedisTemplate redisTemplate) {
+            this.redisTemplate = redisTemplate;
+        }
+
+        public void publish(String topic, Object task) {
+
+            redisTemplate.convertAndSend(topic, task);
+        }
+    }
+
+    private final ServiceConfig serviceConfig;
 
     private ConcurrentHashMap<String, LettuceConnectionFactory> connectionFactories = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, RedisClientSet> redisClientSets = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RedisScript<Object>> redisScripts = new ConcurrentHashMap<String, RedisScript<Object>>();
+
+    private ConcurrentHashMap<String, RedisMessageListenerContainer> messageListenerContainers = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RedisMessagePublisher> messagePublishers = new ConcurrentHashMap<>();
+
+    public RedisService(ServiceConfig serviceConfig) {
+        this.serviceConfig = serviceConfig;
+    }
 
     private static LettuceConnectionFactory clusterConnectionFactory(ServiceConfig.RedisServerConfig config) {
 
@@ -160,6 +185,18 @@ public class RedisService {
                 redisClientSets.put(kv.getKey(), clientSet);
 
 
+
+            }
+            if(kv.getValue().isPublisher()) {
+                messagePublishers.put(kv.getKey(), new RedisMessagePublisher(getTemplate(kv.getKey(), Object.class)));
+            }
+            if(kv.getValue().isSubscriber()) {
+                RedisMessageListenerContainer messageContainer = new RedisMessageListenerContainer();
+                messageContainer.setConnectionFactory(getConnectionFactory(kv.getKey()));
+                messageContainer.afterPropertiesSet();
+                messageContainer.start();
+
+                messageListenerContainers.put(kv.getKey(), messageContainer);
             }
         }
 
@@ -349,5 +386,14 @@ public class RedisService {
         return redissonClient;
     }
 
-    private ConcurrentHashMap<String, RedisScript<Object>> redisScripts = new ConcurrentHashMap<String, RedisScript<Object>>();
+    public RedisMessagePublisher getMessagePublisher(String name) {
+        return messagePublishers.getOrDefault(name, null);
+    }
+
+    public RedisMessageListenerContainer getMessageListener(String name) {
+        return messageListenerContainers.getOrDefault(name, null);
+    }
+
+
+
 }

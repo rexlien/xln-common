@@ -17,10 +17,10 @@ public class KafkaConfig {
     @Data
     public static class KafkaProducerConfig
     {
-        private List<String> serverUrls = Collections.EMPTY_LIST;
-        private String acks = "1";
-        private int requestTimeout = 30000;
-        private int retryCount = 0;
+        private volatile List<String> serverUrls = Collections.EMPTY_LIST;
+        private volatile String acks = "1";
+        private volatile int requestTimeout = 30000;
+        private volatile int retryCount = 0;
         //private int batchMem =
         //private int lingerMs
 
@@ -29,17 +29,17 @@ public class KafkaConfig {
     @Data
     public static class KafkaConsumerConfig
     {
-        private List<String> serverUrls = Collections.EMPTY_LIST;
-        private String groupID;
-        private String keyDeserializer = "org.apache.kafka.common.serialization.IntegerDeserializer";
-        private String valueDeserializer = "org.apache.kafka.common.serialization.StringDeserializer";
-        private boolean enableAutoCommit = false;
-        private int autoCommitInterval = 1000;
-        private String autoOffsetResetConfig = "none";
+        private volatile List<String> serverUrls = Collections.EMPTY_LIST;
+        private volatile String groupID;
+        private volatile String keyDeserializer = "org.apache.kafka.common.serialization.IntegerDeserializer";
+        private volatile String valueDeserializer = "org.apache.kafka.common.serialization.StringDeserializer";
+        private volatile boolean enableAutoCommit = false;
+        private volatile int autoCommitInterval = 1000;
+        private volatile String autoOffsetResetConfig = "none";
 
     }
 
 
-    private Map<String, KafkaConsumerConfig> consumersConfigs = Collections.EMPTY_MAP;
-    private Map<String, KafkaProducerConfig> producerConfigs = Collections.EMPTY_MAP;
+    private volatile Map<String, KafkaConsumerConfig> consumersConfigs = Collections.EMPTY_MAP;
+    private volatile Map<String, KafkaProducerConfig> producerConfigs = Collections.EMPTY_MAP;
 }

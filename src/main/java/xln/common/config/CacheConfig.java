@@ -52,13 +52,22 @@ public class CacheConfig {
             }
         }
 
-        ExpirePolicy expirePolicy = ExpirePolicy.WRITE;
+        private ExpirePolicy expirePolicy = ExpirePolicy.WRITE;
         private int expireTime = -1;
 
     }
 
+    @Data
+    public static class CacheControllerConfig {
+        private String redisServerName = "";
+        private String topicPattern = "cache-tasks";
+        private boolean publisher = false;
+        private boolean subscriber = false;
+    }
+
     private Map<String, RedisCacheConfig> redisCacheConfig = new HashMap<>();
     private Map<String, CaffeineConfig> caffeineConfig = new HashMap<>();
+    private CacheControllerConfig cacheControllerConfig = null;
 
 
 

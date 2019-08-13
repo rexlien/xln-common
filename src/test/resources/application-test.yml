@@ -6,32 +6,35 @@ xln.service-config:
         password: secret
         uri:
           - redis://127.0.0.1:30001
-
+        subscriber: true
+        publisher: true
 
     script:
       - name: saddAndGetSize
         path: "META-INF/script/saddAndGetSize.lua"
-  KafkaProducerConfig:
-      serverUrls:
-        - 10.127.161.6:30080 #10.231.226.167:9094
-      acks: all
-      requestTimeout: 30000
-  KafkaConfig:
-    consumersConifgs:
-      kafkaC0:
-        serverUrls:
-          - 10.127.161.6:30080
-        subscribeTopics:
-          - test-xln
-        keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
-        valueDeserializer:  org.apache.kafka.common.serialization.StringDeserializer
-        groupID: testGroup
-        autoCommit: true
-        autoCommitInterval : 1000
-        autoOffsetResetConfig: "earliest"
+
 
   resourcePath:
     - classpath:xln-beans-test.xml
+
+xln.kafka-config:
+  producerConfigs:
+    producer0:
+      serverUrls:
+        -  10.127.161.6:30080
+      acks: 1
+      requestTimeout: 30000
+      retryCount: 2
+  consumersConfigs:
+    kafkaC0:
+      serverUrls:
+        - 10.127.161.6:30080
+      keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
+      valueDeserializer:  org.springframework.kafka.support.serializer.JsonDeserializer
+      groupID: gu-worker-consumer
+      #enableAutoCommit: true
+      #autoCommitInterval : 1000
+      autoOffsetResetConfig: "latest"
 
 xln.cache-config:
   redisCacheConfig:
@@ -44,6 +47,11 @@ xln.cache-config:
       expirePolicy : "write"
       expireTime: -1
       #expireAccess: 1000
+  cacheControllerConfig:
+    redisServerName: redis0
+    subscriber: true
+    publisher: true
+    topic: cache-tasks
 
 xln.scheduler-config:
   enable: true

@@ -17,7 +17,7 @@ import java.util.*;
 @Data
 public class ServiceConfig
 {
-    //private KafkaProducerConfig kafkaProducerConfig = new KafkaProducerConfig();
+
     private List<String> resourcePath = Collections.EMPTY_LIST;
 
 
@@ -51,30 +51,11 @@ public class ServiceConfig
         private List<String> URI;
         private boolean slaveRead = false;
         private boolean useRedisson = false;
-    }
-/*
-    @Data
-    public static class KafkaProducerConfig
-    {
-        private List<String> serverUrls = Collections.EMPTY_LIST;
-        private String acks;
-        private int requestTimeout;
 
+        private boolean publisher = false;
+        private boolean subscriber = false;
     }
 
-    @Data
-    public static class KafkaConsumerConfig
-    {
-        private List<String> serverUrls = Collections.EMPTY_LIST;
-        private String groupID;
-        private String keyDeserializer = "org.apache.kafka.common.serialization.IntegerDeserializer";
-        private String valueDeserializer = "org.apache.kafka.common.serialization.StringDeserializer";
-        private boolean enableAutoCommit = false;
-        private int autoCommitInterval = 1000;
-        private String autoOffsetResetConfig = "none";
-
-    }
-*/
     @Data
     public static class RedisScript
     {

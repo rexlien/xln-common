@@ -37,7 +37,7 @@ public class KafkaTest
 
     @Test
     public void testProduceAndConsume() throws InterruptedException {
-        KafkaSender<String, String> sender = kafkaService.<String, String, StringSerializer, StringSerializer>createProducer(StringSerializer.class, StringSerializer.class);
+        KafkaSender<String, String> sender = kafkaService.<String, String, StringSerializer, StringSerializer>createProducer("producer0", StringSerializer.class, StringSerializer.class);
         SenderRecord<String, String, Integer> record = SenderRecord.create(new ProducerRecord("test-xln", "1","123"), 1);
 
         sender.<Integer>send(Mono.fromCallable(()->{return record;})).doOnError(e-> {

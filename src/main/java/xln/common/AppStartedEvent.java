@@ -20,7 +20,7 @@ public class AppStartedEvent implements ApplicationListener<ApplicationStartedEv
     public void onApplicationEvent(ApplicationStartedEvent event) {
         CommonConfig commonConfig = event.getApplicationContext().getBean(CommonConfig.class);
 
-        if(commonConfig.getEnablePidFileWriter()) {
+        if(commonConfig.isEnablePidFileWriter()) {
             ApplicationPidFileWriter fileWriter = new ApplicationPidFileWriter("./bin/" + commonConfig.getAppName() + "/shutdown.pid");
             fileWriter.setTriggerEventType(ApplicationStartedEvent.class);
             fileWriter.onApplicationEvent(event);

@@ -16,51 +16,95 @@ import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.SynchronousSink;
+import xln.common.config.CacheConfig;
 import xln.common.service.CacheService;
 import xln.common.service.RedisService;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 @Service
 public class CacheController {
+
+
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class CacheInvalidateTask {
 
+        private String cacheManagerName;
         private String cacheName;
         private String key;
 
     }
 
-    public static class RedisMessagePublisher  {
 
-        private RedisTemplate<String, Object> redisTemplate;
-        public RedisMessagePublisher(RedisTemplate redisTemplate) {
-            this.redisTemplate = redisTemplate;
-        }
 
-        public void publish(String topic, Object task) {
+    private final CacheConfig cacheConfig;
+    private volatile RedisMessageListenerContainer messageListenerContainer;// = new RedisMessageListenerContainer();
 
-            redisTemplate.convertAndSend(topic, task);
-        }
-    }
-    private RedisMessageListenerContainer messageContainer;
-    private RedisMessagePublisher messagePublisher;
+    private volatile RedisService.RedisMessagePublisher messagePublisher;
 
-    private RedisTemplate<String, Object> redisTemplate;
-    private RedisService redisService;
-    private CacheService cacheService;
-    public CacheController(RedisService redisService, CacheService cacheService) {
+    private volatile RedisTemplate<String, Object> subRedisTemplate;
+    private final RedisService redisService;
+    private final CacheService cacheService;
+    private volatile String topic;
+    private volatile Disposable cacheSubscriber = null;
+    private volatile Flux<Object> messageSrc = null;
+
+    //private Flux<Object> sub
+
+    public CacheController(RedisService redisService, CacheService cacheService, CacheConfig cacheConfig) {
 
         this.redisService = redisService;
         this.cacheService = cacheService;
+        this.cacheConfig = cacheConfig;
+
+        if(this.cacheConfig.getCacheControllerConfig() != null && cacheConfig.getCacheControllerConfig().getRedisServerName() != null) {
+            String redisServer = this.cacheConfig.getCacheControllerConfig().getRedisServerName();
+            this.topic = this.cacheConfig.getCacheControllerConfig().getTopicPattern();
+            this.subRedisTemplate = redisService.getTemplate(redisServer, Object.class);
+
+            if(this.cacheConfig.getCacheControllerConfig().isPublisher()) {
+                messagePublisher = this.redisService.getMessagePublisher(cacheConfig.getCacheControllerConfig().getRedisServerName());//new RedisMessagePublisher(this.pubRedisTemplate);
+            }
+            if(this.cacheConfig.getCacheControllerConfig().isSubscriber()) {
+                messageListenerContainer = this.redisService.getMessageListener(cacheConfig.getCacheControllerConfig().getRedisServerName());
+
+                messageSrc = Flux.create( emitter -> {
+                    messageListenerContainer.addMessageListener(new MessageListener() {
+                        @Override
+                        public void onMessage(Message message, byte[] pattern) {
+                            Object object = subRedisTemplate.getValueSerializer().deserialize(message.getBody());
+                            if(object instanceof CacheInvalidateTask) {
+                                CacheInvalidateTask cacheTask = (CacheInvalidateTask)object;
+                                CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheManagerName());
+                                if(cacheManager != null) {
+                                    Cache cache = cacheManager.getCache(cacheTask.getCacheName());
+                                    if(cache != null) {
+                                        cache.evict(cacheTask.getKey());
+                                    }
+                                }
+                            }
+                            emitter.next(object);
+
+                        }
+                    }, Collections.singletonList(new PatternTopic(topic)));
+                    //
+                });
+                cacheSubscriber = messageSrc.subscribe();
+
+            }
+        }
     }
 
     @PostConstruct
@@ -69,53 +113,23 @@ public class CacheController {
 
     }
 
-    public void asPublisher(String serverName) {
-
-        this.redisTemplate = redisService.getTemplate(serverName, Object.class);
-        messagePublisher = new RedisMessagePublisher(this.redisTemplate);
-
-    }
-    public void asSubscriber(String serverName) {
-
-        redisTemplate = redisService.getTemplate(serverName, Object.class);
-        messageContainer = new RedisMessageListenerContainer();
-        messageContainer.setConnectionFactory(redisService.getConnectionFactory(serverName));
-        messageContainer.afterPropertiesSet();
-        messageContainer.start();
-
-    }
-
-    public Flux<Object> addSubscription() {
-
-        return Flux.create( emitter -> {
-            messageContainer.addMessageListener(new MessageListener() {
-                @Override
-                public void onMessage(Message message, byte[] pattern) {
-                    Object object = redisTemplate.getValueSerializer().deserialize(message.getBody());
-                    if(object instanceof CacheInvalidateTask) {
-                        CacheInvalidateTask cacheTask = (CacheInvalidateTask)object;
-                        CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheName());
-                        if(cacheManager != null) {
-                            Cache cache = cacheManager.getCache(cacheTask.getCacheName());
-                            if(cache != null) {
-                                cache.evict(cacheTask.getKey());
-                            }
-                        }
-                    }
-                    emitter.next(object);
-                    return;
-                }
-            }, Collections.singletonList(new PatternTopic("cache-tasks")));
-            //
-        });
-
-
+    @PreDestroy
+    private void destroy() {
+        cacheSubscriber.dispose();
     }
 
     public void publishCacheInvalidation(CacheInvalidateTask task) {
 
-        messagePublisher.publish("cache-tasks", task);
+        if(messagePublisher != null) {
+            messagePublisher.publish(topic, task);
+        }
+    }
 
+    public Disposable subscribeMessageSrc(Consumer<Object> consumer) {
+        if(messageListenerContainer != null && messageSrc != null) {
+            return messageSrc.subscribe(consumer);
+        }
+        return null;
     }
 
 

@@ -14,9 +14,9 @@ public class CommonConfig
 {
 
     //@Value("${xln-timeZone:Asia/Taipei}")
-    private String timeZone = "Asia/Taipei";
-    private String appName = "xln-app";
-    private Boolean enablePidFileWriter = false;
+    private volatile String timeZone = "Asia/Taipei";
+    private volatile String appName = "xln-app";
+    private volatile boolean enablePidFileWriter = false;
 
 
 }

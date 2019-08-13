@@ -3,9 +3,6 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans  http://www.springframework.org/schema/beans/spring-beans.xsd">
 
 
-<bean id="redisConnectionFactory" class="xln.common.config.RedisConfig" factory-method="singleConnectionFactory">
-    <constructor-arg ref="XLNServiceConfig"></constructor-arg>
-</bean>
 
 
 </beans>
