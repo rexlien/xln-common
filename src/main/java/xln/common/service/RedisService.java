@@ -1,6 +1,9 @@
 package xln.common.service;
 
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.ReadFrom;
 import lombok.Data;
@@ -23,16 +26,17 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scripting.ScriptSource;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import xln.common.cache.CacheController;
 import xln.common.config.ServiceConfig;
+import xln.common.serializer.GenericJackson2JsonRedisSerializer;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
