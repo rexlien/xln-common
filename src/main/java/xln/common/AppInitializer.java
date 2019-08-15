@@ -12,7 +12,9 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import xln.common.config.CommonConfig;
 
+import java.util.Iterator;
 import java.util.List;
 
 @Slf4j
@@ -35,7 +37,7 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
         try {
             Resource resource = applicationContext.getResource("classpath:xln-common" + suffix + ".yml");
             YamlPropertySourceLoader sourceLoader = new YamlPropertySourceLoader();
-            List<PropertySource<?>> yml = sourceLoader.load("commonYmlProperties",resource);
+            List<PropertySource<?>> yml = sourceLoader.load("xln-common",resource);
             for(PropertySource<?> propertySource : yml) {
                 env.getPropertySources().addLast(propertySource);
             }
@@ -45,5 +47,14 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
 
             logger.error("XLN Property Load failed");
         }
+
+
+        for(Iterator<PropertySource<?>> it = env.getPropertySources().iterator(); it.hasNext(); ) {
+            PropertySource<?> propertySource = it.next();
+
+            log.info(propertySource.getName(), propertySource.toString());
+
+        }
+
     }
 }
