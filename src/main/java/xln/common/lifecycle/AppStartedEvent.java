@@ -1,4 +1,4 @@
-package xln.common;
+package xln.common.lifecycle;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
