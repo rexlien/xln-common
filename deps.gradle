@@ -44,6 +44,7 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:$boot_version"
+    compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.2.0'
 
 
 
