@@ -37,12 +37,14 @@ dependencies {
     compile 'io.grpc:grpc-stub:1.14.0'
     compile("org.slf4j:slf4j-api:1.7.25")
     compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
+    compile("org.springframework.boot:spring-boot-starter-actuator:$boot_version")
     //testCompile 'org.springframework.boot:spring-boot-starter-test'
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: "$boot_version"
 
     testCompileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly 'org.projectlombok:lombok:1.18.2'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:$boot_version"
+
 
 
 
