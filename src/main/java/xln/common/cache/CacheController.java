@@ -115,7 +115,9 @@ public class CacheController {
 
     @PreDestroy
     private void destroy() {
-        cacheSubscriber.dispose();
+        if(cacheSubscriber != null) {
+            cacheSubscriber.dispose();
+        }
     }
 
     public void publishCacheInvalidation(CacheInvalidateTask task) {

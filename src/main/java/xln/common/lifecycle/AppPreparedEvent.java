@@ -20,11 +20,13 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         if(strPort != null) {
             try {
                 int webPort = Integer.parseInt(strPort);
-                props.put("management.server.port", webPort + 10000);
+                props.put("management.server.port", (webPort + 10000) % 65536);
             }catch (NumberFormatException ex) {
 
             }
 
+        } else {
+            props.put("management.server.port", 18080);
         }
         environment.getPropertySources().addLast(new PropertiesPropertySource("bases-props", props));
     }
