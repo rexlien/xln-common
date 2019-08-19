@@ -41,6 +41,7 @@ public class Context implements ApplicationContextAware {
     private volatile ApplicationContext curContext;
     private volatile boolean isDev = false;
     private volatile boolean isTest = false;
+    private volatile String phase = "";
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -55,6 +56,11 @@ public class Context implements ApplicationContextAware {
             } else if(profile.equals(TEST_PROFILE)) {
                 isTest = true;
             }
+        }
+
+        if(profiles.length > 0) {
+            phase = profiles[0];
+
         }
 
     }
@@ -96,6 +102,10 @@ public class Context implements ApplicationContextAware {
             }
         }
         return false;
+    }
+
+    public String getPhase() {
+        return phase;
     }
 
     public boolean isDevEnv() {
