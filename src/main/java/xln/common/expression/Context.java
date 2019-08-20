@@ -62,6 +62,13 @@ public class Context {
 
         public CompletableFuture<Object> resolve(Context context, String path) {
 
+            if(path == null) {
+
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                future.complete(null);
+                return future;
+            }
+
             path = patternReplace(path);
 
             URI uri;
@@ -69,7 +76,7 @@ public class Context {
                 uri = new URI(path);
             }catch (Exception ex) {
                 CompletableFuture<Object> future = new CompletableFuture<>();
-                ex.printStackTrace();
+                log.warn("", ex);
                 future.complete(null);
                 return future;
             }

@@ -3,6 +3,7 @@ package xln.common.cache;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.omg.CORBA.OBJECT_NOT_EXIST;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
@@ -27,13 +28,15 @@ import xln.common.service.RedisService;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Service
+@Slf4j
 public class CacheController {
-
 
 
     @Data
@@ -41,9 +44,11 @@ public class CacheController {
     @NoArgsConstructor
     public static class CacheInvalidateTask {
 
+
         private String cacheManagerName;
         private String cacheName;
         private String key;
+        //private int command = -1;
 
     }
 
@@ -89,13 +94,33 @@ public class CacheController {
                                 CacheInvalidateTask cacheTask = (CacheInvalidateTask)object;
                                 CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheManagerName());
                                 if(cacheManager != null) {
-                                    Cache cache = cacheManager.getCache(cacheTask.getCacheName());
-                                    if(cache != null) {
-                                        cache.evict(cacheTask.getKey());
+                                    if(cacheTask.getCacheName() == null) {
+                                        log.debug("Cache Manager Clearing: " + cacheTask.getCacheManagerName());
+                                        for(String cacheName : cacheManager.getCacheNames()) {
+                                            Cache cache = cacheManager.getCache(cacheName);
+                                            if(cache != null) {
+                                                cache.clear();
+                                            }
+                                        }
+
+                                    } else {
+                                        Cache cache = cacheManager.getCache(cacheTask.getCacheName());
+                                        if (cache != null) {
+
+                                            if (cacheTask.getKey() == null) {
+                                                log.debug("Cache Clearing: " + cacheTask.getCacheName() + cacheTask.getKey());
+                                                cache.clear();
+                                            } else {
+                                                log.debug("Cache Key Evicting: " + cacheTask.getCacheName() + cacheTask.getKey());
+                                                cache.evict(cacheTask.getKey());
+                                            }
+                                        }
                                     }
                                 }
                             }
-                            emitter.next(object);
+                            if(object != null) {
+                                emitter.next(object);
+                            }
 
                         }
                     }, Collections.singletonList(new PatternTopic(topic)));
