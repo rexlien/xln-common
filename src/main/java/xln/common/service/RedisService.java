@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class RedisService {
@@ -56,10 +57,10 @@ public class RedisService {
 
     @Data
     private static class RedisClientSet {
-        private volatile ReactiveRedisTemplate<String, String> reactStringTemplate;
-        private volatile ReactiveRedisTemplate<String, Object> reactObjectTemplate;
-        private volatile RedisTemplate<String, String> stringTemplate;
-        private volatile RedisTemplate<String, Object> objTemplate;
+        private AtomicReference<ReactiveRedisTemplate<String, String>> reactStringTemplate = new AtomicReference<>();
+        private AtomicReference<ReactiveRedisTemplate<String, Object>> reactObjectTemplate = new AtomicReference<>();
+        private AtomicReference<RedisTemplate<String, String>> stringTemplate = new AtomicReference<>();
+        private AtomicReference<RedisTemplate<String, Object>> objTemplate = new AtomicReference<>();
         private volatile RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
@@ -222,12 +223,14 @@ public class RedisService {
     //TODO: thread-safe
     public ReactiveRedisTemplate<String, String> getStringReactiveTemplate(String name) {
 
+
         RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
             return null;
         }
 
-        if(set.getReactStringTemplate() == null) {
+
+        if(set.getReactStringTemplate().get() == null) {
             RedisSerializer<String> serializer = new StringRedisSerializer();
             RedisSerializationContext<String, String> serializationContext = RedisSerializationContext
                     .<String, String>newSerializationContext()
@@ -238,9 +241,9 @@ public class RedisService {
                     .build();
 
             ReactiveRedisTemplate<String, String> template = new ReactiveRedisTemplate<String, String>(connectionFactories.get(name), serializationContext);
-            set.setReactStringTemplate(template);
+            set.getReactStringTemplate().compareAndSet(null, template);//setReactStringTemplate(template);
         }
-        return set.getReactStringTemplate();
+        return set.getReactStringTemplate().get();
 
     }
 
@@ -251,7 +254,7 @@ public class RedisService {
             return null;
         }
 
-        if(set.getReactObjectTemplate() == null) {
+        if(set.getReactObjectTemplate().get() == null) {
 
             RedisSerializationContext<String, Object> serializationContext = RedisSerializationContext
                     .<String, Object>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
@@ -259,9 +262,9 @@ public class RedisService {
 
 
             ReactiveRedisTemplate<String, Object> template = new ReactiveRedisTemplate<String, Object>(connectionFactories.get(name), serializationContext);
-            set.setReactObjectTemplate(template);
+            set.getReactObjectTemplate().compareAndSet(null, template);
         }
-        return set.getReactObjectTemplate();
+        return set.getReactObjectTemplate().get();
     }
 
     private RedisTemplate<String, Object> getObjectTemplate(String name) {
@@ -269,7 +272,7 @@ public class RedisService {
         if (set == null) {
             return null;
         }
-        if(set.getObjTemplate() == null) {
+        if(set.getObjTemplate().get() == null) {
 
             RedisTemplate<String, Object> template = new RedisTemplate<>();
             template.setConnectionFactory(connectionFactories.get(name));
@@ -277,9 +280,9 @@ public class RedisService {
             template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
             template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
             template.afterPropertiesSet();
-            set.setObjTemplate(template);
+            set.getObjTemplate().compareAndSet(null, template);
         }
-        return set.getObjTemplate();
+        return set.getObjTemplate().get();
 
     }
 
@@ -290,15 +293,15 @@ public class RedisService {
             return null;
         }
 
-        if(set.getStringTemplate() == null) {
+        if(set.getStringTemplate().get() == null) {
 
             RedisTemplate<String, String> template = new RedisTemplate<String, String>();
             template.setConnectionFactory(connectionFactories.get(name));
             template.setDefaultSerializer(new StringRedisSerializer());
             template.afterPropertiesSet();
-            set.setStringTemplate(template);
+            set.getStringTemplate().compareAndSet(null, template);
         }
-        return set.getStringTemplate();
+        return set.getStringTemplate().get();
 
     }
 
