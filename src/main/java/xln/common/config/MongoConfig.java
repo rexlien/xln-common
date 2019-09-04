@@ -25,7 +25,6 @@ public class MongoConfig {
         private String pw = "1234";
         private String replSetName = null;
 
-        //TODO: multiple database possible?
         private String database = "test";
 
         //millis
@@ -34,6 +33,9 @@ public class MongoConfig {
 
         private String writeConcern = null;
         private int writeAckTimeout = 15000;
+
+        private boolean reactive = false;
+        private boolean nonReactive = true;
     }
 
     private Map<String, MongoServerConfig> mongoConfigs = new HashMap<>();
