@@ -27,18 +27,16 @@ import xln.common.config.MongoConfig;
 @Slf4j
 public class MongoService {
 
-    @Autowired
-    private MongoConfig config;
+    private final MongoConfig config;
 
+    private ConcurrentMap<String, Client> mongoClients= new ConcurrentHashMap<>();
+    private volatile MongoClient springClient;
     private static final String MONGO_SCHEME = "mongodb://";
+    //private volatile String springTemplate;
 
     private interface Client {
-
-
         <T> T getMongoTemplate(Class<T> type);
         void destroy();
-
-
     }
 
     private static class MongoClient implements Client {
@@ -198,6 +196,12 @@ public class MongoService {
         }
     }
 */
+
+    public MongoService(MongoConfig config) {
+        this.config = config;
+
+    }
+
     @PostConstruct
     private void init() {
 
@@ -205,6 +209,9 @@ public class MongoService {
 
             MongoClient newClient = new MongoClient(entry.getValue());
             mongoClients.put(entry.getKey(), newClient);
+            if(config.getAutoConfigSpringTemplate().equals(entry.getKey())) {
+                springClient = newClient;
+            }
 
         }
     }
@@ -216,7 +223,7 @@ public class MongoService {
             entry.getValue().destroy();
         }
     }
-    private ConcurrentMap<String, Client> mongoClients= new ConcurrentHashMap<>();
+
 
     public MongoTemplate getMongoTemplate(String name) {
         return mongoClients.get(name) != null?mongoClients.get(name).getMongoTemplate(MongoTemplate.class):null;
@@ -225,6 +232,12 @@ public class MongoService {
     public <T> T getTemplate(String name, Class<T> type) {
         return mongoClients.get(name) != null?mongoClients.get(name).getMongoTemplate(type):null;
     }
+
+    public <T> T getSpringTemplate(Class<T> type) {
+        return springClient != null?springClient.getMongoTemplate(type):null;
+    }
+
+    //public MongoTemplate
 
 
 }
