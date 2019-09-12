@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public class Context {
 
+    public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
     private Map<String, Map<String, Object>> contextMap = new HashMap<>();
 
 
@@ -24,9 +25,31 @@ public class Context {
 
     }
 
+    public static String patternReplace(String path, DataProvider provider) {
+
+        if(path == null) {
+            return null;
+        }
+
+        Pattern p = Pattern.compile(REGEX_PATTERN);
+        Matcher m = p.matcher(path);
+        StringBuffer sb = new StringBuffer();
+
+        while(m.find()) {
+
+            String placeholder = m.group(1);
+            if(placeholder != null) {
+                m.appendReplacement(sb, (provider != null)?provider.getPathReplacement(placeholder):"");
+            }
+        }
+        m.appendTail(sb);
+
+        return sb.toString();
+    }
+
     public static abstract class DataProvider {
 
-        public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
+
         public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String path, MultiValueMap params);
 
         public String getPathReplacement(String placeholder) {
@@ -38,28 +61,6 @@ public class Context {
         }
 
 
-        private String patternReplace(String path) {
-
-            if(path == null) {
-                return null;
-            }
-
-            Pattern p = Pattern.compile(REGEX_PATTERN);
-            Matcher m = p.matcher(path);
-            StringBuffer sb = new StringBuffer();
-
-            while(m.find()) {
-
-                String placeholder = m.group(1);
-                if(placeholder != null) {
-                    m.appendReplacement(sb, getPathReplacement(placeholder));
-                }
-            }
-            m.appendTail(sb);
-
-            return sb.toString();
-        }
-
         public CompletableFuture<Object> resolve(Context context, String path) {
 
             if(path == null) {
@@ -69,7 +70,7 @@ public class Context {
                 return future;
             }
 
-            path = patternReplace(path);
+            path = patternReplace(path, this);
 
             URI uri;
             try {

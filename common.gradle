@@ -3,6 +3,7 @@ allprojects {
     repositories {
 
         jcenter()
+
         maven {url "http://oss.jfrog.org/artifactory/oss-snapshot-local"}
 
     }
@@ -11,12 +12,15 @@ allprojects {
 buildscript {
 
     repositories {
-        jcenter()
 
+        jcenter()
     }
 
     ext {
         boot_version = '2.1.4.RELEASE'
+        //scala_version = '2.13.0'
+        versions = [:]
+        libs = [:]
         enable_webflux = true
         enable_cache = false
     }
@@ -26,5 +30,6 @@ buildscript {
 
 apply plugin:'java'
 apply plugin:'war'
+apply plugin:'scala'
 apply plugin: 'io.spring.dependency-management'
 
