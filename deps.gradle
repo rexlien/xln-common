@@ -48,6 +48,7 @@ dependencies {
         compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'
 
     }
+    compile group: 'io.projectreactor.addons', name: 'reactor-extra', version: '3.2.3.RELEASE'
     compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "$boot_version"
     compile 'org.mongodb:mongodb-driver-reactivestreams:1.11.0'
     compile group: 'org.springframework.boot', name: 'spring-boot-actuator', version: "$boot_version"
