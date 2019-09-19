@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import reactor.core.publisher.Flux;
@@ -37,29 +38,36 @@ public class KafkaTest
 
     @Test
     public void testProduceAndConsume() throws InterruptedException {
-        KafkaSender<String, String> sender = kafkaService.<String, String, StringSerializer, StringSerializer>createProducer("producer0", StringSerializer.class, StringSerializer.class);
-        SenderRecord<String, String, Integer> record = SenderRecord.create(new ProducerRecord("test-xln", "1","123"), 1);
 
-        sender.<Integer>send(Mono.fromCallable(()->{return record;})).doOnError(e-> {
-            logger.error("Exception", e);}).subscribe(res -> {
-                    if(res.correlationMetadata() == 1) {
-
-                    }
-            }
-        );
 
         Semaphore lock = new Semaphore(0);
 
+        KafkaSender<String, Object> sender = kafkaService.createProducer("producer0", "producer0", JsonSerializer.class);
+        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord("test-xln2", null, new Integer(123)), 1);
+
+        sender.send(Mono.fromCallable(()->{return record;})).doOnError(e-> {
+            logger.error("Exception", e);}).subscribe(res -> {
+                    log.info("send success");
+                    if(res.correlationMetadata() == 1) {
+
+                    }
+                }
+        );
+
         //ReceiverRecord<String, String> receiverRecord = kafkaService.<String, String>startConsume("kafkaC0", Collections.singletonList("test-xln")).blockLast();
 
-        kafkaService.<String, String>startConsume("kafkaC0", Collections.singletonList("test-xln")).subscribe(r -> {
+        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.elastic()).subscribe(r -> {
 
             logger.info(r.topic());
+            logger.info(String.valueOf(r.offset()));
             logger.info(r.key());
-            logger.info(r.value());
+            logger.info(r.value().toString());
+            r.receiverOffset().commit().block();
             lock.release();
 
         });
+
+
 
         lock.acquire();
     }
