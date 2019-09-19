@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 public class Context {
 
     public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
-    private Map<String, Map<String, Object>> contextMap = new HashMap<>();
+    private Map<String, Object> contextMap = new HashMap<>();
 
 
     public Context(DataProvider provider) {
@@ -99,7 +99,7 @@ public class Context {
 
     }
 
-    public Map<String, Map<String, Object>> getContextMap() {
+    public Map<String, Object> getContextMap() {
         return contextMap;
     }
 
