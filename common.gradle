@@ -24,6 +24,17 @@ buildscript {
         enable_webflux = true
         enable_cache = false
     }
+
+    protobuf {
+        
+        // Configure the protoc executable
+        protoc {
+            // Download from repositories
+            artifact = 'com.google.protobuf:protoc:3.0.0'
+        }
+        generatedFilesBaseDir = "$projectDir/src"
+        
+    }
 }
 
 

@@ -3,18 +3,24 @@ package xln.common.service;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderOptions;
+import reactor.kafka.sender.SenderRecord;
+import reactor.kafka.sender.SenderResult;
 import xln.common.config.KafkaConfig;
 import xln.common.config.ServiceConfig;
 
@@ -29,8 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Slf4j
-public class KafkaService
-{
+public class KafkaService {
     private static Logger logger = LoggerFactory.getLogger(KafkaService.class);
 
     private Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
@@ -45,7 +50,8 @@ public class KafkaService
 
 
     private ConcurrentHashMap<String, KafkaSender<String, Object>> kafkaSenders = new ConcurrentHashMap<>();
-    private AtomicInteger uid = new AtomicInteger(0);
+    private AtomicInteger consumerID = new AtomicInteger(0);
+    private AtomicInteger correlationID = new AtomicInteger(0);
 
     @Autowired
     private KafkaConfig kafkaConfig;
@@ -57,8 +63,8 @@ public class KafkaService
     @PostConstruct
     private void init() {
         producerConfigs = kafkaConfig.getProducerConfigs();
-        if(producerConfigs != null) {
-            for(Map.Entry<String, KafkaConfig.KafkaProducerConfig> kv : producerConfigs.entrySet()) {
+        if (producerConfigs != null) {
+            for (Map.Entry<String, KafkaConfig.KafkaProducerConfig> kv : producerConfigs.entrySet()) {
 
                 StringBuilder builder = new StringBuilder();
                 boolean firstIter = true;
@@ -85,13 +91,13 @@ public class KafkaService
         }
 
         consumerConfigs = kafkaConfig.getConsumersConfigs();
-        for(Map.Entry<String, KafkaConfig.KafkaConsumerConfig> kv : consumerConfigs.entrySet()) {
+        for (Map.Entry<String, KafkaConfig.KafkaConsumerConfig> kv : consumerConfigs.entrySet()) {
 
             StringBuilder builder = new StringBuilder();
             boolean firstIter = true;
-            for(String url : kv.getValue().getServerUrls()) {
+            for (String url : kv.getValue().getServerUrls()) {
 
-                if(firstIter) {
+                if (firstIter) {
                     firstIter = false;
                 } else {
                     builder.append(",");
@@ -107,11 +113,11 @@ public class KafkaService
                 props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Class.forName(kv.getValue().getKeyDeserializer()));
                 props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Class.forName(kv.getValue().getValueDeserializer()));
                 props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-            }catch (ClassNotFoundException ex) {
+            } catch (ClassNotFoundException ex) {
                 logger.error(ex.toString());
             }
             props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kv.getValue().getAutoOffsetResetConfig());
-            if(kv.getValue().isEnableAutoCommit()) {
+            if (kv.getValue().isEnableAutoCommit()) {
                 props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, kv.getValue().isEnableAutoCommit());
                 props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, kv.getValue().getAutoCommitInterval());
             }
@@ -122,7 +128,7 @@ public class KafkaService
 
     public <K, V, T, U> KafkaSender<K, V> createProducer(String producerConfig, Class<T> kClass, Class<U> vClass) {
 
-        if(producerProps.get(producerConfig) == null) {
+        if (producerProps.get(producerConfig) == null) {
             return null;
         }
         HashMap<String, Object> newMap = new HashMap<>(producerProps.get(producerConfig));
@@ -133,17 +139,21 @@ public class KafkaService
 
         return KafkaSender.create(senderOptions);
 
-    };
+    }
+
+    ;
 
     public <T> KafkaSender<String, Object> createProducer(String name, String producerConfig, Class<T> valueSerializer) {
 
         KafkaSender<String, Object> sender = createProducer(producerConfig, StringSerializer.class, valueSerializer);
-        if(sender != null) {
+        if (sender != null) {
             kafkaSenders.put(name, sender);
         }
         return sender;
 
-    };
+    }
+
+    ;
 
     public KafkaSender<String, Object> getProducer(String name) {
         return kafkaSenders.get(name);
@@ -153,17 +163,34 @@ public class KafkaService
 
         HashMap<String, Object> newMap = new HashMap<String, Object>(consumerProps.get(consumerName));
         try {
-            newMap.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName() + "-" + String.valueOf(uid.getAndIncrement()));
-        }catch (UnknownHostException ex) {
-           logger.error(ex.toString());
+            newMap.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName() + "-" + String.valueOf(consumerID.getAndIncrement()));
+        } catch (UnknownHostException ex) {
+            logger.error(ex.toString());
         }
 
-        ReceiverOptions<K, V> receiverOption =  ReceiverOptions.create(newMap);
+        ReceiverOptions<K, V> receiverOption = ReceiverOptions.create(newMap);
+        //receiverOption.commitInterval();
         receiverOption.subscription(topic);
 
         return KafkaReceiver.create(receiverOption).receive();
 
     }
+
+    public Flux<SenderResult<Integer>> sendObject(String name, String topic, String key, Object object) {
+
+        KafkaSender<String, Object> producer = getProducer(name);
+        if (producer == null) {
+            return null;
+        }
+        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord(topic, key, object), correlationID.getAndIncrement());
+
+        return producer.send(Mono.fromCallable(() -> {
+            return record;
+        })).doOnError(e -> {
+            log.error("Exception", e);
+        });
+    }
+
 
 
 

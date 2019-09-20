@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+package xln.common.proto.command;
+
+message RetryLog {
+
+    string targetName = 1;
+    google.protobuf.Any obj = 2;
+    string jsonObj = 3;
+}
+
+
+message CacheTask {
+    string cacheManagerName = 1;
+    string cacheName = 2;
+    string key = 3;
+}
