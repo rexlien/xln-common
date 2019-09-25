@@ -1,5 +1,7 @@
 package xln.common.cache;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.SynchronousSink;
 import xln.common.config.CacheConfig;
+import xln.common.proto.command.Command;
 import xln.common.service.CacheService;
 import xln.common.service.RedisService;
 
@@ -39,6 +42,7 @@ import java.util.function.Consumer;
 public class CacheController {
 
 
+    @Deprecated
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -59,7 +63,7 @@ public class CacheController {
 
     private volatile RedisService.RedisMessagePublisher messagePublisher;
 
-    private volatile RedisTemplate<String, Object> subRedisTemplate;
+    private volatile RedisTemplate<String, Any> subRedisTemplate;
     private final RedisService redisService;
     private final CacheService cacheService;
     private volatile String topic;
@@ -77,7 +81,7 @@ public class CacheController {
         if(this.cacheConfig.getCacheControllerConfig() != null && cacheConfig.getCacheControllerConfig().getRedisServerName() != null) {
             String redisServer = this.cacheConfig.getCacheControllerConfig().getRedisServerName();
             this.topic = this.cacheConfig.getCacheControllerConfig().getTopicPattern();
-            this.subRedisTemplate = redisService.getTemplate(redisServer, Object.class);
+            this.subRedisTemplate = redisService.getTemplate(redisServer, Any.class);
 
             if(this.cacheConfig.getCacheControllerConfig().isPublisher()) {
                 messagePublisher = this.redisService.getMessagePublisher(cacheConfig.getCacheControllerConfig().getRedisServerName());//new RedisMessagePublisher(this.pubRedisTemplate);
@@ -89,12 +93,23 @@ public class CacheController {
                     messageListenerContainer.addMessageListener(new MessageListener() {
                         @Override
                         public void onMessage(Message message, byte[] pattern) {
-                            Object object = subRedisTemplate.getValueSerializer().deserialize(message.getBody());
-                            if(object instanceof CacheInvalidateTask) {
-                                CacheInvalidateTask cacheTask = (CacheInvalidateTask)object;
-                                CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheManagerName());
+
+                            //Object object = subRedisTemplate.getValueSerializer().deserialize(message.getBody());
+                            Any any = (Any)subRedisTemplate.getValueSerializer().deserialize(message.getBody());
+                            //if( instanceof CacheInvalidateTask) {
+                            if(any.is(Command.CacheTask.class)) {
+                                //CacheInvalidateTask cacheTask = (CacheInvalidateTask)object;
+                                Command.CacheTask cacheTask = null;
+                                try {
+                                    cacheTask = any.unpack(Command.CacheTask.class);
+                                }catch (InvalidProtocolBufferException ex) {
+
+                                    return;
+                                }
+
+                                CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheManagerName().getValue());
                                 if(cacheManager != null) {
-                                    if(cacheTask.getCacheName() == null) {
+                                    if(!cacheTask.hasCacheName()) {
                                         log.debug("Cache Manager Clearing: " + cacheTask.getCacheManagerName());
                                         for(String cacheName : cacheManager.getCacheNames()) {
                                             Cache cache = cacheManager.getCache(cacheName);
@@ -104,11 +119,11 @@ public class CacheController {
                                         }
 
                                     } else {
-                                        Cache cache = cacheManager.getCache(cacheTask.getCacheName());
+                                        Cache cache = cacheManager.getCache(cacheTask.getCacheName().getValue());
                                         if (cache != null) {
 
-                                            if (cacheTask.getKey() == null) {
-                                                log.debug("Cache Clearing: " + cacheTask.getCacheName() + cacheTask.getKey());
+                                            if (cacheTask.hasKey()) {
+                                                log.debug("Cache Clearing: " + cacheTask.getCacheName());
                                                 cache.clear();
                                             } else {
                                                 log.debug("Cache Key Evicting: " + cacheTask.getCacheName() + cacheTask.getKey());
@@ -118,8 +133,8 @@ public class CacheController {
                                     }
                                 }
                             }
-                            if(object != null) {
-                                emitter.next(object);
+                            if(any != null) {
+                                emitter.next(any);
                             }
 
                         }
@@ -146,6 +161,13 @@ public class CacheController {
     }
 
     public void publishCacheInvalidation(CacheInvalidateTask task) {
+
+        if(messagePublisher != null) {
+            //messagePublisher.publish(topic, task);
+        }
+    }
+
+    public void publishCacheInvalidation(Command.CacheTask task) {
 
         if(messagePublisher != null) {
             messagePublisher.publish(topic, task);

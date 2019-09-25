@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
 
 package xln.common.proto.command;
 
@@ -13,7 +14,9 @@ message RetryLog {
 
 
 message CacheTask {
-    string cacheManagerName = 1;
-    string cacheName = 2;
-    string key = 3;
+    google.protobuf.StringValue cacheManagerName = 1;
+    google.protobuf.StringValue cacheName = 2;
+    google.protobuf.StringValue key = 3;
+
+
 }

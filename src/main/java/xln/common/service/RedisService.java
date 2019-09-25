@@ -4,6 +4,9 @@ package xln.common.service;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.ReadFrom;
 import lombok.Data;
@@ -37,6 +40,7 @@ import reactor.core.publisher.Flux;
 import xln.common.cache.CacheController;
 import xln.common.config.ServiceConfig;
 import xln.common.serializer.GenericJackson2JsonRedisSerializer;
+import xln.common.serializer.ProtoRedisSerializer;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -47,6 +51,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -59,22 +64,24 @@ public class RedisService {
     private static class RedisClientSet {
         private AtomicReference<ReactiveRedisTemplate<String, String>> reactStringTemplate = new AtomicReference<>();
         private AtomicReference<ReactiveRedisTemplate<String, Object>> reactObjectTemplate = new AtomicReference<>();
+
         private AtomicReference<RedisTemplate<String, String>> stringTemplate = new AtomicReference<>();
         private AtomicReference<RedisTemplate<String, Object>> objTemplate = new AtomicReference<>();
+        private AtomicReference<CompletableFuture<RedisTemplate<String, Any>>> anyTemplate = new AtomicReference<>();
         private volatile RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
 
     public static class RedisMessagePublisher  {
 
-        private final RedisTemplate<String, Object> redisTemplate;
+        private final RedisTemplate<String, Any> redisTemplate;
         public RedisMessagePublisher(RedisTemplate redisTemplate) {
             this.redisTemplate = redisTemplate;
         }
 
-        public void publish(String topic, Object task) {
+        public void publish(String topic, Message message) {
 
-            redisTemplate.convertAndSend(topic, task);
+            redisTemplate.convertAndSend(topic, Any.pack(message));
         }
     }
 
@@ -193,7 +200,7 @@ public class RedisService {
 
             }
             if(kv.getValue().isPublisher()) {
-                messagePublishers.put(kv.getKey(), new RedisMessagePublisher(getTemplate(kv.getKey(), Object.class)));
+                messagePublishers.put(kv.getKey(), new RedisMessagePublisher(getTemplate(kv.getKey(), Any.class)));
             }
             if(kv.getValue().isSubscriber()) {
                 RedisMessageListenerContainer messageContainer = new RedisMessageListenerContainer();
@@ -286,6 +293,42 @@ public class RedisService {
 
     }
 
+    private RedisTemplate<String, Any> getAnyTemplate(String name) {
+        RedisClientSet set = redisClientSets.get(name);
+        if (set == null) {
+            return null;
+        }
+
+        if(set.getObjTemplate().get() == null) {
+
+            CompletableFuture<RedisTemplate<String, Any>> future = new CompletableFuture<>();
+            if (set.getAnyTemplate().compareAndSet(null, future)) {
+
+                RedisTemplate<String, Any> template = new RedisTemplate<>();
+                template.setConnectionFactory(connectionFactories.get(name));
+                template.setDefaultSerializer(new StringRedisSerializer());
+                template.setHashValueSerializer(new ProtoRedisSerializer());
+                template.setValueSerializer(new ProtoRedisSerializer());
+                template.afterPropertiesSet();
+                future.complete(template);
+                return template;
+
+            }
+        }
+
+        try {
+            return set.getAnyTemplate().get().get();
+        } catch (Exception ex) {
+
+            logger.error("", ex);
+            return null;
+
+        }
+
+
+    }
+
+
     private RedisTemplate<String, String> getStringTemplate(String name) {
 
         RedisClientSet set = redisClientSets.get(name);
@@ -309,7 +352,10 @@ public class RedisService {
 
         if(valueType == String.class) {
             return (RedisTemplate<String, T>) getStringTemplate(name);
-        } else {
+        } else if(valueType == Any.class) {
+            return (RedisTemplate<String, T>) getAnyTemplate(name);
+        }
+        else {
             return (RedisTemplate<String, T>) getObjectTemplate(name);
         }
 
