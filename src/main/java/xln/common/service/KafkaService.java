@@ -1,10 +1,14 @@
 package xln.common.service;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.Message;
+import com.google.protobuf.StringValue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.checkerframework.common.value.qual.StringVal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +27,7 @@ import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 import xln.common.config.KafkaConfig;
 import xln.common.config.ServiceConfig;
+import xln.common.proto.command.Command;
 
 import javax.annotation.PostConstruct;
 import java.net.InetAddress;
@@ -53,11 +58,13 @@ public class KafkaService {
     private AtomicInteger consumerID = new AtomicInteger(0);
     private AtomicInteger correlationID = new AtomicInteger(0);
 
+    private ProtoLogService protoLogService;
+
     @Autowired
     private KafkaConfig kafkaConfig;
 
-    public KafkaService() {
-
+    public KafkaService(ProtoLogService protoLogService) {
+        this.protoLogService = protoLogService;
     }
 
     @PostConstruct
@@ -187,8 +194,45 @@ public class KafkaService {
         return producer.send(Mono.fromCallable(() -> {
             return record;
         })).doOnError(e -> {
+
+            //Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + name).build();
+
+            //this.storageService.safePut("")
+
             log.error("Exception", e);
         });
+    }
+
+    public Flux<SenderResult<Integer>> sendMessage(String name, String topic, String key, Message message) {
+
+        KafkaSender<String, Object> producer = getProducer(name);
+        if (producer == null) {
+            log.warn("producer not found");
+            return null;
+        }
+
+        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord(topic, key, Any.pack(message)), correlationID.getAndIncrement());
+        Flux<SenderResult<Integer>> flux = producer.send(Mono.fromCallable(() -> {
+            return record;
+        })).doOnError(e -> {
+
+            log.error("Exception", e);
+
+            Command.KafkaMessage kafkaMessage;
+            if(key == null) {
+                kafkaMessage = Command.KafkaMessage.newBuilder().setTopic(topic).setPayload(Any.pack(message)).build();
+            } else {
+                kafkaMessage = Command.KafkaMessage.newBuilder().setTopic(topic).setKey(StringValue.of(key)).setPayload(Any.pack(message)).build();
+             }
+            Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + name).setObj(Any.pack(kafkaMessage)).build();
+            this.protoLogService.log(Any.pack(retryCommand));
+
+        });
+
+        flux.publish().connect();
+
+        return flux;
+
     }
 
 

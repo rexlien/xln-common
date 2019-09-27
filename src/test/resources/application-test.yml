@@ -25,6 +25,12 @@ xln.kafka-config:
       acks: 1
       requestTimeout: 30000
       retryCount: 2
+    producer1:
+      serverUrls:
+        - 127.0.0.1:9092
+      acks: 1
+      requestTimeout: 30000
+      retryCount: 2
   consumersConfigs:
     kafkaC0:
       serverUrls:
@@ -32,6 +38,15 @@ xln.kafka-config:
       keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
       valueDeserializer:  org.springframework.kafka.support.serializer.JsonDeserializer
       groupID: xln-consumer
+      #enableAutoCommit: true
+      #autoCommitInterval : 1000
+      autoOffsetResetConfig: "earliest"
+    kafkaC1:
+      serverUrls:
+        - 127.0.0.1:9092
+      keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
+      valueDeserializer:  xln.common.serializer.ProtoKafkaDeserializer
+      groupID: xln-consumer2
       #enableAutoCommit: true
       #autoCommitInterval : 1000
       autoOffsetResetConfig: "earliest"

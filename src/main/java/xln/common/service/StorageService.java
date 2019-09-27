@@ -1,17 +1,18 @@
 package xln.common.service;
 
 
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import com.google.protobuf.Parser;
 import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.*;
 import org.springframework.stereotype.Service;
 import xln.common.proto.command.Command;
+import xln.common.store.RocksDBStore;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -21,52 +22,43 @@ public class StorageService {
         RocksDB.loadLibrary();
     }
 
-    //private volatile RocksDB rocksDB;
-    private final WriteOptions safeWriteOps;
+    private ConcurrentHashMap<String, RocksDBStore> rocksDBs = new ConcurrentHashMap<>();
     private volatile Options options;
     private String dbPath = "./rocksDB";
 
     public StorageService() {
 
-        safeWriteOps = new WriteOptions();
-        safeWriteOps.setSync(true);
-
         options = new Options().setCreateIfMissing(true);
 
     }
 
-    public boolean safePut(String key, Message obj) {
 
-        try (final RocksDB db = RocksDB.open(options, dbPath)) {
-            try {
-                db.put(safeWriteOps, key.getBytes(), obj.toByteArray());
-            } catch (RocksDBException ex) {
-                log.error("", ex);
-                return false;
-            }
-        }catch (RocksDBException ex) {
-            log.error("", ex);
-            return false;
+    @PreDestroy
+    public void destroy() {
+
+        for(Map.Entry<String, RocksDBStore> kv: rocksDBs.entrySet()) {
+
+            kv.getValue().close();
         }
-        return true;
+
     }
 
-    public <T extends Message> T get(String key, Parser<T> parser) {
+    public RocksDBStore addRocksDB(String filePath) {
 
-        try (final RocksDB db = RocksDB.open(options, dbPath)) {
-            try {
-                return parser.parseFrom(db.get(key.getBytes()));
+        return rocksDBs.computeIfAbsent(filePath, (key) -> {
 
-            } catch (RocksDBException ex) {
-                log.error("", ex);
-                return null;
-            } catch (InvalidProtocolBufferException ex) {
-                log.error("", ex);
-                return null;
-            }
-        }catch (RocksDBException ex) {
-            log.error("", ex);
-            return null;
-        }
+            RocksDBStore newStore = new RocksDBStore();
+            newStore.openDB(filePath, options);
+            return newStore;
+
+        });
+
     }
+
+    public RocksDBStore getRocksDB(String filePath) {
+        return rocksDBs.get(filePath);
+    }
+
+
+
 }

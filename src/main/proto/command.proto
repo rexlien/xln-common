@@ -5,13 +5,25 @@ import "google/protobuf/wrappers.proto";
 
 package xln.common.proto.command;
 
-message RetryLog {
+message Retry {
 
-    string targetName = 1;
+    string path = 1;
     google.protobuf.Any obj = 2;
-    string jsonObj = 3;
 }
 
+message KafkaMessage {
+
+   string topic = 1;
+   google.protobuf.StringValue key = 2;
+   google.protobuf.Any payload = 3;
+}
+
+message TestKafkaPayLoad {
+
+    string payload = 1;
+    string payload2 = 2;
+
+}
 
 message CacheTask {
     google.protobuf.StringValue cacheManagerName = 1;
