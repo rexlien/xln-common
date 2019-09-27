@@ -50,7 +50,7 @@ public class Context {
     public static abstract class DataProvider {
 
 
-        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String path, MultiValueMap params);
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap params);
 
         public String getPathReplacement(String placeholder) {
             return "";
@@ -87,7 +87,7 @@ public class Context {
                         UriComponentsBuilder.fromUri(uri).build().getQueryParams();
 
                 //String key = parameters.getFirst("key");
-                return resolveURL(context, uri.getScheme(), uri.getPath(),  parameters);
+                return resolveURL(context, uri.getScheme(), uri.getHost(), uri.getPath(),  parameters);
             } else {
 
                 log.warn("path needs to have scheme");

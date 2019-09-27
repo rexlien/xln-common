@@ -9,6 +9,10 @@ import java.util.Map;
 public class CollectionUtils {
 
     public static Object pathGet(String path, Map<String, Object> map)  {
+        if(path.startsWith("/")) {
+            path = path.substring(1);
+
+        }
         String[] arr = path.split("/");
         Object curObj = map;
         for(int i = 0; i < arr.length; i++) {
