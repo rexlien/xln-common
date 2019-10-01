@@ -160,6 +160,7 @@ public class CacheController {
         }
     }
 
+    @Deprecated
     public void publishCacheInvalidation(CacheInvalidateTask task) {
 
         if(messagePublisher != null) {
