@@ -49,12 +49,7 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
         }
 
 
-        for(Iterator<PropertySource<?>> it = env.getPropertySources().iterator(); it.hasNext(); ) {
-            PropertySource<?> propertySource = it.next();
 
-            log.info(propertySource.getName(), propertySource.toString());
-
-        }
 
     }
 }

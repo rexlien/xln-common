@@ -1,14 +1,18 @@
 package xln.common.lifecycle;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.PropertiesPropertySource;
+import org.springframework.core.env.PropertySource;
 
+import java.util.Iterator;
 import java.util.Properties;
 
 @Configuration
+@Slf4j
 public class AppPreparedEvent implements ApplicationListener<ApplicationPreparedEvent> {
 
     @Override
@@ -28,6 +32,21 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         } else {
             props.put("management.server.port", 18080);
         }
+
         environment.getPropertySources().addLast(new PropertiesPropertySource("bases-props", props));
+
+        Properties overrideProps = new Properties();
+        String name = System.getenv("XLN_APP");
+        if(name != null) {
+            overrideProps.put("xln.common.config.appName", name);
+        }
+        environment.getPropertySources().addFirst(new PropertiesPropertySource("override-props", overrideProps));
+
+        for(Iterator<PropertySource<?>> it = environment.getPropertySources().iterator(); it.hasNext(); ) {
+            PropertySource<?> propertySource = it.next();
+
+            log.info(propertySource.getName(), propertySource.toString());
+
+        }
     }
 }
