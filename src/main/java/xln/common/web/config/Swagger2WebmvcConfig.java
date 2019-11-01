@@ -1,6 +1,7 @@
 package xln.common.web.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -14,6 +15,7 @@ import xln.common.annotation.Swagger2Controller;
 
 
 @Configuration
+@ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
 @EnableSwagger2
 @Profile({"xln-swagger2-webmvc"})
 public class Swagger2WebmvcConfig  {
