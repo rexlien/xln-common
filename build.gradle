@@ -15,8 +15,6 @@ sourceCompatibility = 1.8
 
 apply from : "common.gradle"
 
-project.enable_cache = true
-
 apply from : "boot.gradle"
 apply from : "jar.gradle"
 apply from : "deps.gradle"

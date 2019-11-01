@@ -17,12 +17,12 @@ buildscript {
     }
 
     ext {
-        boot_version = '2.1.4.RELEASE'
+        boot_version = '2.2.0.RELEASE'
         //scala_version = '2.13.0'
         versions = [:]
         libs = [:]
         enable_webflux = true
-        enable_cache = false
+        //enable_cache = false
     }
 
     protobuf {

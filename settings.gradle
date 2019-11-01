@@ -3,7 +3,7 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id.startsWith("org.springframework.boot"))
-                useVersion("2.0.6.RELEASE")
+                useVersion("2.2.0.RELEASE")
             if (requested.id.id.startsWith("com.google.protobuf"))
                 useVersion("0.8.10")
         }
