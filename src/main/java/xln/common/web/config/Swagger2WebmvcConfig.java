@@ -10,13 +10,13 @@ import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
+import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 import xln.common.annotation.Swagger2Controller;
 
 
 @Configuration
 @ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
-@EnableSwagger2
+@EnableSwagger2WebMvc
 @Profile({"xln-swagger2-webmvc"})
 public class Swagger2WebmvcConfig  {
 
@@ -37,16 +37,4 @@ public class Swagger2WebmvcConfig  {
 
     }
 
-/*
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        //swagger resource
-        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
-        registry.addResourceHandler("swagger-ui.html")
-                .addResourceLocations("classpath:/META-INF/resources/");
-        //registry.addResourceHandler("/swagger/**").addResourceLocations("classpath:/static/swagger/");
-        //registry.addResourceHandler("/swagger/**").addResourceLocations("classpath:/static/swagger/");
-    }
-
-*/
 }

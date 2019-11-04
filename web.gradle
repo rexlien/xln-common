@@ -7,12 +7,17 @@ dependencies {
     compile "org.springframework.boot:spring-boot-starter-thymeleaf:$boot_version"
 
 
-    compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.9.2'
-    compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.9.2'
+    //compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.9.2'
+    //compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.9.2'
 
-    //compile group: 'io.springfox', name: 'springfox-swagger2', version: '3.0.0-SNAPSHOT'
-    //compile group: 'io.springfox', name: 'springfox-spring-webflux', version: '3.0.0-SNAPSHOT'
-    //compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '3.0.0-SNAPSHOT'
+    compile group: 'io.springfox', name: 'springfox-swagger2', version: '3.0.0-SNAPSHOT'
+
+    if(project.enable_webflux == true) {
+        compile group: 'io.springfox', name: 'springfox-spring-webflux', version: '3.0.0-SNAPSHOT'
+    } else {
+        compile group: 'io.springfox', name: 'springfox-spring-webmvc', version: '3.0.0-SNAPSHOT'
+    }
+    compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '3.0.0-SNAPSHOT'
 
 
 }
