@@ -86,6 +86,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.10.0'
 
 
     compile libs.scalaCollectionCompat

@@ -68,6 +68,7 @@ public class RedisService {
         private AtomicReference<RedisTemplate<String, String>> stringTemplate = new AtomicReference<>();
         private AtomicReference<RedisTemplate<String, Object>> objTemplate = new AtomicReference<>();
         private AtomicReference<CompletableFuture<RedisTemplate<String, Any>>> anyTemplate = new AtomicReference<>();
+        private AtomicReference<CompletableFuture<ReactiveRedisTemplate<String, Any>>> reactAnyTemplate = new AtomicReference<>();
         private volatile RedissonClient redisson;
         //private RedisMessageListenerContainer container;
     }
@@ -274,6 +275,45 @@ public class RedisService {
         return set.getReactObjectTemplate().get();
     }
 
+    public ReactiveRedisTemplate<String, Any> getAnyReactiveTemplate(String name) {
+
+        RedisClientSet set = redisClientSets.get(name);
+        if (set == null) {
+            return null;
+        }
+
+        if(set.getReactAnyTemplate().get() == null) {
+
+            CompletableFuture<ReactiveRedisTemplate<String, Any>> future = new CompletableFuture<>();
+            if (set.getReactAnyTemplate().compareAndSet(null, future)) {
+
+                RedisSerializationContext<String, Any> serializationContext = RedisSerializationContext
+                        .<String, Any>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
+                        .value(new ProtoRedisSerializer())
+                        .hashValue(new ProtoRedisSerializer()).build();
+
+                ReactiveRedisTemplate<String, Any> template = new ReactiveRedisTemplate<>(connectionFactories.get(name), serializationContext);
+
+
+                //template.setValueSerializer(new ProtoRedisSerializer());
+                //template.afterPropertiesSet();
+                future.complete(template);
+                return template;
+
+            }
+        }
+
+        try {
+            return set.getReactAnyTemplate().get().get();
+        } catch (Exception ex) {
+
+            logger.error("", ex);
+            return null;
+
+        }
+
+    }
+
     private RedisTemplate<String, Object> getObjectTemplate(String name) {
         RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
@@ -365,6 +405,8 @@ public class RedisService {
 
         if(valueType == String.class) {
             return (ReactiveRedisTemplate<String, T>) getStringReactiveTemplate(name);
+        } else if(valueType == Any.class){
+            return (ReactiveRedisTemplate<String, T>)getAnyReactiveTemplate(name);
         } else {
             return (ReactiveRedisTemplate<String, T>) getObjectReactiveTemplate(name);
         }
