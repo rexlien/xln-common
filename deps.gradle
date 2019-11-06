@@ -40,9 +40,14 @@ dependencies {
     compile "org.springframework.boot:spring-boot-gradle-plugin:$boot_version"
 
     compile "org.springframework.boot:spring-boot:$boot_version"
-    //compile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.6.RELEASE'
-    //compile group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version: '2.0.6.RELEASE'
+
     compile group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
+    compile group: 'org.springframework.data', name: 'spring-data-r2dbc', version: '1.0.0.RC1'
+    compile group: 'io.r2dbc', name: 'r2dbc-pool', version: '0.8.0.M8'
+    compile 'com.github.jasync-sql:jasync-mysql:1.0.11'
+    compile group: 'com.github.jasync-sql', name: 'jasync-r2dbc-mysql', version: '1.0.11'
+    compile("org.springframework.boot:spring-boot-starter-data-jpa:${boot_version}")
+    //implementation("io.r2dbc:r2dbc-h2")
 
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-cache', version: "$boot_version"
     compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'

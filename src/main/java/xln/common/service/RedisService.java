@@ -248,7 +248,7 @@ public class RedisService {
                     .hashValue(serializer)
                     .build();
 
-            ReactiveRedisTemplate<String, String> template = new ReactiveRedisTemplate<String, String>(connectionFactories.get(name), serializationContext);
+            ReactiveRedisTemplate<String, String> template = new ReactiveRedisTemplate(connectionFactories.get(name), serializationContext);
             set.getReactStringTemplate().compareAndSet(null, template);//setReactStringTemplate(template);
         }
         return set.getReactStringTemplate().get();
@@ -266,10 +266,10 @@ public class RedisService {
 
             RedisSerializationContext<String, Object> serializationContext = RedisSerializationContext
                     .<String, Object>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
-                    .value(new GenericJackson2JsonRedisSerializer()).build();
+                    .value(new GenericJackson2JsonRedisSerializer()).hashValue(new GenericJackson2JsonRedisSerializer()).build();
 
 
-            ReactiveRedisTemplate<String, Object> template = new ReactiveRedisTemplate<String, Object>(connectionFactories.get(name), serializationContext);
+            ReactiveRedisTemplate<String, Object> template = new ReactiveRedisTemplate(connectionFactories.get(name), serializationContext);
             set.getReactObjectTemplate().compareAndSet(null, template);
         }
         return set.getReactObjectTemplate().get();

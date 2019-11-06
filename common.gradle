@@ -3,7 +3,8 @@ allprojects {
     repositories {
 
         jcenter()
-
+        maven {url "https://repo.spring.io/milestone/"}
+        maven {url "https://repo.spring.io/plugins-release/"}
         maven {url "http://oss.jfrog.org/artifactory/oss-snapshot-local"}
 
     }
