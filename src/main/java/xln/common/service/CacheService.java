@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.interceptor.CacheResolver;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.stereotype.Service;
 import xln.common.cache.CustomCacheResolver;
+import xln.common.cache.ReactiveRedisCacheManager;
 import xln.common.config.CacheConfig;
 import xln.common.serializer.GenericJackson2JsonRedisSerializer;
 
@@ -73,8 +75,10 @@ public class CacheService {
                 redisCacheConfiguration = redisCacheConfiguration.disableCachingNullValues();
             redisCacheConfiguration = redisCacheConfiguration.entryTtl(Duration.ofMillis(config.getTtl())).serializeValuesWith(jsonSerializer);
 
-            RedisCacheManager redisCacheManager = RedisCacheManager.RedisCacheManagerBuilder.fromConnectionFactory(
-                    redisService.getConnectionFactory(config.getRedisServerName())).cacheDefaults(redisCacheConfiguration).build();
+            //RedisCacheManager redisCacheManager = RedisCacheManager.RedisCacheManagerBuilder.fromConnectionFactory(
+            //        redisService.getConnectionFactory(config.getRedisServerName())).cacheDefaults(redisCacheConfiguration).build();
+            //redisCacheManager.getCache(entry.getKey());
+            ReactiveRedisCacheManager  redisCacheManager = new ReactiveRedisCacheManager(redisService.getReactiveTemplate(config.getRedisServerName(), Object.class), redisCacheConfiguration);
             redisCacheManager.getCache(entry.getKey());
             cacheManagers.put(cacheName, redisCacheManager);
         }
@@ -129,6 +133,14 @@ public class CacheService {
     public CacheManager getCacheManager(String name) {
         return cacheManagers.get(name);
 
+    }
+
+    public Cache getCache(String cacheManagerName, String cacheName) {
+        CacheManager manager = cacheManagers.get(cacheManagerName);
+        if(manager == null) {
+            return null;
+        }
+        return manager.getCache(cacheName);
     }
 
 }
