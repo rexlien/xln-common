@@ -45,13 +45,14 @@ public class ReactiveCacheAspect {
 
             ReactiveCacheable reactiveCacheable = signature.getMethod().getAnnotation(ReactiveCacheable.class);
             Cache cache = cacheService.getCache(reactiveCacheable.cacheManagerID(), reactiveCacheable.cacheName());
-            if(cache != null) {
+            if(cache != null && cache instanceof ReactiveCache) {
 
                 EvaluationContext context = cacheExpressionEvaluator.createContext(joinPoint.getTarget(), ((MethodSignature) joinPoint.getSignature()).getMethod(), joinPoint.getArgs());
                 String key = (String)cacheExpressionEvaluator.evaluate(reactiveCacheable.cacheKey(), new AnnotatedElementKey(signature.getMethod(), signature.getClass()), context);
 
-                Cache.ValueWrapper ret = cache.get(key);
-                Mono mono = (Mono)ret.get();
+                //Cache.ValueWrapper ret = cache.get(key);
+                //Mono mono = cache.g//(Mono)ret.get();
+                Mono mono = ((ReactiveCache)cache).getReactive(key);
                 return mono.switchIfEmpty(Mono.defer(() -> {
                     try {
                         return ((Mono)(joinPoint.proceed())).flatMap((r)->{
@@ -61,7 +62,11 @@ public class ReactiveCacheAspect {
                                 cache.put(key, r);
                             }
                             return Mono.just(r);
-                        });
+                        }).switchIfEmpty(Mono.defer(()->{
+
+                            //let Cache handle null case
+                            return ((ReactiveCache) cache).putReactive(key, null);
+                        }));
                     }catch (Throwable ex) {
                         log.error("", ex);
                     }

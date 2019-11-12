@@ -5,4 +5,5 @@ import reactor.core.publisher.Mono;
 public interface ReactiveCache {
 
     Mono<Object> putReactive(Object key, Object value);
+    Mono<Object> getReactive(Object key);
 }
