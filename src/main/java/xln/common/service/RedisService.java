@@ -453,7 +453,7 @@ public class RedisService {
         }
     }
 */
-    public Flux<Object> runScript(ReactiveRedisTemplate<String, Object> redisTemplate, String scriptName, List<String> keyParams, List<String> argParams) {
+    public Flux<Object> runScript(ReactiveRedisTemplate<String, Object> redisTemplate, String scriptName, List<String> keyParams, List<Object> argParams) {
 
         RedisScript<Object> script = redisScripts.get(scriptName);
         if(script != null)
