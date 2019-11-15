@@ -11,7 +11,9 @@ import io.lettuce.core.KeyValue;
 import io.lettuce.core.ReadFrom;
 import lombok.Data;
 import org.redisson.Redisson;
+import org.redisson.RedissonReactive;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.RedissonReactiveClient;
 import org.redisson.config.ClusterServersConfig;
 import org.redisson.config.Config;
 import org.redisson.config.SingleServerConfig;
@@ -69,7 +71,8 @@ public class RedisService {
         private AtomicReference<RedisTemplate<String, Object>> objTemplate = new AtomicReference<>();
         private AtomicReference<CompletableFuture<RedisTemplate<String, Any>>> anyTemplate = new AtomicReference<>();
         private AtomicReference<CompletableFuture<ReactiveRedisTemplate<String, Any>>> reactAnyTemplate = new AtomicReference<>();
-        private volatile RedissonClient redisson;
+        //private volatile RedissonClient redisson;
+        private volatile RedissonReactiveClient redisson;
         //private RedisMessageListenerContainer container;
     }
 
@@ -176,7 +179,7 @@ public class RedisService {
                         singleConfig.setAddress(uri);
                     }
                     singleConfig.setPassword(kv.getValue().getPassword());
-                    clientSet.redisson = Redisson.create(config);
+                    clientSet.redisson = Redisson.createReactive(config);
                 }
                 redisClientSets.put(kv.getKey(),clientSet);
             }
@@ -184,6 +187,7 @@ public class RedisService {
 
                 connectionFactories.put(kv.getKey(), clusterConnectionFactory(kv.getValue()));
                 RedisClientSet clientSet = new RedisClientSet();
+                //ReactiveRedis
 
                 if(kv.getValue().isUseRedisson()) {
                     Config config = new Config();
@@ -193,7 +197,7 @@ public class RedisService {
                         clusterConfig.addNodeAddress(uri);
                     }
                     clusterConfig.setPassword(kv.getValue().getPassword());
-                    clientSet.redisson = Redisson.create(config);
+                    clientSet.redisson = Redisson.createReactive();//Redisson.create(config);
                 }
                 redisClientSets.put(kv.getKey(), clientSet);
 
@@ -473,8 +477,8 @@ public class RedisService {
         }
     }
 
-    public RedissonClient getRedisson(String name) {
-        RedissonClient redissonClient = redisClientSets.get(name).getRedisson();
+    public RedissonReactiveClient getRedisson(String name) {
+        RedissonReactiveClient redissonClient = redisClientSets.get(name).getRedisson();
         if(redissonClient == null) {
             logger.error("redisson client not enable");
         }

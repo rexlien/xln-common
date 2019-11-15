@@ -92,8 +92,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.10.0'
+    //implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.10.0'
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+"
 
 
     compile libs.scalaCollectionCompat
