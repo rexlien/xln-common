@@ -50,7 +50,7 @@ public class Context {
     public static abstract class DataProvider {
 
 
-        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap params);
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params);
 
         public String getPathReplacement(String placeholder) {
             return "";
