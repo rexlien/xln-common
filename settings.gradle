@@ -6,6 +6,9 @@ pluginManagement {
                 useVersion("2.2.0.RELEASE")
             if (requested.id.id.startsWith("com.google.protobuf"))
                 useVersion("0.8.10")
+            if (requested.id.id.startsWith("org.jetbrains.kotlin.jvm"))
+                useVersion("1.3.50")
+            
         }
     }
 }
