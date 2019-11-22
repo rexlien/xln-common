@@ -197,7 +197,7 @@ public class RedisService {
                         clusterConfig.addNodeAddress(uri);
                     }
                     clusterConfig.setPassword(kv.getValue().getPassword());
-                    clientSet.redisson = Redisson.createReactive();//Redisson.create(config);
+                    clientSet.redisson = Redisson.createReactive(config);
                 }
                 redisClientSets.put(kv.getKey(), clientSet);
 
