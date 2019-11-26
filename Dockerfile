@@ -16,4 +16,4 @@ COPY ${JAR_FILE} /work/app.jar
 #ENTRYPOINT ["java","-jar","-server","-d64","-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:MaxRAMFraction=1", "app.jar"]
 #ENTRYPOINT ["java","-jar", "-XX:MaxRAMPercentage=70", "-XX:MinRAMPercentage=20" "app.jar"]
 
-ENTRYPOINT ["java","-jar", "app.jar"]
+ENTRYPOINT ["java","-agentlib:jdwp=transport=dt_socket,address=*:5005,server=y,suspend=n", "-jar", "app.jar"]
