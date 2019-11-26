@@ -6,10 +6,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class Context {
@@ -113,6 +116,13 @@ public class Context {
             }
         }, null);
 
+    }
+
+    public CompletableFuture<Void> gatherSourceJoin(Evaluator evaluator, Element root) {
+
+        gatherSource(evaluator, root);
+        List<CompletableFuture<Object>> list = sources.values().stream().collect(Collectors.toList());
+        return CompletableFuture.allOf(list.toArray(new CompletableFuture[list.size()]));
     }
 
     public CompletableFuture<Object> getSource(String path) {

@@ -1,5 +1,6 @@
 package xln.common.xln.common.extension
 
+import kotlinx.coroutines.future.await
 import org.redisson.RedissonObject
 import org.redisson.RedissonPermitExpirableSemaphore
 import org.redisson.RedissonReactive
@@ -13,8 +14,21 @@ import org.redisson.client.protocol.RedisCommands
 import org.redisson.command.CommandAsyncExecutor
 import org.redisson.pubsub.SemaphorePubSub
 import org.redisson.reactive.ReactiveProxyBuilder
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import xln.common.expression.ConditionEvaluator
+import xln.common.expression.Element
 import java.util.*
 
+
+suspend fun ConditionEvaluator.startEvalAsync(root : Element) : Any? {
+
+    //await when gathering so actual eval should not block
+    context.gatherSourceJoin(this, root).await()
+    return root.eval(this)
+
+
+}
 
 fun RedissonReactive.getXLNSemaphore(name : String) : RPermitExpirableSemaphoreReactive {
     return ReactiveProxyBuilder.create(commandExecutor, XLNSemaphore(commandExecutor, name), RPermitExpirableSemaphoreReactive::class.java)

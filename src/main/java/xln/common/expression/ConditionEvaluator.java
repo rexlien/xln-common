@@ -15,6 +15,10 @@ public class ConditionEvaluator implements Evaluator{
         this.context = context;
     }
 
+    public Context getContext() {
+        return this.context;
+    }
+
     public Object startEval(Element root) {
 
         context.gatherSource(this, root);
