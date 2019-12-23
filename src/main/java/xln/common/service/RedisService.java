@@ -39,6 +39,7 @@ import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import xln.common.cache.CacheController;
 import xln.common.config.ServiceConfig;
 import xln.common.serializer.GenericJackson2JsonRedisSerializer;
@@ -162,6 +163,7 @@ public class RedisService {
 
     @PostConstruct
     private void init() {
+
         for(ServiceConfig.RedisScript scriptConfig : serviceConfig.getRedisConfig().getScript()) {
 
             loadScript(scriptConfig.getName(), scriptConfig.getPath());
@@ -392,7 +394,7 @@ public class RedisService {
 
     }
 
-    public <T extends Object> RedisTemplate<String, T> getTemplate(String name, Class<T> valueType) {
+    public <T> RedisTemplate<String, T> getTemplate(String name, Class<T> valueType) {
 
         if(valueType == String.class) {
             return (RedisTemplate<String, T>) getStringTemplate(name);
@@ -405,7 +407,7 @@ public class RedisService {
 
     }
 
-    public <T extends Object> ReactiveRedisTemplate<String, T> getReactiveTemplate(String name, Class<T> valueType) {
+    public <T> ReactiveRedisTemplate<String, T> getReactiveTemplate(String name, Class<T> valueType) {
 
         if(valueType == String.class) {
             return (ReactiveRedisTemplate<String, T>) getStringReactiveTemplate(name);

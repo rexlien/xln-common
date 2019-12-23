@@ -4,20 +4,18 @@ import kotlinx.coroutines.future.await
 import org.redisson.RedissonObject
 import org.redisson.RedissonPermitExpirableSemaphore
 import org.redisson.RedissonReactive
-import org.redisson.RedissonStream
 import org.redisson.api.RFuture
 import org.redisson.api.RPermitExpirableSemaphoreReactive
-import org.redisson.api.RStreamReactive
-import org.redisson.api.RedissonReactiveClient
 import org.redisson.client.codec.LongCodec
 import org.redisson.client.protocol.RedisCommands
 import org.redisson.command.CommandAsyncExecutor
-import org.redisson.pubsub.SemaphorePubSub
 import org.redisson.reactive.ReactiveProxyBuilder
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import reactor.core.publisher.Mono
 import xln.common.expression.ConditionEvaluator
 import xln.common.expression.Element
+import xln.common.extension.AsyncAutoCloseable
+import xln.common.service.RateLimiter
+import xln.common.service.RateLimiter.AcquiredInfo
 import java.util.*
 
 
@@ -86,6 +84,35 @@ class XLNSemaphore(commandExecutor: CommandAsyncExecutor?, name: String?) : Redi
     }
 
 }
+
+
+suspend inline fun <T : AsyncAutoCloseable?, R> T.useAsync(block: (T) -> R): R {
+    var closed = false
+    try {
+        return block(this)
+    } catch (e: Throwable) {
+        closed = true
+        @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
+        this?.closeSuppressed(e)
+        throw e
+    } finally {
+        if (this != null && !closed) {
+            closeAsync()
+        }
+    }
+}
+
+internal suspend fun AsyncAutoCloseable.closeSuppressed(cause: Throwable) {
+    try {
+        closeAsync()
+    } catch (closeException: Throwable) {
+        cause.addSuppressed(closeException)
+    }
+}
+
+
+
+
 
 
 

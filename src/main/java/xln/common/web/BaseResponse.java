@@ -4,14 +4,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public class BaseResponse {
+
+    public BaseResponse(ResultDescribable describable) {
+        this.setResult(describable);
+    }
 
     public void addProperty(String key, Object value) {
         if(properties == null) {
@@ -40,4 +47,17 @@ public class BaseResponse {
 
     protected int resultCode;
     protected Map<String, Object> properties;// = new HashMap<String, String>();
+
+    public static <T extends BaseResponse> T of(Class<T> clazz, ResultDescribable describable) {
+        try {
+            Constructor<?> ctor = clazz.getConstructor();
+            BaseResponse response = (BaseResponse)ctor.newInstance();
+            response.setResult(describable);
+            return (T)(response);
+        }catch (Exception ex) {
+            log.error("", ex);
+            return null;
+        }
+
+    }
 }
