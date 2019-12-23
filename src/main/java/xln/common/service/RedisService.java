@@ -495,6 +495,10 @@ public class RedisService {
         return messageListenerContainers.getOrDefault(name, null);
     }
 
+    public ReactiveRedisTemplate<String, Object> getRateLimiterServer() {
+        return this.getReactiveTemplate(serviceConfig.getRedisConfig().getRateLimitServer(), Object.class);
+    }
+
 
 
 }

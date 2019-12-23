@@ -2,6 +2,7 @@ package xln.common.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -14,12 +15,14 @@ public class RateLimiter {
     private RedisService redisService;
     private ReactiveRedisTemplate<String, Object> reactiveRedisTemplate;
 
+
     public RateLimiter(RedisService redisService) {
-       this.reactiveRedisTemplate = redisService.getReactiveTemplate("redis-cache", Object.class);
-       this.redisService = redisService;
+
+        this.redisService = redisService;
+        this.reactiveRedisTemplate = redisService.getRateLimiterServer();//getReactiveTemplate("redis-cache", Object.class);
 
        redisService.loadScript("_acquiredCount", "META-INF/script/acquiredCount.lua");
-        redisService.loadScript("_releaseCount", "META-INF/script/releaseCount.lua");
+       redisService.loadScript("_releaseCount", "META-INF/script/releaseCount.lua");
        //redisService.loadScript("_expirablePermit", "META-INF/script/expirablePermit.lua");
 
     }

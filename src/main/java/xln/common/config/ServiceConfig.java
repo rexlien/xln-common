@@ -28,6 +28,7 @@ public class ServiceConfig
     {
         private Map<String, RedisServerConfig> redisServerConfigs = Collections.EMPTY_MAP;
         private List<RedisScript> script = Collections.EMPTY_LIST;
+        private String rateLimitServer = "redis-cache";
     }
 
     @Data
@@ -53,6 +54,7 @@ public class ServiceConfig
 
         private boolean publisher = false;
         private boolean subscriber = false;
+
     }
 
     @Data
