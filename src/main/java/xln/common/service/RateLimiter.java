@@ -64,6 +64,11 @@ public class RateLimiter {
         }).switchIfEmpty(Mono.just(0L));
     }
 
+    public Mono<Long> deleteCount(String key, long millis) {
+        final var newKey = key.concat("::").concat(Long.toString(millis));
+        return reactiveRedisTemplate.delete(newKey);
+    }
+
     public Mono<Boolean> limit(String key, long millis, long maxRate) {
 
         return acquireCount(key, millis).map((r) -> {
