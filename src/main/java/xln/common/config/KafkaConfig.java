@@ -39,7 +39,16 @@ public class KafkaConfig {
 
     }
 
+    @Data
+    public static class KafkaProducer
+    {
+        private volatile String configName;
+        private volatile String valueDeserializer;
+
+    }
+
 
     private volatile Map<String, KafkaConsumerConfig> consumersConfigs = Collections.EMPTY_MAP;
     private volatile Map<String, KafkaProducerConfig> producerConfigs = Collections.EMPTY_MAP;
+    private volatile Map<String, KafkaProducer> producers = Collections.EMPTY_MAP;
 }

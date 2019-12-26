@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 @Slf4j
 public class KafkaService {
-    private static Logger logger = LoggerFactory.getLogger(KafkaService.class);
 
     private Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
     private Map<String, KafkaConfig.KafkaConsumerConfig> consumerConfigs;
@@ -121,7 +120,7 @@ public class KafkaService {
                 props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Class.forName(kv.getValue().getValueDeserializer()));
                 props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
             } catch (ClassNotFoundException ex) {
-                logger.error(ex.toString());
+                log.error(ex.toString());
             }
             props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kv.getValue().getAutoOffsetResetConfig());
             if (kv.getValue().isEnableAutoCommit()) {
@@ -131,6 +130,15 @@ public class KafkaService {
             consumerProps.put(kv.getKey(), props);
 
         }
+        for(var kv : kafkaConfig.getProducers().entrySet()) {
+            try {
+                this.createProducer(kv.getKey(), kv.getValue().getConfigName(), Class.forName(kv.getValue().getValueDeserializer()));
+
+            }catch (ClassNotFoundException ex) {
+                log.error("", ex);
+            }
+        }
+
     }
 
     public <K, V, T, U> KafkaSender<K, V> createProducer(String producerConfig, Class<T> kClass, Class<U> vClass) {
@@ -166,13 +174,14 @@ public class KafkaService {
         return kafkaSenders.get(name);
     }
 
+
     public <K, V> Flux<ReceiverRecord<K, V>> startConsume(String consumerName, Collection<String> topic) {
 
         HashMap<String, Object> newMap = new HashMap<String, Object>(consumerProps.get(consumerName));
         try {
             newMap.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName() + "-" + String.valueOf(consumerID.getAndIncrement()));
         } catch (UnknownHostException ex) {
-            logger.error(ex.toString());
+            log.error(ex.toString());
         }
 
         ReceiverOptions<K, V> receiverOption = ReceiverOptions.create(newMap);
