@@ -40,7 +40,7 @@ public class MongoConfig {
         private String writeConcern = null;
         private int writeAckTimeout = 15000;
 
-        private boolean reactive = false;
+        private boolean reactive = true;
         private boolean nonReactive = true;
 
     }
