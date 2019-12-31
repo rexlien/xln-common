@@ -76,6 +76,7 @@ dependencies {
     compile 'io.grpc:grpc-netty-shaded:1.14.0'
     compile 'io.grpc:grpc-protobuf:1.14.0'
     compile 'io.grpc:grpc-stub:1.14.0'
+    compile group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.11.1'
     compile("org.slf4j:slf4j-api:1.7.25")
     compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
     compile group: 'commons-codec', name: 'commons-codec', version: '1.13'
