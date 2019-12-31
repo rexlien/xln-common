@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
+import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -192,7 +193,7 @@ public class KafkaService {
 
     }
 
-    public Flux<SenderResult<Integer>> sendObject(String name, String topic, String key, Object object) {
+    public ConnectableFlux<SenderResult<Integer>> sendObject(String name, String topic, String key, Object object) {
 
         KafkaSender<String, Object> producer = getProducer(name);
         if (producer == null) {
@@ -200,19 +201,18 @@ public class KafkaService {
         }
         SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord(topic, key, object), correlationID.getAndIncrement());
 
-        return producer.send(Mono.fromCallable(() -> {
+        var flux =  producer.send(Mono.fromCallable(() -> {
             return record;
         })).doOnError(e -> {
 
-            //Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + name).build();
-
-            //this.storageService.safePut("")
-
             log.error("Exception", e);
-        });
+        }).publish();
+
+        flux.connect();
+        return flux;
     }
 
-    public Flux<SenderResult<Integer>> sendMessage(String name, String topic, String key, Message message) {
+    public ConnectableFlux<SenderResult<Integer>> sendMessage(String name, String topic, String key, Message message) {
 
         KafkaSender<String, Object> producer = getProducer(name);
         if (producer == null) {
@@ -221,7 +221,7 @@ public class KafkaService {
         }
 
         SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord(topic, key, Any.pack(message)), correlationID.getAndIncrement());
-        Flux<SenderResult<Integer>> flux = producer.send(Mono.fromCallable(() -> {
+        var flux = producer.send(Mono.fromCallable(() -> {
             return record;
         })).doOnError(e -> {
 
@@ -236,9 +236,9 @@ public class KafkaService {
             Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + name).setObj(Any.pack(kafkaMessage)).build();
             this.protoLogService.log(Any.pack(retryCommand));
 
-        });
+        }).publish();
 
-        flux.publish().connect();
+        flux.connect();
 
         return flux;
 
