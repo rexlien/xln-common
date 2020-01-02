@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -63,6 +64,19 @@ public class RateLimiter {
              return r.longValue();
         }).switchIfEmpty(Mono.just(0L));
     }
+
+    public Mono<Long> getTtl(String key, long millis) {
+        final var newKey = key.concat("::").concat(Long.toString(millis));
+        return reactiveRedisTemplate.getExpire(newKey).map(r->{
+            long duration = r.toMillis();
+            if(duration == 0L) {
+                return -1L;
+            }
+            return duration;
+        }).switchIfEmpty(Mono.just(-1L));
+    }
+
+
 
     public Mono<Long> deleteCount(String key, long millis) {
         final var newKey = key.concat("::").concat(Long.toString(millis));
