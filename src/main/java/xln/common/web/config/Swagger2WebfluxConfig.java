@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
@@ -28,6 +29,7 @@ public class Swagger2WebfluxConfig {// implements WebFluxConfigurer {
     @Bean
     public Docket api() {
         return new Docket(DocumentationType.SWAGGER_2)
+                .ignoredParameterTypes(ServerHttpResponse.class)
                 .select()
                 .apis(enableSwagger2Controller?RequestHandlerSelectors.withClassAnnotation(Swagger2Controller.class):RequestHandlerSelectors.any())
                 .paths(pathFilter.isEmpty()?PathSelectors.any():PathSelectors.ant(pathFilter))
