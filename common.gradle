@@ -24,6 +24,21 @@ buildscript {
         libs = [:]
         enable_webflux = true
         //enable_cache = false
+        xlnImplement = { set ->
+
+            if(set instanceof GString) {
+                project.dependencies {
+                    implementation set
+                }
+            } else if(set instanceof List) {
+                set.collect {
+                    def str = it
+                    project.dependencies {
+                        implementation str
+                    }
+                }
+            }
+        }
     }
 
     protobuf {

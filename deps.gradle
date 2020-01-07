@@ -26,8 +26,12 @@ libs += [
         scalatest: "org.scalatest:scalatest_$versions.baseScala:$versions.scalatest",
         scoveragePlugin: "org.scoverage:scalac-scoverage-plugin_$versions.baseScala:$versions.scoverage",
         scoverageRuntime: "org.scoverage:scalac-scoverage-runtime_$versions.baseScala:$versions.scoverage",
-
+        mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:1.11.0", "org.springframework.data:spring-data-mongodb:$boot_version" ],
+        sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.11', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.11", 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1','org.springframework.data:spring-data-r2dbc:1.0.0.RC1']
 ]
+
+
+
 
 
 
@@ -44,10 +48,10 @@ dependencies {
     compile group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: "$boot_version"
 
-    compile group: 'org.springframework.data', name: 'spring-data-r2dbc', version: '1.0.0.RC1'
-    compile group: 'io.r2dbc', name: 'r2dbc-pool', version: '0.8.0.M8'
-    compile 'com.github.jasync-sql:jasync-mysql:1.0.11'
-    compile group: 'com.github.jasync-sql', name: 'jasync-r2dbc-mysql', version: '1.0.11'
+    //compile 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1'
+    //compile 'io.r2dbc:r2dbc-pool:0.8.0.M8'
+    //compile 'com.github.jasync-sql:jasync-mysql:1.0.11'
+    //compile "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.11"
     //compile("org.springframework.boot:spring-boot-starter-data-jpa:${boot_version}")
     //implementation("io.r2dbc:r2dbc-h2")
 
@@ -56,8 +60,8 @@ dependencies {
 
 
     compile group: 'io.projectreactor.addons', name: 'reactor-extra', version: '3.2.3.RELEASE'
-    compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "$boot_version"
-    compile 'org.mongodb:mongodb-driver-reactivestreams:1.11.0'
+    //compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "$boot_version"
+    //compile 'org.mongodb:mongodb-driver-reactivestreams:1.11.0'
     compile group: 'org.springframework.boot', name: 'spring-boot-actuator', version: "$boot_version"
 
     //compile group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.9.RELEASE'
@@ -104,7 +108,11 @@ dependencies {
     compile libs.scalaJava8Compat
     compile libs.scalaLibrary
     compile libs.scalaReflect
-    compile libs.scalaLogging
+    //compile libs.scalaLogging
+
+    project.xlnImplement(libs.scalaLogging)
+    project.xlnImplement(libs.mongoSet)
+    project.xlnImplement(libs.sqlSet)
 
 
 
