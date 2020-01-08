@@ -50,11 +50,11 @@ buildscript {
     protobuf {
 
         protoc {
-            artifact = 'com.google.protobuf:protoc:$versions.protobuf'
+            artifact = "com.google.protobuf:protoc:$versions.protobuf"
         }
         plugins {
             grpc {
-                artifact = 'io.grpc:protoc-gen-grpc-java:$versions.grpc'
+                artifact = "io.grpc:protoc-gen-grpc-java:$versions.grpc"
             }
         }
         generateProtoTasks {
