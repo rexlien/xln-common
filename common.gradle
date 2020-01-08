@@ -22,6 +22,12 @@ buildscript {
         //scala_version = '2.13.0'
         versions = [:]
         libs = [:]
+
+        versions += [
+                protobuf: "3.11.0",
+                grpc : "1.26.0",
+        ]
+
         enable_webflux = true
         //enable_cache = false
         xlnImplement = { set ->
@@ -42,15 +48,35 @@ buildscript {
     }
 
     protobuf {
-        
-        // Configure the protoc executable
+
         protoc {
-            // Download from repositories
-            artifact = 'com.google.protobuf:protoc:3.0.0'
+            artifact = 'com.google.protobuf:protoc:$versions.protobuf'
         }
-        generatedFilesBaseDir = "$projectDir/src"
+        plugins {
+            grpc {
+                artifact = 'io.grpc:protoc-gen-grpc-java:$versions.grpc'
+            }
+        }
+        generateProtoTasks {
+            all()*.plugins { grpc {
+                //outputSubDir = 'java'
+            } }
+        }
+        //generatedFilesBaseDir = "$projectDir/src"
         
     }
+
+    sourceSets {
+        main {
+            java {
+                srcDirs 'build/generated/source/proto/main/grpc'
+                srcDirs 'build/generated/source/proto/main/java'
+            }
+        }
+    }
+
+
+
 }
 
 

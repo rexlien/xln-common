@@ -27,7 +27,9 @@ libs += [
         scoveragePlugin: "org.scoverage:scalac-scoverage-plugin_$versions.baseScala:$versions.scoverage",
         scoverageRuntime: "org.scoverage:scalac-scoverage-runtime_$versions.baseScala:$versions.scoverage",
         mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:1.11.0", "org.springframework.data:spring-data-mongodb:$boot_version" ],
-        sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.11', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.11", 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1','org.springframework.data:spring-data-r2dbc:1.0.0.RC1']
+        sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.11', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.11", 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1','org.springframework.data:spring-data-r2dbc:1.0.0.RC1'],
+        protobufSet: ['io.grpc:grpc-netty-shaded:$versions.grpc', 'io.grpc:grpc-protobuf:$versions.grpc' ,'io.grpc:grpc-stub:$versions.grpc' ,'com.google.protobuf:protobuf-java-util:$versions.protobuf']
+
 ]
 
 
@@ -77,10 +79,7 @@ dependencies {
     compile group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.2.1'
     compile group: 'org.yaml', name: 'snakeyaml', version: '1.24'
     compile 'org.redisson:redisson:3.11.5'
-    compile 'io.grpc:grpc-netty-shaded:1.14.0'
-    compile 'io.grpc:grpc-protobuf:1.14.0'
-    compile 'io.grpc:grpc-stub:1.14.0'
-    compile group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.11.1'
+
     compile("org.slf4j:slf4j-api:1.7.25")
     compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
     compile group: 'commons-codec', name: 'commons-codec', version: '1.13'
@@ -113,6 +112,7 @@ dependencies {
     project.xlnImplement(libs.scalaLogging)
     project.xlnImplement(libs.mongoSet)
     project.xlnImplement(libs.sqlSet)
+    project.xlnImplement(libs.protobufSet)
 
 
 

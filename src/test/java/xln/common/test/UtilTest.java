@@ -1,5 +1,9 @@
 package xln.common.test;
 
+import com.google.protobuf.ByteString;
+import etcdserverpb.KVGrpc;
+import etcdserverpb.Rpc;
+import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.junit.Assert;
@@ -41,6 +45,62 @@ public class UtilTest {
 
         res = (Integer)CollectionUtils.pathGet("layer2/layer4/layer5", testMap);
         Assert.assertTrue(res == null);
+
+
+    }
+
+    @Test
+    public void testEtcd() throws Exception {
+
+        var channel = ManagedChannelBuilder.forAddress("localhost", 2379)
+                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+                // needing certificates.
+                .usePlaintext()
+                .build();
+        var futureStub = KVGrpc.newFutureStub(channel);
+
+
+
+        for(int i = 0; i < 10; i++) {
+            var putRequest = etcdserverpb.Rpc.PutRequest.newBuilder().setKey(ByteString.copyFromUtf8("TestKey:" + i)).
+                    setValue(ByteString.copyFromUtf8("TestValue2")).setPrevKv(true).build();
+            var future = futureStub.put(putRequest);
+            var response = future.get();
+            log.info(response.toString());
+        }
+        var getRequest = etcdserverpb.Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8("TestKey")).
+                setRangeEnd(ByteString.copyFromUtf8("TestKez")).build();
+        var getFuture = futureStub.range(getRequest);
+        log.info(getFuture.get().toString());
+
+
+
+
+        getRequest = etcdserverpb.Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8("TestKey:0")).build();
+        getFuture = getFuture = futureStub.range(getRequest);
+        var kv = getFuture.get().getKvs(0);
+
+        var version = kv.getVersion();
+        var putRequest = etcdserverpb.Rpc.PutRequest.newBuilder().setKey(ByteString.copyFromUtf8("TestKey:0")).
+                setValue(ByteString.copyFromUtf8("Success")).build();
+
+        var txnRequest = Rpc.TxnRequest.newBuilder().addCompare(Rpc.Compare.newBuilder().
+                setKey(ByteString.copyFromUtf8("TestKey:0")).setVersion(version -1).setResult(Rpc.Compare.CompareResult.EQUAL)
+                .build()).build();
+        var txnFuture = futureStub.txn(txnRequest);
+        var txnResponse = txnFuture.get();
+        log.info(Boolean.toString(txnResponse.getSucceeded()));
+        log.info(txnResponse.toString());
+
+        txnRequest = Rpc.TxnRequest.newBuilder().addCompare(Rpc.Compare.newBuilder().
+                setKey(ByteString.copyFromUtf8("TestKey:0")).setVersion(version).setResult(Rpc.Compare.CompareResult.EQUAL)
+                .build()).addSuccess(Rpc.RequestOp.newBuilder().setRequestPut(putRequest).build()).build();
+        txnFuture = futureStub.txn(txnRequest);
+        txnResponse = txnFuture.get();
+        //log.info(txnResponse.getSucceeded())
+        log.info(Boolean.toString(txnResponse.getSucceeded()));
+        log.info(txnResponse.toString());
+        //log.info(txnFuture.get().getResponsesList().toString());
 
 
     }
