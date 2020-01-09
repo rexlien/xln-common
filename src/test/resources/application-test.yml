@@ -85,3 +85,6 @@ xln.mongo-config:
       database: test
       connectionTimeout: 60000
       minHostConnection : 1
+
+xln.etcd-config:
+  hosts: "127.0.0.1:2379"

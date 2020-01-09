@@ -3,19 +3,17 @@ package xln.common.test;
 import com.google.protobuf.ByteString;
 import etcdserverpb.KVGrpc;
 import etcdserverpb.Rpc;
-import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.types.ObjectId;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
+import xln.common.service.EtcdClient;
 import xln.common.utils.CollectionUtils;
 
-import javax.validation.constraints.AssertTrue;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,6 +22,10 @@ import java.util.Map;
 @ActiveProfiles("test")
 @Slf4j
 public class UtilTest {
+
+    @Autowired
+    private EtcdClient etcdClient;
+
 
     @Test
     public void testPathGet() {
@@ -52,13 +54,8 @@ public class UtilTest {
     @Test
     public void testEtcd() throws Exception {
 
-        var channel = ManagedChannelBuilder.forAddress("localhost", 2379)
-                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-                // needing certificates.
-                .usePlaintext()
-                .build();
-        var futureStub = KVGrpc.newFutureStub(channel);
-
+        var channel = etcdClient.getChannel();
+        var futureStub = KVGrpc.newFutureStub(channel);//.withDeadlineAfter(10, TimeUnit.SECONDS);
 
 
         for(int i = 0; i < 10; i++) {
