@@ -13,9 +13,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import xln.common.service.EtcdClient;
 import xln.common.utils.CollectionUtils;
+import xln.common.utils.RandomUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
@@ -101,4 +103,41 @@ public class UtilTest {
 
 
     }
+
+    @Test
+    public void testRandom() {
+
+        var hashmap = new HashMap<Long, Long>();
+
+
+
+        for(int j = 0; j < 100; j++) {
+
+            hashmap.clear();
+            var base = new Random().nextInt();
+            var offset = new Random().nextInt();
+            long prevOrder = -1;
+            boolean first = true;
+            for (int i = 0; i < 256; i++) {
+                long order = RandomUtils.randomSeq(offset, i, base, 256);
+                if(first && prevOrder != -1) {
+                    log.info("diff:" + String.valueOf((order + 256 - prevOrder) % 256));
+                    first = false;
+                }
+
+                if (order < 0 || hashmap.containsKey(order)) {
+                    log.error("error: " + order);
+                    Assert.fail();
+
+                }
+                hashmap.put(order, order);
+                prevOrder = order;
+            }
+        }
+
+
+
+
+    }
+
 }

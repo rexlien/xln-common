@@ -11,9 +11,12 @@ import io.grpc.internal.SharedResourceHolder;
 import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import xln.common.config.CommonConfig;
 import xln.common.config.EtcdConfig;
+import xln.common.etcd.KVManager;
+import xln.common.etcd.LeaseManager;
 import xln.common.grpc.MultiAddressNameResolver;
 
 import javax.annotation.PreDestroy;
@@ -23,16 +26,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @ConditionalOnProperty(prefix ="xln.etcd-config", name = "hosts")
-@Service
+@Component
 @Slf4j
 public class EtcdClient {
 
     private final ManagedChannel managedChannel;
     private final Channel stickyChannel;
     private final CommonConfig commonConfig;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private final long timeOut;
+
+    private final LeaseManager leaseManager;
+    private final KVManager kvManager;
 
 
     public static class HeaderClientInterceptor implements ClientInterceptor {
@@ -64,8 +74,6 @@ public class EtcdClient {
 
         Map<String, Object> serviceConfig = new HashMap<>();
         serviceConfig.put("stickinessMetadataKey", "xln-sticky-key");
-        //Attributes attributes = Attributes.newBuilder()
-        //        .set(GrpcAttributes.NAME_RESOLVER_SERVICE_CONFIG, serviceConfig).build();
 
         this.managedChannel = ManagedChannelBuilder.forTarget("multiaddress").nameResolverFactory(
                 MultiAddressNameResolver.MultiAddressNameResolverFactory.of(etcdConfig.getHosts())).
@@ -76,65 +84,41 @@ public class EtcdClient {
         this.stickyChannel = ClientInterceptors.intercept(managedChannel, interceptor);
         this.commonConfig = commonConfig;
 
-        initNode();
+        this.timeOut = 15000;
+
+        leaseManager = new LeaseManager(this);
+        kvManager = new KVManager(this, leaseManager);
 
     }
 
     @PreDestroy
     private void destroy() throws InterruptedException{
+        this.leaseManager.shutdown();
         this.managedChannel.shutdown().awaitTermination(10, TimeUnit.SECONDS);
     }
+
+    public ScheduledExecutorService getScheduler() {
+        return scheduler;
+    }
+
+    public LeaseManager getLeaseManager() {
+        return leaseManager;
+    }
+
+    public KVManager getKvManager() {
+        return kvManager;
+    }
+
+    public long getTimeoutMillis() {
+        return timeOut;
+    }
+
 
     public Channel getChannel() {
         return stickyChannel;
     }
 
 
-    public class Node {
-
-
-    }
-
-    private long leaseID = 0;
-
-
-    public void initNode() {
-
-        try {
-            var leaseResponse = LeaseGrpc.newFutureStub(stickyChannel).leaseGrant(Rpc.LeaseGrantRequest.newBuilder().setID(leaseID).setTTL(30).build()).get();
-            leaseID = leaseResponse.getID();
-
-            //LeaseGrpc.newStub(stickyChannel).leaseKeepAlive()
-
-        }catch (Exception ex) {
-            log.error("", ex);
-        }
-        var appName = commonConfig.getAppName();
-        var host = String.valueOf(new Random().nextInt());
-        String ip = null;
-        try {
-            ip = InetAddress.getLocalHost().getHostName();
-            host = ip + ":" + host;
-        }catch (UnknownHostException ex) {
-
-        }
-
-        var futureStub = KVGrpc.newFutureStub(stickyChannel);//.withDeadlineAfter(10, TimeUnit.SECONDS)
-
-
-        var putRequest = etcdserverpb.Rpc.PutRequest.newBuilder().setKey(ByteString.copyFromUtf8("apps/" + appName + "/" + host)).
-                    setValue(ByteString.copyFromUtf8(ip)).setLease(leaseID).build();
-
-        try {
-            var response = futureStub.put(putRequest).get();
-
-        }catch (Exception ex) {
-            log.error("", ex);
-        }
-
-
-
-    }
 
 
 
