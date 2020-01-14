@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import springfox.documentation.builders.PathSelectors;
@@ -18,6 +19,7 @@ import xln.common.annotation.Swagger2Controller;
 @Configuration
 @EnableSwagger2WebFlux
 @Profile({"xln-swagger2-webflux"})
+@Import(SwaggerPlugin.class)
 public class Swagger2WebfluxConfig {// implements WebFluxConfigurer {
 
     @Value("${xln.swagger2.pathFilter:}")
