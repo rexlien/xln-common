@@ -1,7 +1,9 @@
 package xln.common.etcd;
 
+import com.google.protobuf.ByteString;
 import etcdserverpb.KVGrpc;
 import etcdserverpb.Rpc;
+import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import xln.common.service.EtcdClient;
@@ -18,11 +20,59 @@ public class KVManager {
 
     public static class PutOptions {
 
+
+        public String getKey() {
+            return key;
+        }
+
+        public PutOptions withKey(String key) {
+            this.key = key;
+            return this;
+        }
+
+        String key;
+
+        public ByteString getValue() {
+            return value;
+        }
+
+        public PutOptions withValue(ByteString value) {
+            this.value = value;
+            return this;
+        }
+
+        ByteString value;
+
+
+        public boolean isPrevKV() {
+            return prevKV;
+        }
+
+        public PutOptions withPrevKV(boolean prevKV) {
+            this.prevKV = prevKV;
+            return this;
+        }
+
+        boolean prevKV;
+
         //ttl in second
         long ttl = -1;
 
+        public long getLeaseID() {
+            return leaseID;
+        }
+
+        public PutOptions withLeaseID(long leaseID) {
+            this.leaseID = leaseID;
+            return this;
+        }
+
+        long leaseID = 0;
+
         //refreshTime in millis
         long refreshTime = -1;
+
+        boolean ifAbsent = false;
 
         public PutOptions withTtlSecs(long ttl) {
             this.ttl = ttl;
@@ -34,8 +84,31 @@ public class KVManager {
             return this;
         }
 
+
+        public PutOptions withIfAbsent(boolean ifAbsent) {
+            this.ifAbsent = ifAbsent;
+            return this;
+        }
+
         static public PutOptions DEFAULT = new PutOptions();
     }
+
+    public static class TransactOptions {
+
+        public long getCheckedCreateRevision() {
+            return this.checkedCreateRevision;
+        }
+
+        public TransactOptions withCheckedCreateRevision(long checkedCreateRevision) {
+            this.checkedCreateRevision = checkedCreateRevision;
+            return this;
+        }
+
+        private long checkedCreateRevision;
+
+    }
+
+
 
     public KVManager(EtcdClient client, LeaseManager leaseManager) {
 
@@ -45,30 +118,47 @@ public class KVManager {
 
     }
 
+    private Mono<LeaseManager.LeaseInfo> createOrGetLease(long leaseID, PutOptions options) {
 
-    public Mono<Rpc.PutResponse> put(Rpc.PutRequest request, PutOptions option) {
-
-        if(option.ttl == -1) {
-            var response = Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(request), client.getScheduler()));
-            return response;
-        }
-
-        long leaseID = request.getLease();
         Mono<LeaseManager.LeaseInfo> leaseInfo;
-
-        if(option.refreshTime == -1) {
-            leaseInfo = leaseManager.createLease(leaseID, option.ttl);
+        if(options.refreshTime == -1) {
+            leaseInfo = leaseManager.createOrGetLease(leaseID, options.ttl);
         } else {
-            leaseInfo = leaseManager.createLease(leaseID, option.ttl, true, option.refreshTime);
+            leaseInfo = leaseManager.createOrGetLease(leaseID, options.ttl, true, options.refreshTime);
+        }
+        return leaseInfo;
+    }
+
+    public Mono<Rpc.PutRequest> createRequest(PutOptions options) {
+
+        var builder = Rpc.PutRequest.newBuilder().setKey(ByteString.copyFromUtf8(options.key)).setValue((options.getValue()))
+                .setPrevKv(options.prevKV);
+        if(options.leaseID == 0 && options.ttl != -1) {
+            return createOrGetLease(0, options).map((r) -> {
+                  return builder.setLease(r.getResponse().getID()).build();
+                }
+            );
+
+        } else {
+           if(options.leaseID != 0) {
+               return Mono.just(builder.setLease(options.leaseID).build());
+           } else  {
+               return Mono.just(builder.build());
+           }
         }
 
-        return leaseInfo.flatMap( r -> {
+    }
 
-            var newRequest = Rpc.PutRequest.newBuilder().mergeFrom(request).setLease(r.getResponse().getID()).build();
-            return Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(newRequest), client.getScheduler()));
+
+    public Mono<Rpc.PutResponse> put(PutOptions option) {
+
+        var requestMono = createRequest(option);
+        return requestMono.flatMap( r -> {
+            return Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(r), client.getScheduler()));
 
         });
     }
+
 
     public Mono<Rpc.DeleteRangeResponse> delete(Rpc.DeleteRangeRequest request) {
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.deleteRange(request), client.getScheduler()));
@@ -76,5 +166,45 @@ public class KVManager {
 
     public Mono<Rpc.RangeResponse> get(Rpc.RangeRequest request) {
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
+    }
+
+    public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactOptions options) {
+
+        log.debug("transact delete:" + request.getKey() + "-" + options.getCheckedCreateRevision());
+
+        var txnBuilder = Rpc.TxnRequest.newBuilder();
+
+        txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
+                setKey(request.getKey()).setCreateRevision(options.getCheckedCreateRevision()).setResult(Rpc.Compare.CompareResult.EQUAL)
+                .build());
+
+        var txnRequest = txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestDeleteRange(request)).build();
+        var future = FutureUtils.toCompletableFuture(stub.txn(txnRequest), client.getScheduler());
+        return Mono.fromFuture(future);
+
+    }
+
+
+
+    public Mono<Rpc.TxnResponse> transactPut(PutOptions options) {
+
+        var request = createRequest(options);
+        var txnBuilder = Rpc.TxnRequest.newBuilder();
+        if(options.ifAbsent) {
+            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
+                    setKey(ByteString.copyFromUtf8(options.getKey())).setCreateRevision(0).setResult(Rpc.Compare.CompareResult.EQUAL)
+                    .build());
+        }
+
+        return request.flatMap((r)-> {
+
+            var future = stub.txn(txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestPut(r)).build());
+            return Mono.fromFuture(FutureUtils.toCompletableFuture(future, client.getScheduler()));
+
+        });
+
+
+        //stub.txn(Rpc.TxnRequest.newBuilder().setCompare().build())
+
     }
 }

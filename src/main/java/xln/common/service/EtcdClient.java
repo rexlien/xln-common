@@ -17,6 +17,7 @@ import xln.common.config.CommonConfig;
 import xln.common.config.EtcdConfig;
 import xln.common.etcd.KVManager;
 import xln.common.etcd.LeaseManager;
+import xln.common.etcd.WatchManager;
 import xln.common.grpc.MultiAddressNameResolver;
 
 import javax.annotation.PreDestroy;
@@ -43,6 +44,7 @@ public class EtcdClient {
 
     private final LeaseManager leaseManager;
     private final KVManager kvManager;
+    private final WatchManager watchManager;
 
 
     public static class HeaderClientInterceptor implements ClientInterceptor {
@@ -70,7 +72,7 @@ public class EtcdClient {
     }
 
 
-    public EtcdClient(EtcdConfig etcdConfig, CommonConfig commonConfig) {
+    public EtcdClient(EtcdConfig etcdConfig, CommonConfig commonConfig) throws Exception {
 
         Map<String, Object> serviceConfig = new HashMap<>();
         serviceConfig.put("stickinessMetadataKey", "xln-sticky-key");
@@ -88,13 +90,15 @@ public class EtcdClient {
 
         leaseManager = new LeaseManager(this);
         kvManager = new KVManager(this, leaseManager);
+        watchManager = new WatchManager(this);
 
     }
 
     @PreDestroy
     private void destroy() throws InterruptedException{
+        log.info("destroy");
         this.leaseManager.shutdown();
-        this.managedChannel.shutdown().awaitTermination(10, TimeUnit.SECONDS);
+        this.managedChannel.shutdown().awaitTermination(3, TimeUnit.SECONDS);
     }
 
     public ScheduledExecutorService getScheduler() {
@@ -108,6 +112,8 @@ public class EtcdClient {
     public KVManager getKvManager() {
         return kvManager;
     }
+
+    public WatchManager getWatchManager() {return watchManager;}
 
     public long getTimeoutMillis() {
         return timeOut;
