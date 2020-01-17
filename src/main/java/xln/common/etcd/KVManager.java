@@ -113,7 +113,7 @@ public class KVManager {
     public KVManager(EtcdClient client, LeaseManager leaseManager) {
 
         this.client = client;
-        this.stub = KVGrpc.newFutureStub(this.client.getChannel()).withDeadlineAfter(client.getTimeoutMillis(), TimeUnit.MILLISECONDS);
+        this.stub = KVGrpc.newFutureStub(this.client.getChannel());
         this.leaseManager = leaseManager;
 
     }

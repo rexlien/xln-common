@@ -17,7 +17,7 @@ public class RandomUtils {
         return (x & (x - 1)) == 0;
     }
     //mod must be power of 2
-    public static long randomSeq(int offset, int seq, int base, int mod) throws RuntimeException {
+    public static long randomSeq(int offset, int seq, int base, long mod) throws RuntimeException {
 
         if(!isPowOf2(mod)) {
             throw new RuntimeException("mod must be power of 2");
