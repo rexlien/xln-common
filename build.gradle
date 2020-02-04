@@ -1,19 +1,24 @@
 
 
+
 plugins {
     id 'java'
+    id 'groovy'
     id 'org.springframework.boot'
     id "com.google.protobuf"
     id "org.jetbrains.kotlin.jvm"
 }
 
 
-
 group 'xln'
 version '1.0'
 
+
+
+
 sourceCompatibility = 1.11
 targetCompatibility = 1.11
+
 
 apply from : "common.gradle"
 
@@ -21,3 +26,4 @@ apply from : "boot.gradle"
 apply from : "jar.gradle"
 apply from : "deps.gradle"
 apply from : "web.gradle"
+

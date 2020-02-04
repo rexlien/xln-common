@@ -39,8 +39,22 @@ buildscript {
             } else if(set instanceof List) {
                 set.collect {
                     def str = it
-                    project.dependencies {
-                        implementation str
+                    if(str instanceof xln.gradle.Dependency) {
+                        xln.gradle.Dependency dep = str
+                        project.dependencies {
+                            implementation(dep.module) {
+                                if(dep.exclude != null) {
+
+                                    //print("hello, $dep.exclude")
+                                    exclude module: dep.exclude
+                                }
+
+                            }
+                        }
+                    } else {
+                        project.dependencies {
+                            implementation str
+                        }
                     }
                 }
             }
@@ -72,6 +86,12 @@ buildscript {
                 srcDirs 'build/generated/source/proto/main/grpc'
                 srcDirs 'build/generated/source/proto/main/java'
             }
+
+            groovy {
+                srcDirs 'buildSrc/src/main/groovy'
+            }
+
+
         }
     }
 
@@ -80,7 +100,7 @@ buildscript {
 }
 
 
-
+apply plugin:'groovy'
 apply plugin:'java'
 apply plugin:'war'
 apply plugin:'scala'
