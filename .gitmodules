@@ -1,3 +1,3 @@
-[submodule "xln-gradle"]
-	path = xln-gradle
+[submodule "buildSrc"]
+	path = buildSrc
 	url = https://github.com/rexlien/buildSrc.git
