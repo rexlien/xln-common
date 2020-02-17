@@ -123,7 +123,8 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
                             } else {
                                 controllerNode = null;
-                                var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).withIfAbsent(true).withLeaseID(curLeaseID)).awaitSingle()
+                                var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
+                                        withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
