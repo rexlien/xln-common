@@ -59,6 +59,32 @@ buildscript {
                 }
             }
         }
+
+        xlnCompileOnly = { set ->
+
+            if(set instanceof GString) {
+                project.dependencies {
+                    implementation set
+                }
+            } else if(set instanceof List) {
+                set.collect {
+                    def str = it
+                    if(str instanceof xln.gradle.Dependency) {
+                        xln.gradle.Dependency dep = str
+                        project.dependencies {
+                            compileOnly(dep.module) {
+
+
+                            }
+                        }
+                    } else {
+                        project.dependencies {
+                            compileOnly str
+                        }
+                    }
+                }
+            }
+        }
     }
 
     protobuf {
