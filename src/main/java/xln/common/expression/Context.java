@@ -129,6 +129,10 @@ public class Context {
         return sources.get(path);
     }
 
+    public String resolvePath(String path) {
+        return Context.patternReplace(path, provider);
+    }
+
 
     private HashMap<String, CompletableFuture<Object>> sources = new HashMap<>();
 

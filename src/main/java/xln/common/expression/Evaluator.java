@@ -7,5 +7,6 @@ public interface Evaluator {
     Object eval(Operator operator);
     boolean eval(LogicalOperator operator);
     boolean eval(Condition condition);
+    Context getContext();
 
 }
