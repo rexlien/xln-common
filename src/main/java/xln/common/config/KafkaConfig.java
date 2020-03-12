@@ -21,6 +21,7 @@ public class KafkaConfig {
         private volatile String acks = "1";
         private volatile int requestTimeout = 30000;
         private volatile int retryCount = 0;
+        private volatile int maxBlockTime = 10000;
         //private int batchMem =
         //private int lingerMs
 

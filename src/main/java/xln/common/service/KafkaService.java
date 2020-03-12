@@ -90,6 +90,7 @@ public class KafkaService {
 
                 props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, kv.getValue().getRequestTimeout());
                 props.put(ProducerConfig.ACKS_CONFIG, kv.getValue().getAcks());
+                props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, kv.getValue().getMaxBlockTime());
                 props.put(ProducerConfig.RETRIES_CONFIG, kv.getValue().getRetryCount());
 
 
@@ -206,7 +207,7 @@ public class KafkaService {
         })).doOnError(e -> {
 
             log.error("Exception", e);
-        }).publish();
+        }).subscribeOn(Schedulers.boundedElastic()).publish();
 
         flux.connect();
         return flux;
@@ -236,7 +237,7 @@ public class KafkaService {
             Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + name).setObj(Any.pack(kafkaMessage)).build();
             this.protoLogService.log(Any.pack(retryCommand));
 
-        }).publish();
+        }).subscribeOn(Schedulers.boundedElastic()).publish();
 
         flux.connect();
 
