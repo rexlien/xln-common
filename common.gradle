@@ -2,6 +2,7 @@ allprojects {
 
     repositories {
 
+        maven {url "https://rlien.bintray.com/java/"}
         jcenter()
         maven {url "https://repo.spring.io/milestone/"}
         maven {url "https://repo.spring.io/plugins-release/"}
