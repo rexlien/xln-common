@@ -1,5 +1,6 @@
 package xln.common.utils;
 
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,20 +20,21 @@ public class HttpUtils {
         try {
             return reactiveClient.get().uri(url).retrieve().bodyToMono(type);
 
-        }catch(Exception ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return Mono.empty();
         }
     }
 
-    public static <T> Mono<T> httpCallMono(String url,  Map<String, ?> urlValues, HttpMethod method, Class type, Map<String, String> headers) {
+    public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
+            Map<String, String> headers) {
         try {
 
             var methodCall = reactiveClient.method(method);
-            if(urlValues == null) {
+            if (urlValues == null) {
 
-                return methodCall.uri(url).headers((t)->{
-                    for(Map.Entry<String, String> e: headers.entrySet()) {
+                return methodCall.uri(url).headers((t) -> {
+                    for (Map.Entry<String, String> e : headers.entrySet()) {
                         t.add(e.getKey(), e.getValue());
                     }
                 }).retrieve().bodyToMono(type);
@@ -45,20 +47,25 @@ public class HttpUtils {
                 }).retrieve().bodyToMono(type);
             }
 
-
-
-        }catch(Exception ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return Mono.empty();
         }
     }
 
-    public static <T> Mono<T> httpCallMono(String url,  Map<String, ?> urlValues, HttpMethod method, Class type, Map<String, String> headers, String body) {
+    public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
+            Map<String, String> headers, Object body) {
+        Gson gson = new Gson();
+        return httpCallMono(url, urlValues, method, type, headers, gson.toJson(body));
+    }
+
+    public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
+            Map<String, String> headers, String body) {
         try {
             log.debug("Call http url:" + url);
             var methodCall = reactiveClient.method(method);
             WebClient.RequestBodySpec requestSpec;
-            if(urlValues == null) {
+            if (urlValues == null) {
                 requestSpec = methodCall.uri(url);
             } else {
                 requestSpec = methodCall.uri(url, urlValues);
@@ -68,35 +75,31 @@ public class HttpUtils {
                 for (Map.Entry<String, String> e : headers.entrySet()) {
                     t.add(e.getKey(), e.getValue());
                 }
-                if(body!= null && !body.isEmpty()) {
+                if (body != null && !body.isEmpty()) {
                     t.add("Content-Type", "application/json");
                 }
             });
 
-            if(body != null && !body.isEmpty()) {
+            if (body != null && !body.isEmpty()) {
                 requestSpec.body(BodyInserters.fromValue(body));
             }
             return requestSpec.retrieve().bodyToMono(type);
 
-
-        }catch(Exception ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return Mono.empty();
         }
     }
 
-
     public static <T> Flux<T> httpGetFlux(String url, Class type) {
         try {
             return reactiveClient.get().uri(url).retrieve().bodyToFlux(type);
 
-        }catch(Exception ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return Flux.empty();
         }
     }
-
-
 
     public static WebClient getWebClient() {
         return reactiveClient;

@@ -97,9 +97,10 @@ dependencies {
     //testCompile 'org.springframework.boot:spring-boot-starter-test'
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: "$boot_version"
 
-    testCompileOnly 'org.projectlombok:lombok:1.18.2'
-    compileOnly 'org.projectlombok:lombok:1.18.2'
-    annotationProcessor 'org.projectlombok:lombok:1.18.2'
+    testCompileOnly 'org.projectlombok:lombok:1.18.10'
+    compileOnly 'org.projectlombok:lombok:1.18.10'
+    annotationProcessor 'org.projectlombok:lombok:1.18.10'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.10'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:$boot_version"
     compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.2.0'
 
