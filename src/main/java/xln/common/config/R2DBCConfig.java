@@ -2,6 +2,7 @@ package xln.common.config;
 
 import com.github.jasync.r2dbc.mysql.JasyncConnectionFactory;
 import com.github.jasync.sql.db.mysql.pool.MySQLConnectionFactory;
+import com.github.jasync.sql.db.mysql.util.R2DBCURLParser;
 import com.github.jasync.sql.db.mysql.util.URLParser;
 import io.r2dbc.spi.ConnectionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ public class R2DBCConfig extends AbstractR2dbcConfiguration {
     public ConnectionFactory connectionFactory() {
 
         return new JasyncConnectionFactory(new MySQLConnectionFactory(
-                URLParser.INSTANCE.parseOrDie(url,  URLParser.INSTANCE.getDEFAULT().getCharset())
+                R2DBCURLParser.INSTANCE.parseOrDie(url,  R2DBCURLParser.INSTANCE.getDEFAULT().getCharset())
         ));
     }
 
