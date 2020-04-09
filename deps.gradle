@@ -58,8 +58,8 @@ dependencies {
     compile "org.springframework.boot:spring-boot:$boot_version"
 
     compile group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
-    compile group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: "$boot_version"
-
+    //compile group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: "$boot_version"
+    compile "org.springframework:spring-aspects:$spring_version"
     //compile 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1'
     //compile 'io.r2dbc:r2dbc-pool:0.8.0.M8'
     //compile 'com.github.jasync-sql:jasync-mysql:1.0.11'
@@ -67,7 +67,7 @@ dependencies {
     //compile("org.springframework.boot:spring-boot-starter-data-jpa:${boot_version}")
     //implementation("io.r2dbc:r2dbc-h2")
 
-    compile group: 'org.springframework.boot', name: 'spring-boot-starter-cache', version: "$boot_version"
+    //compile group: 'org.springframework.boot', name: 'spring-boot-starter-cache', version: "$boot_version"
     compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'
 
 
@@ -91,9 +91,10 @@ dependencies {
     compile 'org.redisson:redisson:3.11.5'
 
     compile("org.slf4j:slf4j-api:1.7.25")
-    compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
+    //compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
     compile group: 'commons-codec', name: 'commons-codec', version: '1.13'
-    compile("org.springframework.boot:spring-boot-starter-actuator:$boot_version")
+    //compile("org.springframework.boot:spring-boot-starter-actuator:$boot_version")
+    compile("org.springframework.boot:spring-boot-actuator-autoconfigure:$boot_version")
     //testCompile 'org.springframework.boot:spring-boot-starter-test'
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: "$boot_version"
 
@@ -114,15 +115,17 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+"
 
     compileOnly 'org.codehaus.groovy:groovy-all:2.5.4'
+    providedCompile group: 'org.springframework.boot', name: 'spring-boot-loader', version: '2.2.0.RELEASE'
+
 
 
     compile libs.scalaCollectionCompat
     compile libs.scalaJava8Compat
     compile libs.scalaLibrary
     compile libs.scalaReflect
-    //compile libs.scalaLogging
+    compile libs.scalaLogging
 
-    project.xlnImplement(libs.scalaLogging)
+    //project.xlnImplement(libs.scalaLogging)
     project.xlnImplement(libs.mongoSet)
     project.xlnImplement(libs.sqlSet)
     project.xlnImplement(libs.protobufSet)
