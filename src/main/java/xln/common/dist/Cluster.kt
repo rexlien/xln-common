@@ -68,19 +68,22 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     @Volatile private var curLeaseID = 0L
 
 
+    private var selfLeaseMono : Mono<LeaseManager.LeaseInfo>? = null
+
+
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
 
             if (it.type == LeaseEvent.Type.REMOVED) {
                 //removed but not crashed
-                if (it.info === leaseInfo) {
-                    val leaseInfo = createSelfLease().awaitSingle()
-                    curLeaseID = leaseInfo.response.id
-                    createSelf(leaseInfo)
-                }
-            } else if (it.type == LeaseEvent.Type.ADDED) {
+                //if (it.info == leaseInfo) {
+                    log.debug("recreate lease");
+                    createSelfLease().awaitSingle()
 
-            }
+                //}
+            } //else if (it.type == LeaseEvent.Type.ADDED) {
+
+            //}
 
         }
     }.publish().connect()
@@ -94,7 +97,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
                 return@mono Unit
             }
 
-            //log.info("$watchEvent received")
+            log.debug("watchEvent : $watchID received")
 
             try {
                 when(watchID) {
@@ -161,21 +164,23 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
     private fun startup() {
 
-        createSelfLease().flatMap {
-            return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
-                val leaseInfo = it;
-                curLeaseID = it.response.id
-                createSelf(leaseInfo)
-            }
-        }.subscribe {
-
-            log.info("init cluster complete");
-        }
+        createSelfLease().subscribe { _ -> log.debug("cluster inited")}
     }
 
     private fun createSelfLease(): Mono<LeaseManager.LeaseInfo> {
-        return etcdClient.leaseManager.createOrGetLease(0, 20, true, 5000).retryExponentialBackoff(10,
-                Duration.ofSeconds(5),  Duration.ofSeconds(600), true)
+        return etcdClient.leaseManager.createOrGetLease(0, 20, true, 5000).retryExponentialBackoff( Long.MAX_VALUE,
+                Duration.ofSeconds(10), Duration.ofSeconds(20), true).flatMap {
+            return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
+                val leaseInfo = it;
+                this@Cluster.leaseInfo = leaseInfo
+                curLeaseID = it.response.id
+                createSelf(leaseInfo)
+                leaseInfo
+            }
+        };//.onErrorResume { _ ->
+         //   log.debug("error caused cluster start reinit")
+         //   createSelfLease()
+        //}
     }
 
     private suspend fun refreshNodes() : Long{
@@ -213,6 +218,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
     private suspend fun startClaimController(info: LeaseManager.LeaseInfo) {
 
+        log.debug("startClaimController")
         var response = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.controllerNodeDir)).build()).awaitSingle()
 
         var revision = 0L
@@ -240,12 +246,13 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 */
     private suspend fun createSelf(info: LeaseManager.LeaseInfo) = coroutineScope {
 
+        log.debug("createSelf")
         val nodeKey = clusterProperty.nodeKey
         //val nodeInfo = Dist.NodeInfo.newBuilder().setKey(nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
         val response = etcdClient.kvManager.put(PutOptions().withLeaseID(info.response.id).withKey(nodeKey).withValue(clusterProperty.myNodeInfo.toByteString())).awaitSingle()
 
         var node = async(context = serializeExecutor.asCoroutineDispatcher()) {
-            leaseInfo = info
+
             val node = Node(this@Cluster, clusterProperty.myNodeInfo);
             node.setSelf()
             selfNode = node

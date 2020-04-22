@@ -2,17 +2,15 @@ package xln.common.etcd;
 
 import etcdserverpb.LeaseGrpc;
 import etcdserverpb.Rpc;
-import io.grpc.stub.StreamObserver;
-import io.reactivex.Completable;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import xln.common.grpc.GrpcFluxStream;
 import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -129,8 +127,8 @@ public class LeaseManager {
     private final EtcdClient client;
     private final ConcurrentHashMap<Long, LeaseInfo> leases = new ConcurrentHashMap<>();
     private final ScheduledExecutorService executorService;
-    private final StreamObserver<Rpc.LeaseKeepAliveResponse> keepAliveResponse;
-    private final StreamObserver<etcdserverpb.Rpc.LeaseKeepAliveRequest> keepAliveRequest;
+    private final GrpcFluxStream<etcdserverpb.Rpc.LeaseKeepAliveRequest, Rpc.LeaseKeepAliveResponse> keepAliveStream;
+    //private volatile Mono<StreamObserver<etcdserverpb.Rpc.LeaseKeepAliveRequest>> keepAliveRequest;
     private final ScheduledFuture keepAliveFuture;
 
     private final Flux<LeaseEvent> producer;
@@ -148,8 +146,9 @@ public class LeaseManager {
 
         this.producerSink = leaseSink.get();
 
-       this.keepAliveResponse = new StreamObserver<>() {
-            @Override
+       this.keepAliveStream = new GrpcFluxStream<etcdserverpb.Rpc.LeaseKeepAliveRequest, Rpc.LeaseKeepAliveResponse>() {
+
+           @Override
             public void onNext(Rpc.LeaseKeepAliveResponse value) {
 
                 //log.debug("keep alive received:" + value.getID() );
@@ -159,18 +158,18 @@ public class LeaseManager {
                 });
             }
 
-            @Override
-            public void onError(Throwable t) {
-                log.error("", t);
-            }
 
             @Override
             public void onCompleted() {
-
+                super.onCompleted();
                 log.info("completed");
             }
         };
-        this.keepAliveRequest = LeaseGrpc.newStub(client.getChannel()).leaseKeepAlive(keepAliveResponse);
+
+        this.keepAliveStream.initStreamSink(()->{
+            return LeaseGrpc.newStub(client.getChannel()).leaseKeepAlive(LeaseManager.this.keepAliveStream);
+        });
+
 
         this.keepAliveFuture = executorService.scheduleAtFixedRate(() -> {
 
@@ -182,15 +181,25 @@ public class LeaseManager {
                         if(v.isKeepAlive()) {
                             if(v.getRefreshPeriod() == 0 || curTime > v.getNextRefreshTime()) {
                                 //log.debug("do refresh");
-                                this.keepAliveRequest.onNext(Rpc.LeaseKeepAliveRequest.newBuilder().setID(v.getResponse().getID()).build());
-                                producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REFRESHED).setInfo(v));
-                                if(v.getRefreshPeriod() != 0) {
+                                try {
+                                    this.keepAliveStream.getStreamSource().block(Duration.ofSeconds(5)).onNext(Rpc.LeaseKeepAliveRequest.newBuilder().setID(v.getResponse().getID()).build());
+                                }catch (Exception ex) {
+                                    leases.remove(v.response.getID());
+                                    v.setDeleted(true);
+                                    producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REMOVED).setInfo(v));
+                                    log.error("onOnext update error, remove lease");
+                                    continue;
+                                }
+                                //producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REFRESHED).setInfo(v));
+                                if (v.getRefreshPeriod() != 0) {
                                     v.setNextRefreshTime(curTime + v.getRefreshPeriod());
                                 }
+
                             }
                         }
                     } else {
 
+                        log.debug("emit remove lease");
                         leases.remove(v.response.getID());
                         v.setDeleted(true);
                         producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REMOVED).setInfo(v));
@@ -203,8 +212,7 @@ public class LeaseManager {
 
     public void shutdown() {
         this.keepAliveFuture.cancel(true);
-        keepAliveResponse.onCompleted();
-        keepAliveRequest.onCompleted();
+        keepAliveStream.onCompleted();
         producerSink.complete();
     }
 
@@ -225,13 +233,15 @@ public class LeaseManager {
             return Mono.just(getLease(leaseID));
         }
 
-        long ttlTime = System.currentTimeMillis() + ttl * 1000;
-
-        var leaseResponse = LeaseGrpc.newFutureStub(client.getChannel()).withDeadlineAfter(client.getTimeoutMillis(), TimeUnit.MILLISECONDS).
-                leaseGrant(Rpc.LeaseGrantRequest.newBuilder().setID(leaseID).setTTL(ttl).build());
-        var grantLease = Mono.fromFuture(FutureUtils.toCompletableFuture(leaseResponse, client.getScheduler()));
+        var grantLease = Mono.fromFuture(()->{
+            log.debug("call get lease");
+            var leaseResponse = LeaseGrpc.newFutureStub(client.getChannel()).withDeadlineAfter(client.getTimeoutMillis(), TimeUnit.MILLISECONDS).
+                    leaseGrant(Rpc.LeaseGrantRequest.newBuilder().setID(leaseID).setTTL(ttl).build());
+            return FutureUtils.toCompletableFuture(leaseResponse, client.getScheduler());
+        });
 
         return grantLease.map( (r) -> {
+            long ttlTime = System.currentTimeMillis() + ttl * 1000;
             LeaseInfo info = new LeaseInfo();
             if(!r.getError().isEmpty()) {
                 info.setResponse(r);

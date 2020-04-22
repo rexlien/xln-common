@@ -3,19 +3,13 @@ package xln.common.etcd;
 import com.google.protobuf.ByteString;
 import etcdserverpb.Rpc;
 import etcdserverpb.WatchGrpc;
-import io.grpc.stub.StreamObserver;
-import kotlin.Pair;
 import lombok.extern.slf4j.Slf4j;
-import mvccpb.Kv;
-import reactor.core.CoreSubscriber;
-import reactor.core.Disposable;
 import reactor.core.publisher.*;
+import xln.common.grpc.GrpcFluxStream;
 import xln.common.service.EtcdClient;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 @Slf4j
 public class WatchManager {
@@ -108,8 +102,7 @@ public class WatchManager {
 
     private AtomicLong curWatchID = new AtomicLong(1);
 
-    private final StreamObserver<Rpc.WatchRequest> watchRequest;
-    private final StreamObserver<Rpc.WatchResponse> watchResponse;
+    private final GrpcFluxStream<Rpc.WatchRequest, Rpc.WatchResponse> watchStream;
 
     private final Flux<Rpc.WatchResponse> eventSource;
     private final FluxSink<Rpc.WatchResponse> sink;
@@ -128,7 +121,7 @@ public class WatchManager {
 
 
         this.sink = sinkFuture.get();
-        this.watchResponse = new StreamObserver<>() {
+        this.watchStream = new GrpcFluxStream<>() {
 
             @Override
             public void onNext(Rpc.WatchResponse value) {
@@ -136,21 +129,27 @@ public class WatchManager {
             }
             @Override
             public void onError(Throwable t) {
-                sink.error(t);
+                super.onError(t);
+                //sink.error(t);
             }
 
             @Override
             public void onCompleted() {
-                sink.complete();
+                super.onCompleted();
+                //sink.complete();
             }
         };
-        this.watchRequest = this.stub.watch(watchResponse);
+        this.watchStream.initStreamSink(() -> {
+            return this.stub.watch(watchStream);
+        });
+
 
     }
 
     public void shutdown() {
-        watchRequest.onCompleted();
-        watchResponse.onCompleted();
+        watchStream.getStreamSource().block().onCompleted();
+        watchStream.onCompleted();
+        sink.complete();
 
     }
 
@@ -188,12 +187,12 @@ public class WatchManager {
             watchID = curWatchID.getAndIncrement();
             options.withWatchID(watchID);
         }
-        watchRequest.onNext(Rpc.WatchRequest.newBuilder().setCreateRequest(createWatchRequest(options)).build());
+        this.watchStream.getStreamSource().block().onNext(Rpc.WatchRequest.newBuilder().setCreateRequest(createWatchRequest(options)).build());
         return watchID;
     }
 
     public void stopWatch(long watchID) {
-        watchRequest.onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
+        this.watchStream.getStreamSource().block().onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
     }
 
     public Flux<Rpc.WatchResponse> getEventSource() {
