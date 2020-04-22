@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.springframework.cache.support.NullValue;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
@@ -52,6 +53,7 @@ public class GenericJackson2JsonRedisSerializer implements RedisSerializer<Objec
         // simply setting {@code mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)} does not help here since we need
         // the type hint embedded for deserialization using the default typing feature.
         mapper.registerModule(new SimpleModule().addSerializer(new NullValueSerializer(classPropertyTypeName)));
+        mapper.registerModule(new KotlinModule());
 
         if (StringUtils.hasText(classPropertyTypeName)) {
             mapper.enableDefaultTypingAsProperty(ObjectMapper.DefaultTyping.NON_FINAL, classPropertyTypeName);
