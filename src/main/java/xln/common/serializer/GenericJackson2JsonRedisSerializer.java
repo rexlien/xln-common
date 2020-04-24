@@ -56,9 +56,9 @@ public class GenericJackson2JsonRedisSerializer implements RedisSerializer<Objec
         mapper.registerModule(new KotlinModule());
 
         if (StringUtils.hasText(classPropertyTypeName)) {
-            mapper.enableDefaultTypingAsProperty(ObjectMapper.DefaultTyping.NON_FINAL, classPropertyTypeName);
+            mapper.enableDefaultTypingAsProperty(ObjectMapper.DefaultTyping.EVERYTHING, classPropertyTypeName);
         } else {
-            mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+            mapper.enableDefaultTyping(ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
         }
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         //mapper.configure(DeserializationFeature.FAIL_ON_UNRESOLVED_OBJECT_IDS, false);
