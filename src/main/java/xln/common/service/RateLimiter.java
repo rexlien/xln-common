@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -50,7 +51,7 @@ public class RateLimiter {
 
     public Mono<Long> releaseCount(String key) {
 
-        return redisService.runScript(reactiveRedisTemplate, "_releaseCount", List.of(key), List.of(0)).next().cast(List.class).map((r)-> {
+        return redisService.runScript(reactiveRedisTemplate, "_releaseCount", List.of(key), Collections.emptyList()).next().cast(List.class).map((r)-> {
             Number result =  (Number)r.get(0);
             return result.longValue();
 
