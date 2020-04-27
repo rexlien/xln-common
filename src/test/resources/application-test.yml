@@ -1,5 +1,6 @@
 xln.service-config:
   RedisConfig:
+    rateLimitServer: redis0
     redisServerConfigs:
       redis0:
         type: single

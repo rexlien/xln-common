@@ -16,6 +16,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import xln.common.cache.CacheController;
+import xln.common.service.RateLimiter;
 import xln.common.service.RedisService;
 
 import java.lang.reflect.Type;
@@ -41,7 +42,8 @@ public class RedisTest {
     private CacheController cacheController;
 
 
-
+    @Autowired
+    private RateLimiter rateLimiter;
 
     @Test
     public void runScript() {
@@ -78,6 +80,18 @@ public class RedisTest {
         }catch (Exception ex) {
 
         }
+
+    }
+    @Test
+    public void rateLimit() throws Exception {
+
+        var acquireInfo = rateLimiter.acquireCount("test::rate-limit", 100);
+
+        Thread.sleep(3000);
+        rateLimiter.releaseCount(acquireInfo.block().key).block();
+
+        acquireInfo = rateLimiter.acquireCount("test::rate-limit", 5000);
+        rateLimiter.releaseCount(acquireInfo.block().key).block();
 
     }
 
