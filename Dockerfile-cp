@@ -9,10 +9,14 @@ WORKDIR /work
 VOLUME /work/data
 
 ARG JAR_FILE
+ARG JAR_BUILD
+##ARG JAR_DEP
 ARG ACTIVE_PROFILE
 ENV SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
 ENV _JAVA_OPTIONS="-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal"
 COPY ${JAR_FILE} /work/app.jar
+COPY ${JAR_BUILD} /work/build/libs
+
 
 #ENTRYPOINT ["java","-jar","-server","-d64","-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:MaxRAMFraction=1", "app.jar"]
 #ENTRYPOINT ["java","-jar", "-XX:MaxRAMPercentage=70", "-XX:MinRAMPercentage=20" "app.jar"]
