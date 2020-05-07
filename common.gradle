@@ -9,7 +9,20 @@ allprojects {
         maven {url "http://oss.jfrog.org/artifactory/oss-snapshot-local"}
 
     }
+
+    tasks.withType(ScalaCompile) {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+    }
 }
+
+subprojects {
+    tasks.withType(ScalaCompile) {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+    }
+}
+
 
 buildscript {
 
@@ -133,4 +146,5 @@ apply plugin:'java'
 apply plugin:'war'
 apply plugin:'scala'
 apply plugin: 'io.spring.dependency-management'
+apply plugin: 'project-report'
 
