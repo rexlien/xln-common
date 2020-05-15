@@ -121,7 +121,7 @@ public class CacheController {
                                         Cache cache = cacheManager.getCache(cacheTask.getCacheName().getValue());
                                         if (cache != null) {
 
-                                            if (cacheTask.hasKey()) {
+                                            if (!cacheTask.hasKey()) {
                                                 log.debug("Cache Clearing: " + cacheTask.getCacheName());
                                                 cache.clear();
                                             } else {
