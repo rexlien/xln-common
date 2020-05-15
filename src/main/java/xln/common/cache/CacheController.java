@@ -109,7 +109,7 @@ public class CacheController {
                                 CacheManager cacheManager = cacheService.getCacheManager(cacheTask.getCacheManagerName().getValue());
                                 if(cacheManager != null) {
                                     if(!cacheTask.hasCacheName()) {
-                                        log.debug("Cache Manager Clearing: " + cacheTask.getCacheManagerName());
+                                        log.debug("Cache Manager Clearing: " + cacheTask.getCacheManagerName().getValue());
                                         for(String cacheName : cacheManager.getCacheNames()) {
                                             Cache cache = cacheManager.getCache(cacheName);
                                             if(cache != null) {
@@ -122,11 +122,11 @@ public class CacheController {
                                         if (cache != null) {
 
                                             if (!cacheTask.hasKey()) {
-                                                log.debug("Cache Clearing: " + cacheTask.getCacheName());
+                                                log.debug("Cache Clearing: " + cacheTask.getCacheName().getValue());
                                                 cache.clear();
                                             } else {
-                                                log.debug("Cache Key Evicting: " + cacheTask.getCacheName() + cacheTask.getKey());
-                                                cache.evict(cacheTask.getKey());
+                                                log.debug("Cache Key Evicting: " + cacheTask.getCacheName().getValue() + cacheTask.getKey().getValue());
+                                                cache.evict(cacheTask.getKey().getValue());
                                             }
                                         }
                                     }
