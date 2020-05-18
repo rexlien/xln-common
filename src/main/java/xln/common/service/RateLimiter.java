@@ -8,15 +8,19 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.TemporalField;
 import java.util.Collections;
 import java.util.List;
+import java.util.TimeZone;
 
 @Service
 public class RateLimiter {
 
     private RedisService redisService;
     private ReactiveRedisTemplate<String, Object> reactiveRedisTemplate;
-
+    private static TimeZone tz = TimeZone.getTimeZone(ZoneId.systemDefault());
 
     public RateLimiter(RedisService redisService) {
 
@@ -38,16 +42,33 @@ public class RateLimiter {
     }
 
 
-
-    public Mono<AcquiredInfo> acquireCount(String key, long millis) {
-        final var newKey = key.concat("::").concat(Long.toString(millis));
+    public Mono<AcquiredInfo> acquireCount(String key, long millis, boolean keyIncludeTime) {
+        var newKey = key;
+        if(keyIncludeTime) {
+            newKey = key.concat("::").concat(Long.toString(millis));
+        }
+        final var finalKey = newKey;
         return redisService.runScript(reactiveRedisTemplate, "_acquiredCount", List.of(newKey), List.of(millis)).next().cast(List.class).map((r)-> {
             Number result =  (Number)r.get(0);
-            AcquiredInfo info = new AcquiredInfo(newKey, result.longValue());
+            AcquiredInfo info = new AcquiredInfo(finalKey, result.longValue());
             return info;
 
         });
     }
+
+    //for current timezone
+    public Mono<AcquiredInfo> acquireCountInInterval(String key, long interval) {
+
+        long now = Instant.now().toEpochMilli();
+        var offset = tz.getOffset(now);
+
+        //long now = Instant.now().atZone(ZoneId.systemDefault()).getSecond() * 1000;
+        long nowOffset = now + offset;
+        long nextTtl = interval - (nowOffset % interval);
+        return acquireCount(key, nextTtl, false);
+
+    }
+
 
     public Mono<Long> releaseCount(String key) {
 
@@ -58,17 +79,17 @@ public class RateLimiter {
         });
     }
 
-    public Mono<Long> getCount(String key, long millis) {
+    public Mono<Long> getCount(String key) {
 
-        final var newKey = key.concat("::").concat(Long.toString(millis));
-        return reactiveRedisTemplate.opsForValue().get(newKey).cast(Number.class).map(r->{
+        //final var newKey = key.concat("::").concat(Long.toString(millis));
+        return reactiveRedisTemplate.opsForValue().get(key).cast(Number.class).map(r->{
              return r.longValue();
         }).switchIfEmpty(Mono.just(0L));
     }
 
-    public Mono<Long> getTtl(String key, long millis) {
-        final var newKey = key.concat("::").concat(Long.toString(millis));
-        return reactiveRedisTemplate.getExpire(newKey).map(r->{
+    public Mono<Long> getTtl(String key) {
+        //final var newKey = key.concat("::").concat(Long.toString(millis));
+        return reactiveRedisTemplate.getExpire(key).map(r->{
             long duration = r.toMillis();
             if(duration == 0L) {
                 return -1L;
@@ -79,14 +100,14 @@ public class RateLimiter {
 
 
 
-    public Mono<Long> deleteCount(String key, long millis) {
-        final var newKey = key.concat("::").concat(Long.toString(millis));
-        return reactiveRedisTemplate.delete(newKey);
+    public Mono<Long> deleteCount(String key) {
+       // final var newKey = key.concat("::").concat(Long.toString(millis));
+        return reactiveRedisTemplate.delete(key);
     }
 
     public Mono<Boolean> limit(String key, long millis, long maxRate) {
 
-        return acquireCount(key, millis).map((r) -> {
+        return acquireCount(key, millis, true).map((r) -> {
             if(r.count > maxRate) {
                 return false;
             } else {

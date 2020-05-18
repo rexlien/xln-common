@@ -25,7 +25,7 @@ class SafeAcquire(rateLimiter: RateLimiter, key: String?, millis: Long) : AsyncA
     }
 
     init {
-        info = rateLimiter.acquireCount(key, millis)
+        info = rateLimiter.acquireCount(key, millis, true)
         this.rateLimiter = rateLimiter
     }
 }
