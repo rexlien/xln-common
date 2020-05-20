@@ -2,6 +2,7 @@ package xln.common.config;
 
 import lombok.val;
 import org.apache.spark.SparkConf;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -9,6 +10,7 @@ import java.net.InetAddress;
 
 @Configuration
 @ConfigurationProperties(prefix="xln.common.spark")
+@ConditionalOnProperty(prefix ="xln.common.spark", name = "masterUrl")
 public class SparkConfig {
 
     public String getMasterUrl() {
