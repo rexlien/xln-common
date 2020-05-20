@@ -1,7 +1,11 @@
 package xln.common.config;
 
+import lombok.val;
+import org.apache.spark.SparkConf;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
+import java.net.InetAddress;
 
 @Configuration
 @ConfigurationProperties(prefix="xln.common.spark")
@@ -46,8 +50,71 @@ public class SparkConfig {
     private boolean kubernetes = false;
     private String executorImage = "rlien/spark";
 
+    public String getExecutorJVMOptions() {
+        return executorJVMOptions;
+    }
+
+    public SparkConfig setExecutorJVMOptions(String executorJVMOptions) {
+        this.executorJVMOptions = executorJVMOptions;
+        return this;
+    }
+
+    private String executorJVMOptions = "";
+    //private int executorCount = 2;
+
     private String masterUrl = "";
     private boolean executorDebug = false;
+
+    public String getTimeout() {
+        return timeout;
+    }
+
+    public SparkConfig setTimeout(String timeout) {
+        this.timeout = timeout;
+        return this;
+    }
+
+    public String getDriverPort() {
+        return driverPort;
+    }
+
+    public SparkConfig setDriverPort(String driverPort) {
+        this.driverPort = driverPort;
+        return this;
+    }
+
+    private String timeout = "600s";
+    private String driverPort = "50999";
+
+    public static SparkConf build(SparkConfig config) {
+
+        var ip = "";
+        try {
+            var address = InetAddress.getLocalHost();
+            ip = address.getHostAddress();
+        } catch(Exception ex) {
+
+        }
+
+        var conf = new SparkConf().set("spark.driver.port", config.getDriverPort()).set("spark.driver.host", ip).set("spark.network.timeout", config.getTimeout()) //set("spark.executor.userClassPathFirst", "true").
+                .setMaster(config.getMasterUrl());
+        String jvmOption = "";
+        if(!config.executorJVMOptions.isEmpty()) {
+            jvmOption += config.executorJVMOptions;
+        }
+        if(config.isKubernetes()) {
+            conf.set("spark.kubernetes.container.image", config.getExecutorImage());
+            conf.set("spark.kubernetes.namespace", "gu-batch");
+        }
+        if(config.isExecutorDebug()) {
+            jvmOption += " -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005";
+        }
+
+        conf.set("spark.executor.extraJavaOptions", jvmOption);
+
+        return conf;
+    }
+
 
 
 
