@@ -104,7 +104,6 @@ public class SparkConfig {
         }
         if(config.isKubernetes()) {
             conf.set("spark.kubernetes.container.image", config.getExecutorImage());
-            conf.set("spark.kubernetes.namespace", "gu-batch");
         }
         if(config.isExecutorDebug()) {
             jvmOption += " -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005";
