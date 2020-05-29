@@ -85,12 +85,12 @@ public class RedisTest {
     @Test
     public void rateLimit() throws Exception {
 
-        var acquireInfo = rateLimiter.acquireCount("test::rate-limit", 100);
+        var acquireInfo = rateLimiter.acquireCount("test::rate-limit", 500, false);
 
         Thread.sleep(3000);
         rateLimiter.releaseCount(acquireInfo.block().key).block();
 
-        acquireInfo = rateLimiter.acquireCount("test::rate-limit", 5000);
+        acquireInfo = rateLimiter.acquireCount("test::rate-limit", 500, false);
         rateLimiter.releaseCount(acquireInfo.block().key).block();
 
     }
