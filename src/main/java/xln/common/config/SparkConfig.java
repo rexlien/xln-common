@@ -104,6 +104,7 @@ public class SparkConfig {
         if(!config.executorJVMOptions.isEmpty()) {
             jvmOption += config.executorJVMOptions;
         }
+        jvmOption += " -Dlogging.pattern.console='%d %-5level [%thread] %logger : %msg%n'";
         if(config.isKubernetes()) {
             conf.set("spark.kubernetes.container.image", config.getExecutorImage());
         }
