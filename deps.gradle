@@ -25,8 +25,10 @@ libs += [
         scalatest: "org.scalatest:scalatest_$versions.baseScala:$versions.scalatest",
         scoveragePlugin: "org.scoverage:scalac-scoverage-plugin_$versions.baseScala:$versions.scoverage",
         scoverageRuntime: "org.scoverage:scalac-scoverage-runtime_$versions.baseScala:$versions.scoverage",
-        mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:1.11.0", "org.springframework.data:spring-data-mongodb:$boot_version" ],
-        sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.14.RL1', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.14.RL1", 'org.springframework.data:spring-data-r2dbc:1.0.0.RELEASE'],
+//        mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:1.11.0", "org.springframework.data:spring-data-mongodb:2.2.0.RELEASE", "org.mongodb:mongodb-driver-async:3.11.1"],
+        mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:4.0.3", "org.springframework.data:spring-data-mongodb:3.0.0.RELEASE", "org.mongodb:mongodb-driver-legacy:4.0.3"],
+
+        sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.14.RL1', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.14.RL1", 'org.springframework.data:spring-data-r2dbc:1.1.0.RELEASE', 'org.springframework.data:spring-data-relational:2.0.0.RELEASE'],
         protobufSet: ["io.grpc:grpc-netty-shaded:$versions.grpc", "io.grpc:grpc-protobuf:$versions.grpc" ,"io.grpc:grpc-stub:$versions.grpc" ,"com.google.protobuf:protobuf-java-util:$versions.protobuf"],
 
         sparkSet: [  //new xln.gradle.Dependency(module: "org.apache.spark:spark-mllib_2.11:2.4.4",  exclude : "slf4j-log4j12"),
@@ -49,9 +51,9 @@ libs += [
 
 dependencies {
 
-    implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.1'
+    implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.5.0'
     implementation group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '1.1.1.RELEASE'
-    compile group: 'org.springframework.kafka', name: 'spring-kafka', version: "2.3.1.RELEASE"
+    compile group: 'org.springframework.kafka', name: 'spring-kafka', version: "2.5.1.RELEASE"
 
     compile "org.springframework.boot:spring-boot-gradle-plugin:$boot_version"
 
@@ -103,7 +105,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.10'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.10'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:$boot_version"
-    compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.2.0'
+    compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.5.1'
 
     compile group: 'org.rocksdb', name: 'rocksdbjni', version: '6.1.2'
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
@@ -115,7 +117,7 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.+"
 
     compileOnly 'org.codehaus.groovy:groovy-all:2.5.4'
-    providedCompile group: 'org.springframework.boot', name: 'spring-boot-loader', version: '2.2.0.RELEASE'
+    providedCompile group: 'org.springframework.boot', name: 'spring-boot-loader', version: "$boot_version"
 
 
 

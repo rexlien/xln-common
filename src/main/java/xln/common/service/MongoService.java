@@ -14,10 +14,7 @@ import javax.annotation.PreDestroy;
 import com.mongodb.*;
 import jodd.cli.Cli;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
-import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
-import org.springframework.data.mongodb.core.SimpleReactiveMongoDatabaseFactory;
+import org.springframework.data.mongodb.core.*;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +38,7 @@ public class MongoService {
 
     private static class MongoClient implements Client {
 
-        private SimpleMongoDbFactory mongoDBFactory;
+        private SimpleMongoClientDatabaseFactory mongoDBFactory;
         private MongoTemplate mongoTemplate;
 
         private SimpleReactiveMongoDatabaseFactory reactiveMongoDBFactory;
@@ -65,8 +62,8 @@ public class MongoService {
 
                 String mongoURI = strBuilder.toString();
 
-                MongoClientURI mongoClientURI = new MongoClientURI(mongoURI, builder);
-                mongoDBFactory = new SimpleMongoDbFactory(mongoClientURI);
+                //MongoClientURI mongoClientURI = new MongoClientURI(mongoURI, builder);
+                mongoDBFactory = new SimpleMongoClientDatabaseFactory(mongoURI);
                 mongoTemplate = new MongoTemplate(mongoDBFactory);
 
                 if (config.getWriteConcern() != null) {
