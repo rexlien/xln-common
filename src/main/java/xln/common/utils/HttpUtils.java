@@ -28,6 +28,16 @@ public class HttpUtils {
         }
     }
 
+    public static <T> Mono<ResponseEntity<T>> httpGetMonoEntity(String url, Class type) {
+        try {
+            return reactiveClient.get().uri(url).retrieve().toEntity(type);
+
+        } catch (Exception ex) {
+            log.error("", ex);
+            return Mono.empty();
+        }
+    }
+
     public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
             Map<String, String> headers) {
         try {

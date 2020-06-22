@@ -51,8 +51,8 @@ public class APIAction implements Action {
 
     @Override
     public Object invoke(Context context) {
-        String resolvedPath = context.resolvePath(path);
-        String resolvedBody = context.resolvePath(body);
+        String resolvedPath = context.patternReplace(path);
+        String resolvedBody = context.patternReplace(body);
         return HttpUtils.httpCallMono(resolvedPath, null, HttpMethod.resolve(method), Object.class, headers, resolvedBody);
     }
 

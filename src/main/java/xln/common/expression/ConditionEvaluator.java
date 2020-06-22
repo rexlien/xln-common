@@ -27,6 +27,8 @@ public class ConditionEvaluator implements Evaluator{
 
     }
 
+
+
     //implementation assuming all boolean
     public Object eval(Operator operator) {
         if(operator.left == null && operator.right == null) {
@@ -97,15 +99,27 @@ public class ConditionEvaluator implements Evaluator{
                 }
             } else {
 
-                //only same type is comparable
-                if (src.getClass() != condition.getTarget().getClass()) {
-                    return false;
+                var target = condition.getTarget();
+                //only same type and string/numbers are comparable
+                if (src.getClass() != target.getClass()) {
+
+                    if(!(src instanceof Number)) {
+                        return false;
+                    }
+                    if(!(target instanceof Number || target instanceof String)) {
+                        return false;
+                    }
+                    //special case for numbers
+                    target = Utils.castNumber(src.getClass(), target);
+                    if(target == null) {
+                        return false;
+                    }
                 }
 
                 //only type is comparable can compare
-                if (src instanceof Comparable && condition.getTarget() instanceof Comparable) {
+                if (src instanceof Comparable && target instanceof Comparable) {
                     Comparable comp1 = (Comparable) src;
-                    Comparable comp2 = (Comparable) condition.getTarget();
+                    Comparable comp2 = (Comparable) target;
                     int res = comp1.compareTo(comp2);
                     if (condition.getOp() == Operator.OP_TYPE_GREATER) {
                         return res > 0;

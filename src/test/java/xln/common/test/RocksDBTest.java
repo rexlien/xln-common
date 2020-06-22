@@ -20,8 +20,6 @@ import xln.common.service.ProtoLogService;
 import xln.common.service.StorageService;
 import xln.common.store.RocksDBStore;
 
-import javax.validation.constraints.AssertTrue;
-
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @ActiveProfiles("test")

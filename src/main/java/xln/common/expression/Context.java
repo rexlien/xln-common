@@ -42,6 +42,7 @@ public class Context {
 
             String placeholder = m.group(1);
             if(placeholder != null) {
+                placeholder = placeholder.substring(2, placeholder.length() - 1);
                 m.appendReplacement(sb, (provider != null)?provider.getPathReplacement(placeholder):"");
             }
         }
@@ -90,7 +91,11 @@ public class Context {
                         UriComponentsBuilder.fromUri(uri).build().getQueryParams();
 
                 //String key = parameters.getFirst("key");
-                return resolveURL(context, uri.getScheme(), uri.getHost(), uri.getPath(),  parameters);
+                var host = uri.getHost();
+                if(uri.getPort() != -1) {
+                    host += ":" + String.valueOf(uri.getPort());
+                }
+                return resolveURL(context, uri.getScheme(), host, uri.getPath(),  parameters);
             } else {
 
                 log.warn("path needs to have scheme");
@@ -129,7 +134,7 @@ public class Context {
         return sources.get(path);
     }
 
-    public String resolvePath(String path) {
+    public String patternReplace(String path) {
         return Context.patternReplace(path, provider);
     }
 
