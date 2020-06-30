@@ -40,6 +40,20 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         if(name != null) {
             overrideProps.put("xln.common.config.appName", name);
         }
+
+        boolean swaggerEnable = false;
+        String[] activeProfiles = environment.getActiveProfiles();
+        for(var activeProfile : activeProfiles) {
+            if(activeProfile.equals("xln-swagger2-webflux") || activeProfile.equals("xln-swagger-enable")) {
+               swaggerEnable = true;
+               break;
+            }
+
+        }
+        if(!swaggerEnable) {
+            overrideProps.put("springdoc.api-docs.enabled", "false");
+            overrideProps.put("springdoc.swagger-ui.enabled", "false");
+        }
         environment.getPropertySources().addFirst(new PropertiesPropertySource("override-props", overrideProps));
 
         for(Iterator<PropertySource<?>> it = environment.getPropertySources().iterator(); it.hasNext(); ) {

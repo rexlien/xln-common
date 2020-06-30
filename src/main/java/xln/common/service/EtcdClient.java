@@ -8,7 +8,6 @@ import etcdserverpb.WatchGrpc;
 import io.grpc.*;
 import io.grpc.internal.GrpcAttributes;
 import io.grpc.internal.SharedResourceHolder;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
