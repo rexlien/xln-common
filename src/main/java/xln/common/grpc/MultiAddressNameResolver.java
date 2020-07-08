@@ -52,7 +52,7 @@ public class MultiAddressNameResolver extends NameResolver {
 
     @Override
     public void refresh() {
-        log.info("start refresh");
+        log.debug("start refresh");
     }
 
     private void checkReachable() {

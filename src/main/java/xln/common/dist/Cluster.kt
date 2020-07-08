@@ -24,6 +24,7 @@ import xln.common.etcd.KVManager.PutOptions
 import xln.common.etcd.LeaseManager
 import xln.common.etcd.LeaseManager.LeaseEvent
 import xln.common.etcd.WatchManager
+import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
 import xln.common.utils.NetUtils
@@ -58,28 +59,23 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     private val nodes: ConcurrentHashMap<String, Node> = ConcurrentHashMap()
     @Volatile private var selfNode: Node? = null
     @Volatile private var controllerNode : Node? = null
-    @Volatile private var leaseInfo: LeaseManager.LeaseInfo? = null
-    private val scheduler: ScheduledExecutorService = etcdClient.scheduler
+    @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
     private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
 
     private val nextWatchID = AtomicLong(1)
     @Volatile private var nodesWatchID = 0L
     @Volatile private var controllerWatchID = 0L
-    @Volatile private var curLeaseID = 0L
-
-
-    private var selfLeaseMono : Mono<LeaseManager.LeaseInfo>? = null
-
 
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
 
             if (it.type == LeaseEvent.Type.REMOVED) {
                 //removed but not crashed
-                //if (it.info == leaseInfo) {
+                if (it.info == curLeaseInfo.awaitSingle()) {
+                    //curLeaseInfo.awaitSingle()
                     log.debug("recreate lease");
-                    createSelfLease().awaitSingle()
-
+                    curLeaseInfo = startNewLease()
+                }
                 //}
             } //else if (it.type == LeaseEvent.Type.ADDED) {
 
@@ -97,7 +93,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
                 return@mono Unit
             }
 
-            log.debug("watchEvent : $watchID received")
+            log.debug("watchEvent : $watchID received  revision : ${it.header.revision}")
 
             try {
                 when(watchID) {
@@ -127,7 +123,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
                             } else {
                                 controllerNode = null;
                                 var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
-                                        withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseID)).awaitSingle()
+                                        withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
@@ -162,25 +158,26 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
     }
 
-    private fun startup() {
-
-        createSelfLease().subscribe { _ -> log.debug("cluster inited")}
+    private fun startNewLease() : Mono<LeaseManager.LeaseInfo> {
+        val ret = createSelfLease().cache()
+        ret.subscribe { _ -> log.debug("cluster inited")}
+        return ret;
     }
 
     private fun createSelfLease(): Mono<LeaseManager.LeaseInfo> {
         return etcdClient.leaseManager.createOrGetLease(0, 20, true, 5000).retryExponentialBackoff( Long.MAX_VALUE,
                 Duration.ofSeconds(10), Duration.ofSeconds(20), true).flatMap {
             return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
-                val leaseInfo = it;
-                this@Cluster.leaseInfo = leaseInfo
-                curLeaseID = it.response.id
-                createSelf(leaseInfo)
-                leaseInfo
+                try {
+                    createSelf(it)
+                }catch (ex : Exception) {
+
+                    //TODO maybe should just casuse whole lease failed, and get lease again.
+                    log.error("create self failed", ex)
+                }
+                it
             }
-        };//.onErrorResume { _ ->
-         //   log.debug("error caused cluster start reinit")
-         //   createSelfLease()
-        //}
+        }
     }
 
     private suspend fun refreshNodes() : Long{
@@ -215,57 +212,27 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     }
 
 
-
-    private suspend fun startClaimController(info: LeaseManager.LeaseInfo) {
-
-        log.debug("startClaimController")
-        var response = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.controllerNodeDir)).build()).awaitSingle()
-
-        var revision = 0L
-        if(response.kvsCount == 0) {
-            revision = response.header.revision
-        } else  {
-            revision = response.kvsList[0].modRevision
-        }
-        controllerWatchID = nextWatchID.getAndIncrement()
-        this.etcdClient.watchManager.startWatch(
-                WatchManager.WatchOptions(clusterProperty.controllerNodeDir).withStartRevision(revision).withWatchID(controllerWatchID))
-
-        //no controller node
-        if(response.kvsCount == 0) {
-
-            var result = this.etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
-            log.debug("controller put result:"+result.succeeded)
-        }
-    }
-
-    /*
-    public List<Node> getSiblingNodes() {
-        //etcdClient.getKvManager().get()
-    }
-*/
     private suspend fun createSelf(info: LeaseManager.LeaseInfo) = coroutineScope {
 
         log.debug("createSelf")
         val nodeKey = clusterProperty.nodeKey
-        //val nodeInfo = Dist.NodeInfo.newBuilder().setKey(nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
         val response = etcdClient.kvManager.put(PutOptions().withLeaseID(info.response.id).withKey(nodeKey).withValue(clusterProperty.myNodeInfo.toByteString())).awaitSingle()
 
-        var node = async(context = serializeExecutor.asCoroutineDispatcher()) {
+        val node = Node(this@Cluster, clusterProperty.myNodeInfo);
+        node.setSelf()
+        selfNode = node
 
-            val node = Node(this@Cluster, clusterProperty.myNodeInfo);
-            node.setSelf()
-            selfNode = node
-            return@async selfNode
-        }.await()
+        val res = etcdClient.watchManager.watchPath(clusterProperty.controllerNodeDir)
+        controllerWatchID = res.second
+        if(res.first.kvsCount == 0) {
 
-        startClaimController(info)
-
-        //onSelfCreated(node)
+            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
+            log.debug("controller put result:"+result.succeeded)
+        }
 
     }
 
-    protected suspend fun syncNodes() {
+    private suspend fun syncNodes() {
 
         val revision = refreshNodes()
         nodesWatchID = nextWatchID.getAndIncrement()
@@ -274,7 +241,5 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     }
 
 
-    init {
-        startup()
-    }
+
 }

@@ -114,6 +114,15 @@ public class LeaseManager {
             return this;
         }
 
+        public long getLeaseID() {
+            return leaseID;
+        }
+
+        public LeaseInfo setLeaseID(long leaseID) {
+            this.leaseID = leaseID;
+            return this;
+        }
+
         private Rpc.LeaseGrantResponse response;
         private boolean keepAlive = false;
         private long ttlTime = -1;
@@ -121,6 +130,10 @@ public class LeaseManager {
         private long refreshPeriod = -1;
         private List<String> effectiveKeys = new ArrayList<>();
         private boolean deleted = false;
+
+
+
+        private long leaseID;
 
     }
 
@@ -252,6 +265,7 @@ public class LeaseManager {
             info.setNextRefreshTime(System.currentTimeMillis() + refreshPeriod);
             info.setTtlTime( ttlTime);
             info.setResponse(r);
+            info.setLeaseID(r.getID());
             leases.put(r.getID(), info);
             this.producerSink.next(new LeaseEvent().setInfo(info).setType(LeaseEvent.Type.ADDED));
             return info;

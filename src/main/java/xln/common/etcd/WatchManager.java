@@ -14,8 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 public class WatchManager {
 
-    private final WatchGrpc.WatchStub stub;
-    private final EtcdClient client;
+    final WatchGrpc.WatchStub stub;
+    final EtcdClient client;
+
+    AtomicLong nextWatchID = new AtomicLong(1);
+
 
     public static class WatchEvent {
 
@@ -180,7 +183,7 @@ public class WatchManager {
     }
 
 
-    public long startWatch(WatchOptions options) {
+    public long startWatch(WatchOptions options)  {
 
         long watchID = options.getWatchID();
         if(options.getWatchID() == 0) {
@@ -191,9 +194,11 @@ public class WatchManager {
         return watchID;
     }
 
-    public void stopWatch(long watchID) {
+    public void stopWatch(long watchID)  {
         this.watchStream.getStreamSource().block().onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
     }
+
+
 
     public Flux<Rpc.WatchResponse> getEventSource() {
         return eventSource;
