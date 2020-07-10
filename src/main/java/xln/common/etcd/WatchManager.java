@@ -8,6 +8,7 @@ import reactor.core.publisher.*;
 import xln.common.grpc.GrpcFluxStream;
 import xln.common.service.EtcdClient;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -183,19 +184,27 @@ public class WatchManager {
     }
 
 
-    public long startWatch(WatchOptions options)  {
+    public Mono<Long> startWatch(WatchOptions options)  {
 
         long watchID = options.getWatchID();
         if(options.getWatchID() == 0) {
             watchID = curWatchID.getAndIncrement();
             options.withWatchID(watchID);
         }
-        this.watchStream.getStreamSource().block().onNext(Rpc.WatchRequest.newBuilder().setCreateRequest(createWatchRequest(options)).build());
-        return watchID;
+        final long myWatchID = watchID;
+
+        return this.watchStream.getStreamSource().flatMap((s)-> {
+            s.onNext(Rpc.WatchRequest.newBuilder().setCreateRequest(createWatchRequest(options)).build());
+            return Mono.just(myWatchID);
+        }).timeout(Duration.ofMillis(this.client.getTimeoutMillis()));
+
     }
 
-    public void stopWatch(long watchID)  {
-        this.watchStream.getStreamSource().block().onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
+    public Mono<Boolean> stopWatch(long watchID)  {
+        return this.watchStream.getStreamSource().flatMap((s)-> {
+            s.onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
+            return Mono.just(true);
+        }).timeout(Duration.ofMillis(this.client.getTimeoutMillis()));
     }
 
 

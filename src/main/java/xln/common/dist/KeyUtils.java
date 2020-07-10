@@ -18,7 +18,7 @@ public class KeyUtils {
     }
     public static String getControllerNode(String appName, String phase) {
 
-        return "apps/" + appName + "-" + phase + "/controller";
+        return "apps/controllers/" + appName + "-" + phase + "/controller";
     }
 
     public static String getNodeDirectory(String appName, String phase) {

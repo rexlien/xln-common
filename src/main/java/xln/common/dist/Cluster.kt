@@ -1,20 +1,18 @@
 package xln.common.dist
 
-import com.google.common.collect.ImmutableMap
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import mvccpb.Kv
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
+import reactor.core.publisher.FluxSink
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.retry.retryExponentialBackoff
@@ -27,12 +25,12 @@ import xln.common.etcd.WatchManager
 import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
+import xln.common.utils.FluxUtils
 import xln.common.utils.NetUtils
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.PreDestroy
 
@@ -56,15 +54,19 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
 
     private val log = LoggerFactory.getLogger(this.javaClass);
-    private val nodes: ConcurrentHashMap<String, Node> = ConcurrentHashMap()
-    @Volatile private var selfNode: Node? = null
-    @Volatile private var controllerNode : Node? = null
+
     @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
     private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
 
-    private val nextWatchID = AtomicLong(1)
-    @Volatile private var nodesWatchID = 0L
-    @Volatile private var controllerWatchID = 0L
+    @Volatile private var self : Node? = null
+    @Volatile private var controllerWatchID = 0L;
+
+    private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
+    private val root = Root(this, clusterProperty.nodeKey)
+
+    private val watchSinkers  = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
+
+
 
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
@@ -72,7 +74,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
             if (it.type == LeaseEvent.Type.REMOVED) {
                 //removed but not crashed
                 if (it.info == curLeaseInfo.awaitSingle()) {
-                    //curLeaseInfo.awaitSingle()
+
                     log.debug("recreate lease");
                     curLeaseInfo = startNewLease()
                 }
@@ -97,36 +99,51 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
             try {
                 when(watchID) {
+                    /*
                     nodesWatchID -> {
                         for(watchEvent in it.eventsList) {
                             if (watchEvent.type == Kv.Event.EventType.DELETE) {
-                                nodes.remove(watchEvent.kv.key.toStringUtf8())
+                                //nodes.remove(watchEvent.kv.key.toStringUtf8())
+                                clusterEventSource.second.next(NodeDown(Node(this@Cluster, watchEvent.kv)))
                             } else if (watchEvent.type == Kv.Event.EventType.PUT) {
-                                val nodeKey = watchEvent.kv.key.toStringUtf8();
-                                nodes[nodeKey] = Node(this@Cluster, watchEvent.kv.value)
+                                clusterEventSource.second.next(NodeUp(Node(this@Cluster, watchEvent.kv)))
+                                //nodes[nodeKey] = Node(this@Cluster, watchEvent.kv.value)
                             }
                         }
-                    }
+
+                     */
+
                     controllerWatchID -> {
                         //for(watchEvent in it.eventsList) {
 
                         val watchEvent = it.eventsList[0]
                             if(watchEvent.type == Kv.Event.EventType.PUT) {
-                                controllerNode = Node(this@Cluster, watchEvent.kv)
-                                if(controllerNode!!.info!!.key!!.equals(this@Cluster.clusterProperty.nodeKey)) {
-                                    log.info("I am controller")
-                                    controllerNode!!.setSelf()
-                                    this@Cluster.refreshNodes()
-                                }
+                                val controllerNode = Node(this@Cluster, watchEvent.kv)
+                                clusterEventSource.sink.next(LeaderUp(controllerNode!!));
+
                                 log.info(watchEvent.kv.toString())
 
                             } else {
-                                controllerNode = null;
+                                val controllerNode = Node(this@Cluster, watchEvent.kv)
+                                clusterEventSource.sink.next(LeaderDown(controllerNode))
                                 var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
                                         withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
+                    }
+                    else -> {
+                        val sink = watchSinkers[watchID]
+                        if(sink != null) {
+                            for (watchEvent in it.eventsList) {
+                                val node = Node(this@Cluster, watchEvent.kv)
+                                if (watchEvent.type == Kv.Event.EventType.DELETE) {
+                                    sink.next(NodeDown(node))
+                                } else if (watchEvent.type == Kv.Event.EventType.PUT) {
+                                    sink.next(NodeUp(node))
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -148,10 +165,9 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         this.etcdClient.watchManager.stopWatch(controllerWatchID)
         controllerWatchID = -1
 
-        selfNode?.onShutdown()
-        controllerNode?.onShutdown()
-        for ((_, value) in nodes) {
-            value.onShutdown()
+        self?.onShutdown()
+        runBlocking {
+            root.shutdown()
         }
         leaseEvents.dispose()
         watchEvents.dispose()
@@ -179,24 +195,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
             }
         }
     }
-
-    private suspend fun refreshNodes() : Long{
-        
-        var respose = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.nodeDirectory)).
-                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(clusterProperty.nodeDirectory))).build()).awaitSingle()
-
-        nodes.clear()
-        respose.kvsList.forEach {
-            val nodeInfo = Dist.NodeInfo.parseFrom(it.value);
-            val node = Node(this, nodeInfo)
-            nodes.put(it.key.toStringUtf8(), node)
-        }
-
-        //log.info(respose.toString())
-        return respose.header.revision;
-        
-    }
-
+    
     private suspend fun getController() : Node? {
         var response = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.controllerNodeDir)).build()).awaitSingle()
         response.header.revision
@@ -207,24 +206,19 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         }
     }
 
-    fun getNodes() : ImmutableMap<String, Node> {
-        return ImmutableMap.copyOf(nodes)
-    }
-
 
     private suspend fun createSelf(info: LeaseManager.LeaseInfo) = coroutineScope {
 
         log.debug("createSelf")
-        val nodeKey = clusterProperty.nodeKey
-        val response = etcdClient.kvManager.put(PutOptions().withLeaseID(info.response.id).withKey(nodeKey).withValue(clusterProperty.myNodeInfo.toByteString())).awaitSingle()
+        self = Node(this@Cluster, clusterProperty.myNodeInfo);
+        self!!.setSelf(true)
+        join(self!!, info)
 
-        val node = Node(this@Cluster, clusterProperty.myNodeInfo);
-        node.setSelf()
-        selfNode = node
+        val res = etcdClient.watchManager.watchPath(clusterProperty.controllerNodeDir, watchRecursively = false, watchFromNextRevision = false)
+        res.watcherTrigger.awaitSingle()
+        controllerWatchID = res.watchID
 
-        val res = etcdClient.watchManager.watchPath(clusterProperty.controllerNodeDir)
-        controllerWatchID = res.second
-        if(res.first.kvsCount == 0) {
+        if(res.response.kvsCount == 0) {
 
             var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
             log.debug("controller put result:"+result.succeeded)
@@ -232,13 +226,49 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
     }
 
-    private suspend fun syncNodes() {
-
-        val revision = refreshNodes()
-        nodesWatchID = nextWatchID.getAndIncrement()
-        this.etcdClient.watchManager.startWatch(
-                WatchManager.WatchOptions(clusterProperty.nodeDirectory).withKeyEnd(KeyUtils.getEndKey(clusterProperty.nodeDirectory)).withStartRevision(revision + 1).withWatchID(nodesWatchID))
+    fun getClusterEventSource() : Flux<ClusterEvent> {
+        return clusterEventSource.flux
     }
+
+    suspend fun getNodeGroup() :Pair<Long, Map<String, Node>> {
+
+        val response = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.nodeDirectory)).
+        setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(clusterProperty.nodeDirectory))).build()).awaitSingle()
+
+        val ret = mutableMapOf<String, Node>();
+        response.kvsList.forEach {
+            val nodeInfo = Dist.NodeInfo.parseFrom(it.value);
+            val node = Node(this, nodeInfo)
+            ret.put(it.key.toStringUtf8(), node)
+        }
+        return Pair(response.header.revision, ret)
+
+    }
+
+    suspend fun watchCluster(revision: Long, sink: FluxSink<ClusterEvent>) : Long {
+
+        val res = etcdClient.watchManager.watchPath(clusterProperty.nodeDirectory, true, true)
+        watchSinkers[res.watchID] = sink
+        res.watcherTrigger.awaitSingle()
+        return res.watchID;
+
+    }
+
+    suspend fun unWatchCluster(watchID : Long) {
+
+        watchSinkers.remove(watchID)
+
+    }
+
+    suspend fun join(node : Node, leaseInfo : LeaseManager.LeaseInfo) : Rpc.PutResponse {
+
+        val nodeKey = clusterProperty.nodeKey
+        return etcdClient.kvManager.put(PutOptions().withLeaseID(leaseInfo.response.id).withKey(nodeKey).withValue(node.info!!.toByteString())).awaitSingle()
+
+    }
+
+
+
 
 
 
