@@ -6,6 +6,8 @@ interface Versioned  {
     fun modRevision(): Long
     fun createRevision(): Long
 
+    var deleteRevision : Long
+
 }
 
 interface ClusterAware  {

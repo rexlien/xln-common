@@ -19,6 +19,7 @@ import xln.common.utils.FluxUtils
 import java.lang.Boolean
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListMap
 
 class Root : Versioned, ClusterAware {
@@ -33,59 +34,61 @@ class Root : Versioned, ClusterAware {
         this.selfKey = selfKey;
 
     }
-/*
-    suspend fun join(cluster: Cluster, lease : LeaseManager.LeaseInfo) {
-        val nodeKey = cluster.clusterProperty.nodeKey
-        val response = cluster.etcdClient.kvManager.put(KVManager.PutOptions().withLeaseID(lease.response.id).withKey(nodeKey).withValue(cluster.clusterProperty.myNodeInfo.toByteString())).awaitSingle()
-        self = Node(cluster, cluster.clusterProperty.myNodeInfo);
-        self!!.setSelf(true)
 
-    }
-*/
+    /*
+        suspend fun join(cluster: Cluster, lease : LeaseManager.LeaseInfo) {
+            val nodeKey = cluster.clusterProperty.nodeKey
+            val response = cluster.etcdClient.kvManager.put(KVManager.PutOptions().withLeaseID(lease.response.id).withKey(nodeKey).withValue(cluster.clusterProperty.myNodeInfo.toByteString())).awaitSingle()
+            self = Node(cluster, cluster.clusterProperty.myNodeInfo);
+            self!!.setSelf(true)
+
+        }
+    */
     override fun onClusterEvent(clusterEvent: ClusterEvent) {
 
-        when(clusterEvent) {
+        when (clusterEvent) {
 
             is LeaderUp -> {
                 log.debug("leader up")
-                if(clusterEvent.leader.version > this.version()) {
+                if (clusterEvent.leader.modRevision > this.modRevision()) {
                     controllerNode = clusterEvent.leader
-                    if(clusterEvent.leader.info!!.key == selfKey) {
+                    if (clusterEvent.leader.info!!.key == selfKey) {
                         log.debug("become controller")
                         controllerNode?.setSelf(true)
                         runBlocking {
                             onLeaderChanged(clusterEvent, true)
                         }
+                        isLeader = true
                     }
                 }
             }
             is LeaderDown -> {
                 log.debug("leader down")
-                if(clusterEvent.leader.version > this.version()) {
-                    controllerNode = clusterEvent.leader
-                    if(clusterEvent.leader.info!!.key == selfKey) {
-                        log.debug("lost control")
-                        controllerNode?.setSelf(false)
-                        runBlocking {
-                            onLeaderChanged(clusterEvent, false)
-                        }
-                    }
 
+                controllerNode = clusterEvent.leader
+                if (isLeader) {
+                    log.debug("not controller")
+                    //controllerNode?.setSelf(false)
+                    runBlocking {
+                        onLeaderChanged(clusterEvent, false)
+                    }
+                    isLeader = false
                 }
+
 
             }
         }
     }
 
     override suspend fun onLeaderChanged(clusterEvent: ClusterEvent, isLeader: kotlin.Boolean) {
-        if(isLeader) {
+        if (isLeader) {
             val nodeGroup = this.cluster.getNodeGroup()
             nodeGroup.second.forEach {
                 nodes[it.key] = it.value
             }
             val fluxSink = FluxUtils.createFluxSinkPair<ClusterEvent>();
             fluxSink.flux.subscribe {
-                when(it) {
+                when (it) {
                     is NodeUp -> {
                         log.debug("node up")
                         if (it.node.info!!.key == selfKey) {
@@ -112,12 +115,15 @@ class Root : Versioned, ClusterAware {
 
 
     suspend fun shutdown() {
+        if (nodeWatchID != -1L) {
+            this.cluster.unWatchCluster(nodeWatchID)
+        }
         val tmpNode = controllerNode
         tmpNode?.onShutdown()
 
         nodes.forEach {
             val versioned = it.value;
-            when(versioned) {
+            when (versioned) {
                 is Node -> {
                     versioned.onShutdown()
                 }
@@ -140,23 +146,32 @@ class Root : Versioned, ClusterAware {
 
     private var selfKey = "";
 
-    @Volatile private var controllerNode : Node? = null
+    @Volatile
+    private var controllerNode: Node? = null
 
-    private val nodes = ConcurrentSkipListMap<String, Versioned>()
+    private val nodes = ConcurrentHashMap<String, Versioned>()
+    @Volatile
     private var nodeWatchID = -1L;
-    private val etcdClient : EtcdClient
+    @Volatile
+    private var isLeader = false;
+    private val etcdClient: EtcdClient
     private val cluster: Cluster
     override fun version(): Long {
-        return controllerNode?.version?:0L
+        return controllerNode?.version ?: 0L
     }
 
     override fun modRevision(): Long {
-       return controllerNode?.modRevision?:0L
+        return controllerNode?.modRevision ?: 0L
     }
 
     override fun createRevision(): Long {
-       return controllerNode?.createRevision?:0L
+        return controllerNode?.createRevision ?: 0L
     }
+
+    override var deleteRevision = -1L
+        get() {
+            return controllerNode?.deleteRevision ?: -1L
+        }
 
 }
 
@@ -196,11 +211,10 @@ class Node : Versioned {
         try {
             this.info = Dist.NodeInfo.parseFrom(keyValue.value)
         } catch (ex: InvalidProtocolBufferException) {
-                log.error("", ex)
+            log.error("", ex)
         }
 
     }
-
 
 
     fun setSelf(self: kotlin.Boolean): Node {
@@ -245,4 +259,8 @@ class Node : Versioned {
     override fun createRevision(): Long {
         return createRevision
     }
+
+    override var deleteRevision = -1L
+
+
 }

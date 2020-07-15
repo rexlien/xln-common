@@ -1,8 +1,9 @@
 package xln.common.dist
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListMap
 
-fun ConcurrentSkipListMap<String, Versioned>.versionAdd(key : String, versioned : Versioned ) {
+fun ConcurrentHashMap<String, Versioned>.versionAdd(key : String, versioned : Versioned ) {
 
 
     this.compute(key) { k, v ->
@@ -19,7 +20,7 @@ fun ConcurrentSkipListMap<String, Versioned>.versionAdd(key : String, versioned 
 
 }
 
-fun ConcurrentSkipListMap<String, Versioned>.versionRemove(key : String, versioned : Versioned ) {
+fun ConcurrentHashMap<String, Versioned>.versionRemove(key : String, versioned : Versioned ) {
 
     this.computeIfPresent(key) { k, v ->
         if(v.modRevision() > versioned.modRevision()) {

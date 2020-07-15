@@ -15,7 +15,7 @@ suspend fun WatchManager.watchPath(path: String, watchRecursively : Boolean, wat
     if(response.kvsCount == 0) {
         revision = response.header.revision
     } else  {
-        revision = response.kvsList[0].modRevision
+        revision = response.header.revision//kvsList[0].modRevision
     }
     if(watchFromNextRevision) {
         revision += 1

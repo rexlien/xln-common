@@ -22,6 +22,7 @@ import xln.common.etcd.KVManager.PutOptions
 import xln.common.etcd.LeaseManager
 import xln.common.etcd.LeaseManager.LeaseEvent
 import xln.common.etcd.WatchManager
+import xln.common.etcd.unwatch
 import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
@@ -62,7 +63,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     @Volatile private var controllerWatchID = 0L;
 
     private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
-    private val root = Root(this, clusterProperty.nodeKey)
+    private @Volatile var root = Root(this, clusterProperty.nodeKey)
 
     private val watchSinkers  = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
 
@@ -76,6 +77,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
                 if (it.info == curLeaseInfo.awaitSingle()) {
 
                     log.debug("recreate lease");
+                    //root = Root(this@Cluster, clusterProperty.nodeKey)
                     curLeaseInfo = startNewLease()
                 }
                 //}
@@ -92,10 +94,15 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
             var watchID = it.watchId
             //var watchEvent = it.eventsList
             if(it.created) {
+
+                return@mono Unit
+
+            }
+            if(it.canceled) {
                 return@mono Unit
             }
 
-            log.debug("watchEvent : $watchID received  revision : ${it.header.revision}")
+            log.debug("watchID : $watchID received  revision : ${it.header.revision}")
 
             try {
                 when(watchID) {
@@ -126,6 +133,7 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
                             } else {
                                 val controllerNode = Node(this@Cluster, watchEvent.kv)
                                 clusterEventSource.sink.next(LeaderDown(controllerNode))
+                                log.info(watchEvent.kv.toString())
                                 var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
                                         withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
@@ -214,9 +222,16 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         self!!.setSelf(true)
         join(self!!, info)
 
+        if(controllerWatchID != -1L) {
+            unWatchCluster(controllerWatchID)
+            //etcdClient.watchManager.unwatch(controllerWatchID)
+            controllerWatchID = -1L
+        }
+
         val res = etcdClient.watchManager.watchPath(clusterProperty.controllerNodeDir, watchRecursively = false, watchFromNextRevision = false)
-        res.watcherTrigger.awaitSingle()
         controllerWatchID = res.watchID
+        res.watcherTrigger.awaitSingle()
+
 
         if(res.response.kvsCount == 0) {
 
@@ -257,6 +272,8 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
     suspend fun unWatchCluster(watchID : Long) {
 
         watchSinkers.remove(watchID)
+        etcdClient.watchManager.unwatch(watchID)
+
 
     }
 

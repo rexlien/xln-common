@@ -54,6 +54,7 @@ public class EtcdClient {
         public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
             return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(next.newCall(method, callOptions)) {
 
+
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
                     /* put custom header */
@@ -81,6 +82,7 @@ public class EtcdClient {
                 defaultLoadBalancingPolicy("round_robin").defaultServiceConfig(serviceConfig).
                 usePlaintext().build();
 
+        //this.managedChannel.notifyWhenStateChanged();
         HeaderClientInterceptor interceptor = new HeaderClientInterceptor();
         this.stickyChannel = ClientInterceptors.intercept(managedChannel, interceptor);
         this.commonConfig = commonConfig;

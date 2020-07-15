@@ -143,6 +143,7 @@ public class LeaseManager {
     private final GrpcFluxStream<etcdserverpb.Rpc.LeaseKeepAliveRequest, Rpc.LeaseKeepAliveResponse> keepAliveStream;
     //private volatile Mono<StreamObserver<etcdserverpb.Rpc.LeaseKeepAliveRequest>> keepAliveRequest;
     private final ScheduledFuture keepAliveFuture;
+    private volatile long streamTerm = -1L;
 
     private final Flux<LeaseEvent> producer;
     private final FluxSink<LeaseEvent> producerSink;
@@ -179,10 +180,10 @@ public class LeaseManager {
             }
         };
 
+
         this.keepAliveStream.initStreamSink(()->{
             return LeaseGrpc.newStub(client.getChannel()).leaseKeepAlive(LeaseManager.this.keepAliveStream);
         });
-
 
         this.keepAliveFuture = executorService.scheduleAtFixedRate(() -> {
 
@@ -194,12 +195,19 @@ public class LeaseManager {
                         if(v.isKeepAlive()) {
                             if(v.getRefreshPeriod() == 0 || curTime > v.getNextRefreshTime()) {
                                 //log.debug("do refresh");
+                                /*
+                                if(this.streamTerm != this.keepAliveStream.getTerm()) {
+                                    log.error("stream been closed, reset lease");
+                                    removeLease(v);
+                                    this.streamTerm = this.keepAliveStream.getTerm();
+                                    continue;
+                                }
+
+                                 */
                                 try {
                                     this.keepAliveStream.getStreamSource().block(Duration.ofSeconds(5)).onNext(Rpc.LeaseKeepAliveRequest.newBuilder().setID(v.getResponse().getID()).build());
                                 }catch (Exception ex) {
-                                    leases.remove(v.response.getID());
-                                    v.setDeleted(true);
-                                    producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REMOVED).setInfo(v));
+                                    removeLease(v);
                                     log.error("onOnext update error, remove lease");
                                     continue;
                                 }
@@ -213,14 +221,18 @@ public class LeaseManager {
                     } else {
 
                         log.debug("emit remove lease");
-                        leases.remove(v.response.getID());
-                        v.setDeleted(true);
-                        producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REMOVED).setInfo(v));
+                        removeLease(v);
                     }
             }
 
         }, 1000, 1000, TimeUnit.MILLISECONDS);
 
+    }
+
+    private void removeLease(LeaseInfo info) {
+        leases.remove(info.response.getID());
+        info.setDeleted(true);
+        producerSink.next(new LeaseEvent().setType(LeaseEvent.Type.REMOVED).setInfo(info));
     }
 
     public void shutdown() {
