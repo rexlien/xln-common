@@ -49,11 +49,11 @@ class Root : Versioned, ClusterAware {
         when (clusterEvent) {
 
             is LeaderUp -> {
-                log.debug("leader up")
                 if (clusterEvent.leader.modRevision > this.modRevision()) {
+                    log.debug("leader up")
                     controllerNode = clusterEvent.leader
                     if (clusterEvent.leader.info!!.key == selfKey) {
-                        log.debug("become controller")
+                        log.debug("I am controller")
                         controllerNode?.setSelf(true)
                         runBlocking {
                             onLeaderChanged(clusterEvent, true)
@@ -64,10 +64,9 @@ class Root : Versioned, ClusterAware {
             }
             is LeaderDown -> {
                 log.debug("leader down")
-
                 controllerNode = clusterEvent.leader
                 if (isLeader) {
-                    log.debug("not controller")
+                    log.debug("I am NOT controller anymore")
                     //controllerNode?.setSelf(false)
                     runBlocking {
                         onLeaderChanged(clusterEvent, false)

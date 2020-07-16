@@ -12,11 +12,7 @@ suspend fun WatchManager.watchPath(path: String, watchRecursively : Boolean, wat
     var response = client.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(path)).build()).awaitSingle()
 
     var revision: Long
-    if(response.kvsCount == 0) {
-        revision = response.header.revision
-    } else  {
-        revision = response.header.revision//kvsList[0].modRevision
-    }
+    revision = response.header.revision
     if(watchFromNextRevision) {
         revision += 1
     }

@@ -220,24 +220,37 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         log.debug("createSelf")
         self = Node(this@Cluster, clusterProperty.myNodeInfo);
         self!!.setSelf(true)
+
+        //join this cluster
         join(self!!, info)
 
+        //unwatch controller if there's watch in previous term
         if(controllerWatchID != -1L) {
             unWatchCluster(controllerWatchID)
-            //etcdClient.watchManager.unwatch(controllerWatchID)
             controllerWatchID = -1L
         }
 
+        //start try create and watch controller
         val res = etcdClient.watchManager.watchPath(clusterProperty.controllerNodeDir, watchRecursively = false, watchFromNextRevision = false)
         controllerWatchID = res.watchID
-        res.watcherTrigger.awaitSingle()
 
-
+        //if there's no controller before watch
         if(res.response.kvsCount == 0) {
 
             var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
             log.debug("controller put result:"+result.succeeded)
+        } else {
+
+            mono(context = serializeExecutor.asCoroutineDispatcher())  {
+                val controllerNode = Node(this@Cluster, res.response.getKvs(0))
+                clusterEventSource.sink.next(LeaderUp(controllerNode!!));
+            }.awaitSingle()
+
         }
+        //actually start watch
+        res.watcherTrigger.awaitSingle()
+
+
 
     }
 
