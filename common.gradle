@@ -111,6 +111,9 @@ buildscript {
             grpc {
                 artifact = "io.grpc:protoc-gen-grpc-java:$versions.grpc"
             }
+            grpckt {
+                artifact = "io.grpc:protoc-gen-grpc-kotlin:0.1.4"
+            }
         }
         generateProtoTasks {
             all()*.plugins { grpc {
