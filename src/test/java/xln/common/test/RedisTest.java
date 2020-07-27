@@ -2,7 +2,6 @@ package xln.common.test;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
