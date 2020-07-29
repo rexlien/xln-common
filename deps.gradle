@@ -117,6 +117,7 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.+"
 
     compileOnly 'org.codehaus.groovy:groovy-all:2.5.4'
+    compile group: 'net.logstash.logback', name: 'logstash-logback-encoder', version: '6.4'
     providedCompile group: 'org.springframework.boot', name: 'spring-boot-loader', version: "$boot_version"
 
 
