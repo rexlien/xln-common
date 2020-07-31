@@ -1,6 +1,8 @@
 package xln.common.lifecycle;
 
+import ch.qos.logback.classic.LoggerContext;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
@@ -41,6 +43,21 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
             overrideProps.put("xln.common.config.appName", name);
         }
 
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        var osEnv = event.getApplicationContext().getEnvironment().getSystemEnvironment();
+        osEnv.forEach((k, v) -> {
+            if(k.startsWith("XLN")) {
+                loggerContext.putProperty(k, (String)osEnv.get(k));
+
+            }
+        });
+        /*
+        loggerContext.putProperty("XLN_K8S_NS", (String)osEnv.getOrDefault("XLN_K8S_NS", "null"));
+        loggerContext.putProperty("XLN_K8S_POD", (String)osEnv.getOrDefault("XLN_K8S_POD", "null"));
+        loggerContext.putProperty("XLN_K8S_CONT_NAME", (String)osEnv.getOrDefault("XLN_K8S_CONT_NAME", "null"));
+        loggerContext.putProperty("XLN_K8S_CONT_ID", (String)osEnv.getOrDefault("XLN_K8S_CONT_ID" ,"null"));
+        loggerContext.putProperty("XLN_APP", (String)osEnv.getOrDefault("XLN_APP", "null"));
+*/
         boolean swaggerEnable = false;
         String[] activeProfiles = environment.getActiveProfiles();
         for(var activeProfile : activeProfiles) {
