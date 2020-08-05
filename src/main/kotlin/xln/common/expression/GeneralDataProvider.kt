@@ -3,6 +3,7 @@ package xln.common.expression
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.common.hash.Hashing
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import kotlinx.coroutines.reactive.awaitFirstOrNull
@@ -13,6 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
 import xln.common.utils.CollectionUtils
 import xln.common.utils.HttpUtils
+import java.nio.charset.Charset
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
@@ -26,6 +28,8 @@ open class GeneralDataProvider : Context.DataProvider {
     private val httpMonoCache = ConcurrentHashMap<String, Mono<ResponseEntity<String>>>()
     private val resolveFunc = mutableMapOf<String, ResolveFunc>()
     private var placeHolderMap = mutableMapOf<String, String>()
+
+    private val hf = Hashing.murmur3_32()
 
     private object Mapper {
         val mapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule())
@@ -71,14 +75,16 @@ open class GeneralDataProvider : Context.DataProvider {
             val url = UriComponentsBuilder.newInstance().scheme(scheme).host(host).path(path).queryParams(params as MultiValueMap<String, String>).build().toString()
             var paramsString = ""
             params.forEach {
-
-                if(it.key.startsWith("_")) {
+                //parameters start with _ should not be used as cache key
+                if(!it.key.startsWith("_")) {
                     paramsString += "&${it.key}:${it.value.first()}"
                 }
 
             }
 
-            responseMono = callHttp(url, "$host$path$paramsString")
+            val paramsHash = hf.hashString(paramsString, Charsets.UTF_8)
+
+            responseMono = callHttp(url, "$host$path:$paramsHash")
 
             return GlobalScope.future {
 
