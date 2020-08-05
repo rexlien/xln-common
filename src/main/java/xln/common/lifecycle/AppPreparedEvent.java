@@ -46,7 +46,7 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
         var osEnv = event.getApplicationContext().getEnvironment().getSystemEnvironment();
         osEnv.forEach((k, v) -> {
-            if(k.startsWith("XLN")) {
+            if(k.startsWith("XLN_K8S")) {
                 loggerContext.putProperty(k, (String)osEnv.get(k));
 
             }
