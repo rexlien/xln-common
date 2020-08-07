@@ -7,6 +7,9 @@ depends on org/springframework/boot/logging/logback/base.xml
     <appender name="LOGSTASH-FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${XLN_LOGSTASH_LEVEL}</level>
+        </filter>
         <file>${LOG_FILE}.${XLN_K8S_NS}.${XLN_K8S_POD}.${XLN_K8S_CONT_NAME}.${XLN_K8S_CONT_ID}.logstash</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <cleanHistoryOnStart>${LOG_FILE_CLEAN_HISTORY_ON_START:-false}</cleanHistoryOnStart>
