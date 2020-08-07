@@ -37,20 +37,33 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
 
         environment.getPropertySources().addLast(new PropertiesPropertySource("bases-props", props));
 
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+
         Properties overrideProps = new Properties();
-        String name = System.getenv("XLN_APP");
+        var osEnv = event.getApplicationContext().getEnvironment().getSystemEnvironment();
+        String name = (String)osEnv.get("XLN_APP");
         if(name != null) {
             overrideProps.put("xln.common.config.appName", name);
+            loggerContext.putProperty("xln.app", name);
+        } else {
+            var appProperty = event.getApplicationContext().getEnvironment().getProperty("xln.common.config.appName");
+            if(appProperty != null) {
+                loggerContext.putProperty("xln.app", appProperty);
+            }
         }
 
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        var osEnv = event.getApplicationContext().getEnvironment().getSystemEnvironment();
         osEnv.forEach((k, v) -> {
             if(k.startsWith("XLN_K8S")) {
                 loggerContext.putProperty(k, (String)osEnv.get(k));
 
             }
         });
+
+        String[] activeProfiles = environment.getActiveProfiles();
+        if(activeProfiles.length > 0) {
+            loggerContext.putProperty("xln.phase", activeProfiles[0]);
+        }
+
         /*
         loggerContext.putProperty("XLN_K8S_NS", (String)osEnv.getOrDefault("XLN_K8S_NS", "null"));
         loggerContext.putProperty("XLN_K8S_POD", (String)osEnv.getOrDefault("XLN_K8S_POD", "null"));
@@ -59,7 +72,6 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         loggerContext.putProperty("XLN_APP", (String)osEnv.getOrDefault("XLN_APP", "null"));
 */
         boolean swaggerEnable = false;
-        String[] activeProfiles = environment.getActiveProfiles();
         for(var activeProfile : activeProfiles) {
             if(activeProfile.equals("xln-swagger2-webflux") || activeProfile.equals("xln-swagger-enable")) {
                swaggerEnable = true;
