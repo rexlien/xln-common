@@ -89,3 +89,7 @@ xln.mongo-config:
 
 xln.etcd-config:
   hosts: "127.0.0.1:2379"
+
+xln:
+  cluster-config:
+    port: 47000

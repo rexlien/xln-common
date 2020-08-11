@@ -2,6 +2,10 @@ package xln.common.dist
 
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
+import io.grpc.Server
+import io.grpc.ServerBuilder
+import io.grpc.kotlin.AbstractCoroutineServerImpl
+import io.grpc.protobuf.services.ProtoReflectionService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.mono
@@ -17,6 +21,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.retry.retryExponentialBackoff
 import xln.common.Context
+import xln.common.config.ClusterConfig
 import xln.common.config.CommonConfig
 import xln.common.etcd.KVManager.PutOptions
 import xln.common.etcd.LeaseManager
@@ -32,6 +37,7 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.PreDestroy
 
@@ -46,14 +52,17 @@ class ClusterProperty(private val commonConfig: CommonConfig, private val contex
     val myNodeInfo = Dist.NodeInfo.newBuilder().setKey(nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
 }
 
+interface ClusterService {
+
+
+}
+
 
 @Service
 @ConditionalOnBean(EtcdClient::class)
-class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) {
+class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) {
 
-    private val random = Random()
     private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
-
     private val log = LoggerFactory.getLogger(this.javaClass);
 
     @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
@@ -61,13 +70,24 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
 
     @Volatile private var self : Node? = null
     @Volatile private var controllerWatchID = 0L;
-
     private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
-    private @Volatile var root = Root(this, clusterProperty.nodeKey)
+    private val channelManager = ChannelManager(clusterConfig)
+    private @Volatile var root = Root(this, clusterProperty.nodeKey, channelManager)
 
-    private val watchSinkers  = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
+    private val watchSinkers = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
 
+    private val server = {
 
+        val builder = ServerBuilder.forPort(clusterConfig.port)
+        clusterServices.forEach {
+            if(it is AbstractCoroutineServerImpl) {
+                builder.addService(it)
+            }
+        }
+        builder.addService(ProtoReflectionService.newInstance())
+        builder.build()
+                //server
+    }().start()
 
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
@@ -179,6 +199,8 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         }
         leaseEvents.dispose()
         watchEvents.dispose()
+
+        server?.shutdown()?.awaitTermination(30, TimeUnit.SECONDS)
 
     }
 
@@ -296,6 +318,8 @@ class Cluster(val clusterProperty: ClusterProperty, val etcdClient: EtcdClient) 
         return etcdClient.kvManager.put(PutOptions().withLeaseID(leaseInfo.response.id).withKey(nodeKey).withValue(node.info!!.toByteString())).awaitSingle()
 
     }
+
+
 
 
 

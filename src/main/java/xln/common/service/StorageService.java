@@ -5,6 +5,7 @@ import com.google.protobuf.Message;
 import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.*;
 import org.springframework.stereotype.Service;
+import xln.common.dist.ClusterService;
 import xln.common.proto.command.Command;
 import xln.common.store.RocksDBStore;
 

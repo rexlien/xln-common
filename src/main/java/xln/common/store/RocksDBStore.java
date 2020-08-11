@@ -67,12 +67,28 @@ public class RocksDBStore {
 
     }
 
+    public void deleteRange(String startKey, String endKey) {
+        try {
+            rocksDB.deleteRange(startKey.getBytes(), endKey.getBytes());
+        }catch (RocksDBException ex) {
+            log.error("", ex);
+        }
+    }
+
     public void delete(String key) {
 
         try {
             rocksDB.delete(key.getBytes());
         }catch (RocksDBException ex) {
             log.error("", ex);
+        }
+    }
+
+    public long count() {
+        try {
+            return rocksDB.getLongProperty("rocksdb.estimate-num-keys");
+        }catch (RocksDBException ex) {
+            return -1L;
         }
     }
 

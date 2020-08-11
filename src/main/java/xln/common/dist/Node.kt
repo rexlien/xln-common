@@ -3,6 +3,7 @@ package xln.common.dist
 import com.google.protobuf.ByteString
 import com.google.protobuf.InvalidProtocolBufferException
 import etcdserverpb.Rpc
+import io.grpc.ManagedChannel
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import lombok.extern.slf4j.Slf4j
@@ -21,40 +22,35 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListMap
+import kotlin.collections.HashMap
 
 class Root : Versioned, ClusterAware {
 
     private val log = LoggerFactory.getLogger(this.javaClass);
+    private val channelManager : ChannelManager
 
-    constructor(cluster: Cluster, selfKey: String) {
+    constructor(cluster: Cluster, selfKey: String, channelManager: ChannelManager) {
 
         this.cluster = cluster
         this.etcdClient = cluster.etcdClient;
         subscribeCluster(cluster)
         this.selfKey = selfKey;
+        this.channelManager = channelManager
+
 
     }
 
-    /*
-        suspend fun join(cluster: Cluster, lease : LeaseManager.LeaseInfo) {
-            val nodeKey = cluster.clusterProperty.nodeKey
-            val response = cluster.etcdClient.kvManager.put(KVManager.PutOptions().withLeaseID(lease.response.id).withKey(nodeKey).withValue(cluster.clusterProperty.myNodeInfo.toByteString())).awaitSingle()
-            self = Node(cluster, cluster.clusterProperty.myNodeInfo);
-            self!!.setSelf(true)
-
-        }
-    */
     override fun onClusterEvent(clusterEvent: ClusterEvent) {
 
         when (clusterEvent) {
 
             is LeaderUp -> {
-                if (clusterEvent.leader.modRevision > this.modRevision()) {
+                if (controllerNode.setProp(clusterEvent.leader)) {
                     log.debug("leader up")
-                    controllerNode = clusterEvent.leader
                     if (clusterEvent.leader.info!!.key == selfKey) {
                         log.debug("I am controller")
-                        controllerNode?.setSelf(true)
+                        controllerNode.asT<Node>()!!.setSelf(true)
+                        //controllerNode.setSelf(true)
                         runBlocking {
                             onLeaderChanged(clusterEvent, true)
                         }
@@ -64,7 +60,7 @@ class Root : Versioned, ClusterAware {
             }
             is LeaderDown -> {
                 log.debug("leader down")
-                controllerNode = clusterEvent.leader
+                controllerNode.setProp(clusterEvent.leader)
                 if (isLeader) {
                     log.debug("I am NOT controller anymore")
                     //controllerNode?.setSelf(false)
@@ -92,17 +88,21 @@ class Root : Versioned, ClusterAware {
                         log.debug("node up")
                         if (it.node.info!!.key == selfKey) {
                             it.node.setSelf(true);
+                        } else {
+                            channelManager.openChannel(it.node)
                         }
-                        nodes.versionAdd(it.node.storeKey!!, it.node)//[it.node.info!!.key] = it.node
+                        nodes.versionAdd(it.node.storeKey!!, it.node, null)//[it.node.info!!.key] = it.node
                         printNode()
                     }
                     is NodeDown -> {
                         log.debug("node down")
-                        nodes.versionRemove(it.node.storeKey!!, it.node)
+                        channelManager.closeChannel(it.node)
+                        nodes.versionRemove(it.node.storeKey!!, it.node, null)
                         printNode()
                     }
                 }
             }
+
             nodeWatchID = this.cluster.watchCluster(nodeGroup.first, fluxSink.sink)
 
         } else {
@@ -117,7 +117,7 @@ class Root : Versioned, ClusterAware {
         if (nodeWatchID != -1L) {
             this.cluster.unWatchCluster(nodeWatchID)
         }
-        val tmpNode = controllerNode
+        val tmpNode = controllerNode.asT<Node>()
         tmpNode?.onShutdown()
 
         nodes.forEach {
@@ -146,9 +146,10 @@ class Root : Versioned, ClusterAware {
     private var selfKey = "";
 
     @Volatile
-    private var controllerNode: Node? = null
+    private var controllerNode = VersionedProp()
 
     private val nodes = ConcurrentHashMap<String, Versioned>()
+
     @Volatile
     private var nodeWatchID = -1L;
     @Volatile
@@ -156,20 +157,20 @@ class Root : Versioned, ClusterAware {
     private val etcdClient: EtcdClient
     private val cluster: Cluster
     override fun version(): Long {
-        return controllerNode?.version ?: 0L
+        return controllerNode.version()
     }
 
     override fun modRevision(): Long {
-        return controllerNode?.modRevision ?: 0L
+        return controllerNode.modRevision()
     }
 
     override fun createRevision(): Long {
-        return controllerNode?.createRevision ?: 0L
+        return controllerNode.createRevision()
     }
 
     override var deleteRevision = -1L
         get() {
-            return controllerNode?.deleteRevision ?: -1L
+            return controllerNode.deleteRevision
         }
 
 }
@@ -207,11 +208,11 @@ class Node : Versioned {
         version = keyValue.version
         createRevision = keyValue.createRevision
         storeKey = keyValue.key.toStringUtf8()
-        try {
-            this.info = Dist.NodeInfo.parseFrom(keyValue.value)
-        } catch (ex: InvalidProtocolBufferException) {
-            log.error("", ex)
-        }
+        //try {
+        //    this.info = Dist.NodeInfo.parseFrom(keyValue.value)
+        //} catch (ex: InvalidProtocolBufferException) {
+        //    log.error("", ex)
+        //}
 
     }
 
