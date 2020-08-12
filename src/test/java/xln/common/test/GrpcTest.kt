@@ -31,8 +31,7 @@ class GrpcTest {
         runBlocking {
             grpcReflection.createReflection(channel)
             val json = """{
-                "startTime" : 10000,
-                "endTime": 20000
+
                 }"""
             val response = grpcReflection.callMethodJson(channel, "RocksLogService", "GetLogCount", json)
             if(response != null) {

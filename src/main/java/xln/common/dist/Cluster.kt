@@ -15,6 +15,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import reactor.core.publisher.Mono
@@ -49,8 +51,11 @@ class ClusterProperty(private val commonConfig: CommonConfig, private val contex
     val nodeKey = KeyUtils.getNodeKey(commonConfig.appName, context.phase)
     val controllerNodeDir = KeyUtils.getControllerNode(commonConfig.appName, context.phase)
     val nodeDirectory = KeyUtils.getNodeDirectory(commonConfig.appName, context.phase)
-    val myNodeInfo = Dist.NodeInfo.newBuilder().setKey(nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
+
 }
+
+data class BroadcastResult(val result: String, val error: String)
+//data class BroadcastResults(val nodesResults: MutableMap<String, BroadcastResult>)
 
 interface ClusterService {
 
@@ -62,6 +67,8 @@ interface ClusterService {
 @ConditionalOnBean(EtcdClient::class)
 class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) {
 
+    val myNodeInfo: Dist.NodeInfo //= //Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
+
     private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
     private val log = LoggerFactory.getLogger(this.javaClass);
 
@@ -71,7 +78,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     @Volatile private var self : Node? = null
     @Volatile private var controllerWatchID = 0L;
     private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
-    private val channelManager = ChannelManager(clusterConfig)
+    private val channelManager = ChannelManager()
     private @Volatile var root = Root(this, clusterProperty.nodeKey, channelManager)
 
     private val watchSinkers = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
@@ -86,8 +93,16 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         }
         builder.addService(ProtoReflectionService.newInstance())
         builder.build()
-                //server
+
     }().start()
+
+    init {
+
+        myNodeInfo = Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).setClusterPort(server.port).build()
+        log.debug("cluster grpc port: ${server.port}")
+    }
+
+
 
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
@@ -155,7 +170,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
                                 clusterEventSource.sink.next(LeaderDown(controllerNode))
                                 log.info(watchEvent.kv.toString())
                                 var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
-                                        withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
+                                        withValue(this@Cluster.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
@@ -240,7 +255,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     private suspend fun createSelf(info: LeaseManager.LeaseInfo) = coroutineScope {
 
         log.debug("createSelf")
-        self = Node(this@Cluster, clusterProperty.myNodeInfo);
+        self = Node(this@Cluster, this@Cluster.myNodeInfo);
         self!!.setSelf(true)
 
         //join this cluster
@@ -259,7 +274,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         //if there's no controller before watch
         if(res.response.kvsCount == 0) {
 
-            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(clusterProperty.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
+            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(this@Cluster.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
             log.debug("controller put result:"+result.succeeded)
         } else {
 
@@ -305,18 +320,31 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     }
 
     suspend fun unWatchCluster(watchID : Long) {
-
         watchSinkers.remove(watchID)
         etcdClient.watchManager.unwatch(watchID)
-
-
     }
 
     suspend fun join(node : Node, leaseInfo : LeaseManager.LeaseInfo) : Rpc.PutResponse {
-
         val nodeKey = clusterProperty.nodeKey
         return etcdClient.kvManager.put(PutOptions().withLeaseID(leaseInfo.response.id).withKey(nodeKey).withValue(node.info!!.toByteString())).awaitSingle()
+    }
 
+    suspend fun broadcast(serviceName: String, methodName: String, payload: String) : MutableMap<String, BroadcastResult> {
+
+        val results  = mutableMapOf<String, BroadcastResult>()
+
+        root.forEachNode {
+            val key = it.storeKey?:return@forEachNode
+            try {
+                val res = channelManager.callMethodJson(it, serviceName, methodName, payload)?:""
+                results[key] = BroadcastResult(res, "")
+
+            }catch (ex: Exception ) {
+                log.error("Broadcast error: ${it.storeKey}", ex)
+                results[key] = BroadcastResult("", ex.toString())
+            }
+        }
+        return results
     }
 
 

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/any.proto";
 import "google/protobuf/wrappers.proto";
+import "google/protobuf/empty.proto";
 
 // for grpc-gateway
 import "google/api/annotations.proto";
@@ -19,6 +20,9 @@ message GetLogsResponse {
     int32 result = 1;
 }
 
+message GetLogCountRequest {
+}
+
 message GetLogCountResponse {
     int64 count = 1;
 }
@@ -33,7 +37,7 @@ service RocksLogService{
     };
     }
 
-    rpc GetLogCount(GetLogRequest) returns (GetLogCountResponse) {
+    rpc GetLogCount(GetLogCountRequest) returns (GetLogCountResponse) {
         option (google.api.http) = {
         post: "/v3/kv/put"
         body: "*"

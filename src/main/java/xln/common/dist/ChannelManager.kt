@@ -17,6 +17,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import xln.common.config.ClusterConfig
 import xln.common.grpc.DynamicMessageMarshaller
@@ -31,35 +32,37 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
 
-class ChannelManager(private val clusterConfig: ClusterConfig) {
+class ChannelManager {
 
     private val clusterChannels = ConcurrentHashMap<String, ManagedChannel>()
     private val grpcReflection = xln.common.grpc.GrpcReflection()
-
+    private val log = LoggerFactory.getLogger(ChannelManager::class.java)
 
 
     fun openChannel(node : Node) {
-        val nodeAddress = node.info?.address
-        if(nodeAddress != null && node.storeKey != null) {
-            val newChannel = ManagedChannelBuilder.forAddress(nodeAddress, clusterConfig.port).usePlaintext().build()
-            clusterChannels[node.storeKey!!] = newChannel
+        val nodeInfo = node.info?:return
+        val storeKey = node.storeKey?:return
 
-            runBlocking {
-                grpcReflection.createReflection(newChannel)
-            }
+        log.debug("${node.storeKey} opened")
+        val newChannel = ManagedChannelBuilder.forAddress(nodeInfo.address, nodeInfo.clusterPort).usePlaintext().build()
+        clusterChannels[storeKey] = newChannel
 
+        runBlocking {
+            grpcReflection.createReflection(newChannel)
         }
+
+
     }
 
     fun closeChannel(node: Node) {
         val key = node.storeKey
-        val channel = clusterChannels[key]
-        if(channel != null) {
+        val channel = clusterChannels[key]?:return
 
-            grpcReflection.cleanReflection(channel)
-            clusterChannels.remove(key)
-            channel.shutdown()
-        }
+        log.debug("${node.storeKey} closed")
+        grpcReflection.cleanReflection(channel)
+        clusterChannels.remove(key)
+        channel.shutdown()
+
 
     }
 

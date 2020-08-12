@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @AllArgsConstructor
-@NoArgsConstructor
 @Slf4j
 public class BaseResponse {
 
@@ -44,6 +43,7 @@ public class BaseResponse {
     public BaseResponse(ResultDescribable describable) {
         this.setResult(describable);
     }
+    public BaseResponse() {}
 
     public void addProperty(String key, Object value) {
         if(properties == null) {

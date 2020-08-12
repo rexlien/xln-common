@@ -93,8 +93,8 @@ object GrpcReflectionUtils {
 
     }
 
-    fun dynamicMessage2Json(dynamicMessage: DynamicMessage) : String {
-        return JsonFormat.printer().print(dynamicMessage)
+    fun dynamicMessage2Json(dynamicMessage: DynamicMessage, typeRegistry: TypeRegistry) : String {
+        return JsonFormat.printer().usingTypeRegistry(typeRegistry).includingDefaultValueFields().print(dynamicMessage)
     }
 }
 
@@ -190,7 +190,7 @@ class GrpcReflection {
         val publisher = callMethod(channel, method, jsonPayLoad)
         val response = publisher.awaitFirstOrNull()
         if(response != null) {
-            return GrpcReflectionUtils.dynamicMessage2Json(response)
+            return GrpcReflectionUtils.dynamicMessage2Json(response, reflection.typeRegistry)
         }
 
         return null

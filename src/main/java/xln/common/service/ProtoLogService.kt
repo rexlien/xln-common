@@ -1,6 +1,7 @@
 package xln.common.service
 
 import com.google.protobuf.Any
+import com.google.protobuf.Empty
 import com.google.protobuf.InvalidProtocolBufferException
 import com.google.protobuf.Message
 import lombok.extern.slf4j.Slf4j
@@ -109,7 +110,7 @@ class ProtoLogService(val storageService: StorageService) : ClusterService , Roc
         return super.getLogs(request)
     }
 
-    override suspend fun getLogCount(request: xln.common.proto.service.Service.GetLogRequest): xln.common.proto.service.Service.GetLogCountResponse {
+    override suspend fun getLogCount(request: xln.common.proto.service.Service.GetLogCountRequest): xln.common.proto.service.Service.GetLogCountResponse {
        return xln.common.proto.service.Service.GetLogCountResponse.newBuilder().setCount(rocksDBStore.count()).build()
 
     }

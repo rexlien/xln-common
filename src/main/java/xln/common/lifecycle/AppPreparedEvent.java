@@ -26,7 +26,11 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
         if(strPort != null) {
             try {
                 int webPort = Integer.parseInt(strPort);
-                props.put("management.server.port", (webPort + 10000) % 65536);
+                if(webPort != 0) {
+                    props.put("management.server.port", (webPort + 10000) % 65536);
+                } else {
+                    props.put("management.server.port", 0);
+                }
             }catch (NumberFormatException ex) {
 
             }

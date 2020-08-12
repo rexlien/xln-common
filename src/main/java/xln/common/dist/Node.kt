@@ -22,6 +22,7 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListMap
+import java.util.function.Consumer
 import kotlin.collections.HashMap
 
 class Root : Versioned, ClusterAware {
@@ -80,7 +81,10 @@ class Root : Versioned, ClusterAware {
             val nodeGroup = this.cluster.getNodeGroup()
             nodeGroup.second.forEach {
                 nodes[it.key] = it.value
+                channelManager.openChannel(it.value)
             }
+            printNode()
+
             val fluxSink = FluxUtils.createFluxSinkPair<ClusterEvent>();
             fluxSink.flux.subscribe {
                 when (it) {
@@ -121,8 +125,7 @@ class Root : Versioned, ClusterAware {
         tmpNode?.onShutdown()
 
         nodes.forEach {
-            val versioned = it.value;
-            when (versioned) {
+            when (val versioned = it.value) {
                 is Node -> {
                     versioned.onShutdown()
                 }
@@ -131,11 +134,21 @@ class Root : Versioned, ClusterAware {
 
     }
 
+    suspend fun forEachNode(lambda: suspend (Node) -> Unit ) {
+
+        nodes.forEach {
+            when(val versioned = it.value) {
+                is Node -> {
+                    lambda(versioned)
+                }
+            }
+        }
+    }
+
     private fun printNode() {
 
         nodes.forEach {
-            val versioned = it.value;
-            when (versioned) {
+            when (val versioned = it.value) {
                 is Node -> {
                     log.debug("key: ${it.key} value: ${versioned.info!!.name}")
                 }
@@ -208,11 +221,7 @@ class Node : Versioned {
         version = keyValue.version
         createRevision = keyValue.createRevision
         storeKey = keyValue.key.toStringUtf8()
-        //try {
-        //    this.info = Dist.NodeInfo.parseFrom(keyValue.value)
-        //} catch (ex: InvalidProtocolBufferException) {
-        //    log.error("", ex)
-        //}
+
 
     }
 
