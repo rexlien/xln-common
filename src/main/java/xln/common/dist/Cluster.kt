@@ -67,22 +67,6 @@ interface ClusterService {
 @ConditionalOnBean(EtcdClient::class)
 class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) {
 
-    val myNodeInfo: Dist.NodeInfo //= //Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).build()
-
-    private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
-    private val log = LoggerFactory.getLogger(this.javaClass);
-
-    @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
-    private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
-
-    @Volatile private var self : Node? = null
-    @Volatile private var controllerWatchID = 0L;
-    private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
-    private val channelManager = ChannelManager()
-    private @Volatile var root = Root(this, clusterProperty.nodeKey, channelManager)
-
-    private val watchSinkers = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
-
     private val server = {
 
         val builder = ServerBuilder.forPort(clusterConfig.port)
@@ -96,13 +80,26 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
 
     }().start()
 
+    val myNodeInfo: Dist.NodeInfo
+    private val log = LoggerFactory.getLogger(this.javaClass);
     init {
 
         myNodeInfo = Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).setClusterPort(server.port).build()
         log.debug("cluster grpc port: ${server.port}")
     }
 
+    private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
 
+    @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
+    private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
+
+    @Volatile private var self : Node? = null
+    @Volatile private var controllerWatchID = 0L;
+    private val clusterEventSource = FluxUtils.createFluxSinkPair<ClusterEvent>()
+    private val channelManager = ChannelManager()
+    private @Volatile var root = Root(this, clusterProperty.nodeKey, channelManager)
+
+    private val watchSinkers = ConcurrentHashMap<Long, FluxSink<ClusterEvent>>()
 
     private val leaseEvents = etcdClient.leaseManager.eventSource.publishOn(Schedulers.fromExecutor(serializeExecutor)).flatMap {
         return@flatMap mono(context = serializeExecutor.asCoroutineDispatcher()) {
