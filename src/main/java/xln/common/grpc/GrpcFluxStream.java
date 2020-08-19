@@ -25,9 +25,15 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
    // private volatile MonoSink<StreamObserver<V>> sourceSink;
     private volatile FluxSink<R> publisher;
     private CompletableFuture<StreamObserver<V>> sinkFuture;// = new CompletableFuture<>();
+    private String name = "default";
+    private boolean enableRetry = true;
 
     public GrpcFluxStream() {
 
+    }
+    public GrpcFluxStream(String name, boolean enableRetry ) {
+        this.name = name;
+        this.enableRetry = enableRetry;
     }
 
 
@@ -41,7 +47,7 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
 
     public  Flux<R> initStreamSink(Supplier<StreamObserver<V>> sourceSupplier) {
         this.streamSink = Flux.<R>create((r) -> {
-            log.debug("Stream init");
+            log.debug("Stream init:" + name);
 
             GrpcFluxStream.this.publisher = r;
             var observer = sourceSupplier.get();
@@ -50,9 +56,11 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
             }
             sinkFuture.complete(observer);
 
-        }).retryWhen(Retry.fixedDelay(Integer.MAX_VALUE,
-                Duration.ofSeconds(5)));
-
+        });
+        if(enableRetry) {
+            streamSink = streamSink.retryWhen(Retry.fixedDelay(Integer.MAX_VALUE,
+                    Duration.ofSeconds(5)));
+        }
         this.streamSink.subscribe();
         return this.streamSink;
     }
@@ -78,7 +86,7 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
 
         }
         reqStream = resetRequestStream();//Mono.empty();
-        //sourceSink.error(t);
+        log.debug(t.getMessage());
         publisher.error(t);
     }
 

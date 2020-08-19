@@ -11,7 +11,11 @@ import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import mvccpb.Kv
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.actuate.autoconfigure.web.server.LocalManagementPort
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.web.context.WebServerInitializedEvent
+import org.springframework.context.ApplicationListener
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
@@ -41,7 +45,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
+
 
 @Component
 @ConditionalOnBean(EtcdClient::class)
@@ -55,7 +61,6 @@ class ClusterProperty(private val commonConfig: CommonConfig, private val contex
 }
 
 data class BroadcastResult(val result: String, val error: String)
-//data class BroadcastResults(val nodesResults: MutableMap<String, BroadcastResult>)
 
 interface ClusterService {
 
@@ -65,7 +70,8 @@ interface ClusterService {
 
 @Service
 @ConditionalOnBean(EtcdClient::class)
-class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) {
+class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) : ApplicationListener<WebServerInitializedEvent> {
+
 
     private val server = {
 
@@ -80,17 +86,18 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
 
     }().start()
 
-    val myNodeInfo: Dist.NodeInfo
+    var myNodeInfo: Dist.NodeInfo? = null
     private val log = LoggerFactory.getLogger(this.javaClass);
+
     init {
 
-        myNodeInfo = Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).setClusterPort(server.port).build()
-        log.debug("cluster grpc port: ${server.port}")
+        //myNodeInfo = Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).setClusterPort(server.port).setWebPort(webPort).build()
+
     }
 
     private val customThreadFactory = CustomizableThreadFactory("xln-cluster-")
 
-    @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo> = startNewLease()
+    @Volatile private var curLeaseInfo: Mono<LeaseManager.LeaseInfo>? = null//startNewLease()
     private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
 
     @Volatile private var self : Node? = null
@@ -106,17 +113,14 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
 
             if (it.type == LeaseEvent.Type.REMOVED) {
                 //removed but not crashed
-                if (it.info == curLeaseInfo.awaitSingle()) {
+                if (it.info == curLeaseInfo?.awaitSingle()) {
 
                     log.debug("recreate lease");
                     //root = Root(this@Cluster, clusterProperty.nodeKey)
                     curLeaseInfo = startNewLease()
                 }
-                //}
-            } //else if (it.type == LeaseEvent.Type.ADDED) {
 
-            //}
-
+            }
         }
     }.publish().connect()
 
@@ -167,7 +171,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
                                 clusterEventSource.sink.next(LeaderDown(controllerNode))
                                 log.info(watchEvent.kv.toString())
                                 var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
-                                        withValue(this@Cluster.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo.awaitSingle().leaseID)).awaitSingle()
+                                        withValue(this@Cluster.myNodeInfo?.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo?.awaitSingle()!!.leaseID)).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
@@ -252,7 +256,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     private suspend fun createSelf(info: LeaseManager.LeaseInfo) = coroutineScope {
 
         log.debug("createSelf")
-        self = Node(this@Cluster, this@Cluster.myNodeInfo);
+        self = Node(this@Cluster, this@Cluster.myNodeInfo!!);
         self!!.setSelf(true)
 
         //join this cluster
@@ -271,7 +275,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         //if there's no controller before watch
         if(res.response.kvsCount == 0) {
 
-            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(this@Cluster.myNodeInfo.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
+            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(this@Cluster.myNodeInfo?.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
             log.debug("controller put result:"+result.succeeded)
         } else {
 
@@ -344,11 +348,32 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         return results
     }
 
+    suspend fun getNodes() : List<Node>{
+        val nodes = mutableListOf<Node>()
+        root.forEachNode {
+            nodes.add(it)
+        }
+        return nodes
+    }
+
+    fun isLeader() : Boolean {
+        return root.isLeader
+    }
 
 
+    fun getLeader() : Node? {
+        return root.controllerNode.asT<Node>()
+    }
 
+    override fun onApplicationEvent(event: WebServerInitializedEvent) {
+        if(event.applicationContext.id!! == "application:management") {
+            myNodeInfo = Dist.NodeInfo.newBuilder().setKey(clusterProperty.nodeKey).setName(NetUtils.getHostName()).setAddress(NetUtils.getHostAddress()).setClusterPort(server.port).setWebPort(event.webServer.port).build()
+            log.debug("cluster grpc port: ${server.port}")
+            curLeaseInfo = startNewLease()
 
+        }
 
+    }
 
 
 }

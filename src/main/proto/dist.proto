@@ -10,5 +10,6 @@ message NodeInfo {
     string name = 1;
     string address = 2;
     int32 clusterPort = 4;
+    int32 webPort = 5;
 }
 

@@ -27,7 +27,7 @@ public class RocksDBStore {
 
         try  {
             this.rocksDB = RocksDB.open(options, path);
-        }catch (RocksDBException ex) {
+        }catch (Exception ex) {
             log.error("", ex);
 
         }
@@ -42,7 +42,7 @@ public class RocksDBStore {
 
         try {
             rocksDB.put(safeWriteOps, key.getBytes(), obj.toByteArray());
-        } catch (RocksDBException ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return false;
         }
@@ -57,10 +57,7 @@ public class RocksDBStore {
             T ret =  parser.parseFrom(rocksDB.get(key.getBytes()));
             return ret;
 
-        } catch (RocksDBException ex) {
-            log.error("", ex);
-            return null;
-        } catch (InvalidProtocolBufferException ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return null;
         }
@@ -70,7 +67,7 @@ public class RocksDBStore {
     public void deleteRange(String startKey, String endKey) {
         try {
             rocksDB.deleteRange(startKey.getBytes(), endKey.getBytes());
-        }catch (RocksDBException ex) {
+        }catch (Exception ex) {
             log.error("", ex);
         }
     }
@@ -79,7 +76,7 @@ public class RocksDBStore {
 
         try {
             rocksDB.delete(key.getBytes());
-        }catch (RocksDBException ex) {
+        }catch (Exception ex) {
             log.error("", ex);
         }
     }
@@ -87,7 +84,7 @@ public class RocksDBStore {
     public long count() {
         try {
             return rocksDB.getLongProperty("rocksdb.estimate-num-keys");
-        }catch (RocksDBException ex) {
+        }catch (Exception ex) {
             return -1L;
         }
     }

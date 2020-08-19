@@ -116,7 +116,7 @@ class GrpcReflection {
             return cached
         }
 
-        val reflectionStream = object: GrpcFluxStream<ServerReflectionRequest, ServerReflectionResponse>() {
+        val reflectionStream = object: GrpcFluxStream<ServerReflectionRequest, ServerReflectionResponse>("reflectionStream", false) {
 
         }
 
@@ -127,6 +127,7 @@ class GrpcReflection {
 
         reflectionStream.initStreamSink {
             ServerReflectionGrpc.newStub(channel).serverReflectionInfo(reflectionStream)
+
         }.subscribe { it ->
             if(it.hasListServicesResponse()) {
 

@@ -29,7 +29,8 @@ libs += [
         mongoSet: ["org.mongodb:mongodb-driver-reactivestreams:4.0.3", "org.springframework.data:spring-data-mongodb:3.0.0.RELEASE", "org.mongodb:mongodb-driver-legacy:4.0.3"],
 
         sqlSet: ['com.github.jasync-sql:jasync-mysql:1.0.14.RL1', "com.github.jasync-sql:jasync-r2dbc-mysql:1.0.14.RL1", 'org.springframework.data:spring-data-r2dbc:1.1.0.RELEASE', 'org.springframework.data:spring-data-relational:2.0.0.RELEASE'],
-        protobufSet: ["io.grpc:grpc-netty-shaded:$versions.grpc", "io.grpc:grpc-protobuf:$versions.grpc" ,"io.grpc:grpc-stub:$versions.grpc" ,"com.google.protobuf:protobuf-java-util:$versions.protobuf", "io.grpc:grpc-kotlin-stub:0.1.4", "io.grpc:grpc-services:$versions.grpc"],
+        protobufSet: ["io.grpc:grpc-netty-shaded:$versions.grpc", "io.grpc:grpc-protobuf:$versions.grpc" ,"io.grpc:grpc-stub:$versions.grpc" ,
+                      "com.google.protobuf:protobuf-java-util:$versions.protobuf", "io.grpc:grpc-kotlin-stub:0.1.4", "io.grpc:grpc-services:$versions.grpc", "com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.10.+"],
 
         sparkSet: [  //new xln.gradle.Dependency(module: "org.apache.spark:spark-mllib_2.11:2.4.4",  exclude : "slf4j-log4j12"),
                      new xln.gradle.Dependency(module: 'org.apache.spark:spark-sql_2.12:3.0.0',  exclude : "slf4j-log4j12"),

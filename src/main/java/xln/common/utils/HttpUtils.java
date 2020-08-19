@@ -77,8 +77,17 @@ public class HttpUtils {
 
     public static <T> Mono<ResponseEntity<T>> httpCallMonoResponseEntity(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
                                                                     Map<String, String> headers, Object body) {
-        Gson gson = new Gson();
-        return httpCallMono(url, urlValues, method, headers,gson.toJson(body)).toEntity(type);
+
+        WebClient.ResponseSpec responseSpec;
+        if(body instanceof String) {
+            var strBody = (String)body;
+            responseSpec = httpCallMono(url, urlValues, method, headers, strBody);
+        } else {
+            Gson gson = new Gson();
+            responseSpec = httpCallMono(url, urlValues, method, headers,gson.toJson(body));
+        }
+
+        return (responseSpec != null)?responseSpec.toEntity(type):Mono.empty();
     }
 
     public static WebClient.ResponseSpec httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method,

@@ -159,14 +159,19 @@ class Root : Versioned, ClusterAware {
     private var selfKey = "";
 
     @Volatile
-    private var controllerNode = VersionedProp()
+    var controllerNode = VersionedProp()
+        private set
 
     private val nodes = ConcurrentHashMap<String, Versioned>()
 
     @Volatile
-    private var nodeWatchID = -1L;
+    private var nodeWatchID = -1L
     @Volatile
-    private var isLeader = false;
+    var isLeader = false
+        private set
+
+
+
     private val etcdClient: EtcdClient
     private val cluster: Cluster
     override fun version(): Long {
