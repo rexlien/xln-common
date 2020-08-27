@@ -2,21 +2,28 @@ package xln.common.utils;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.autoconfigure.metrics.MetricsProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Slf4j
 public class HttpUtils {
 
-    public static final WebClient reactiveClient = WebClient.create();
+    private static final WebClient reactiveClient = WebClient.create();
 
     public static <T> Mono<T> httpGetMono(String url, Class type) {
         try {
@@ -140,6 +147,21 @@ public class HttpUtils {
             log.error("", ex);
             return Flux.empty();
         }
+    }
+
+    public static <T> Mono<T> httpRetry(Mono<T> retryable, int attempt, int backoffTime) {
+
+        return retryable.retryWhen(Retry.fixedDelay(attempt, Duration.ofMillis(backoffTime)).filter((ex)-> {
+            if(ex instanceof WebClientResponseException) {
+                WebClientResponseException wbc = (WebClientResponseException)ex;
+                if(wbc.getStatusCode().is5xxServerError()) {
+                    return true;
+                }
+            }
+            return false;
+        }).doBeforeRetry((e) -> {
+            log.error("Do Retry :" + e.totalRetries() + " Reason: " + e.failure().getMessage());
+        }));
     }
 
     public static WebClient getWebClient() {
