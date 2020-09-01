@@ -1,12 +1,15 @@
 package xln.common.config;
 
 import lombok.val;
+import org.apache.commons.collections.map.HashedMap;
 import org.apache.spark.SparkConf;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @ConfigurationProperties(prefix="xln.common.spark")
@@ -88,6 +91,18 @@ public class SparkConfig {
     private String timeout = "600s";
     private String driverPort = "50999";
 
+
+    public Map<String, String> getExecutorEnv() {
+        return executorEnv;
+    }
+
+    public SparkConfig setExecutorEnv(Map<String, String> executorEnv) {
+        this.executorEnv = executorEnv;
+        return this;
+    }
+
+    private Map<String, String> executorEnv = new HashMap<>();
+
     public static SparkConf build(SparkConfig config) {
 
         var ip = "";
@@ -113,6 +128,14 @@ public class SparkConfig {
         }
 
         conf.set("spark.executor.extraJavaOptions", jvmOption);
+
+        config.executorEnv.forEach((k, v) -> {
+            conf.set("spark.executorEnv."+k, v);
+        });
+
+        conf.set("spark.kubernetes.executor.annotation.prometheus.io/path", "/actuator/prometheus");
+        conf.set("spark.kubernetes.executor.annotation.prometheus.io/port", "39999");
+        conf.set("spark.kubernetes.executor.annotation.prometheus.io/scrape", "true");
 
         return conf;
     }
