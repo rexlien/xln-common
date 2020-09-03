@@ -9,27 +9,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
-public class ConditionEvaluator implements Evaluator{
+public class ConditionEvaluator extends Evaluator<Object>{
+
 
     public ConditionEvaluator(Context context) {
-        this.context = context;
+        super(context);
     }
-
-    public Context getContext() {
-        return this.context;
-    }
-
-    public Object startEval(Element root) {
-
-        context.gatherSource(this, root);
-
-        return root.eval(this);
-
-    }
-
-
 
     //implementation assuming all boolean
+    @Override
     public Object eval(Operator operator) {
         if(operator.left == null && operator.right == null) {
             return true;
@@ -42,15 +30,15 @@ public class ConditionEvaluator implements Evaluator{
             }
         }
         else if(operator.left != null) {
-            return operator.left.eval(this);
+            return (Boolean)operator.left.eval(this);
         }
         else {
-            return operator.right.eval(this);
+            return (Boolean)operator.right.eval(this);
         }
     }
 
     @Override
-    public boolean eval(LogicalOperator operator) {
+    public Object eval(LogicalOperator operator) {
         if(operator.getOp() != Operator.OP_TYPE_AND && operator.getOp() != Operator.OP_TYPE_OR) {
             log.error("Operator type can only be OR or AND");
             return false;
@@ -61,7 +49,7 @@ public class ConditionEvaluator implements Evaluator{
         Boolean ret = null;
         for(Element elem : operator.getElements()) {
 
-            if(elem instanceof Condition || elem instanceof Operator) {
+            //if(elem instanceof Condition || elem instanceof Operator || elem instanceof LogicalOperator)  {
                 if (ret == null) {
                     ret = (boolean) elem.eval(this);
                 } else {
@@ -71,16 +59,16 @@ public class ConditionEvaluator implements Evaluator{
                         ret |= (boolean) elem.eval(this);
                     }
                 }
-            } else {
-                log.error("element must be Condition or Operator");
-                return false;
-            }
+            //} else {
+             //   log.error("element must be Condition or Operator");
+             //   return false;
+            //}
         }
         return ret;
     }
 
 
-    public boolean eval(Condition condition) {
+    public Object eval(Condition condition) {
         Object src = null;
         try {
             src = context.getSource(condition.getSrcPath()).get(10, TimeUnit.SECONDS);
@@ -141,37 +129,8 @@ public class ConditionEvaluator implements Evaluator{
 
     }
 
-    @Override
-    public void traverse(Element root, Consumer<Element> visitCB, Runnable finishCB) {
 
-        Stack<Element> s = new Stack<>();
-        s.push(root);
-        while(!s.empty()) {
-            Element e =  s.pop();
-            if(e instanceof Operator) {
-                Operator op = (Operator)e;
-                visitCB.accept(e);
-                if(op.right != null) {
-                    s.push(op.right);
-                }
-                if(op.left != null) {
-                    s.push(op.left);
-                }
-            } else if(e instanceof LogicalOperator) {
-                LogicalOperator op = (LogicalOperator)e;
-                visitCB.accept(e);
-                for(Element elem : op.getElements()) {
-                    s.push(elem);
-                }
-            }
-            else {
-                visitCB.accept(e);
-            }
-        }
-        if(finishCB != null) {
-            finishCB.run();
-        }
-    }
 
-    protected Context context;// = new Context(this);
+
+
 }

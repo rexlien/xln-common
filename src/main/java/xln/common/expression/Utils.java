@@ -2,6 +2,9 @@ package xln.common.expression;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Stack;
+
 @Slf4j
 public class Utils {
 
@@ -49,4 +52,28 @@ public class Utils {
         }
         return (Number)(src);
     }
+
+    //index result by its tag
+    public static HashMap<String, Result> mapResult(Result root) {
+
+        HashMap<String, Result> ret = new HashMap();
+        Stack<Result> resultStack = new Stack<>();
+
+        resultStack.push(root);
+        while(!resultStack.empty()) {
+
+            var result = resultStack.pop();
+            if(result.getTag() != null) {
+                ret.put(result.getTag(), result);
+            }
+
+            for(var child : result.getChildren()) {
+                resultStack.push(child);
+            }
+        }
+
+        return ret;
+    }
+
+
 }

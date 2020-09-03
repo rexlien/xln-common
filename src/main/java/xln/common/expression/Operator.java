@@ -33,4 +33,6 @@ public class Operator implements Element {
     public Object eval(Evaluator evaluator) {
         return evaluator.eval(this);
     }
+
+   
 }

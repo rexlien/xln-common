@@ -13,6 +13,8 @@ import org.redisson.reactive.ReactiveProxyBuilder
 import reactor.core.publisher.Mono
 import xln.common.expression.ConditionEvaluator
 import xln.common.expression.Element
+import xln.common.expression.ProgressConditionEvaluator
+import xln.common.expression.Result
 import xln.common.extension.AsyncAutoCloseable
 import xln.common.service.RateLimiter
 import xln.common.service.RateLimiter.AcquiredInfo
@@ -24,6 +26,15 @@ suspend fun ConditionEvaluator.startEvalAsync(root : Element) : Any? {
     //await when gathering so actual eval should not block
     context.gatherSourceJoin(this, root).await()
     return root.eval(this)
+
+
+}
+
+suspend fun ProgressConditionEvaluator.startEvalAsync(root : Element) : Result? {
+
+    //await when gathering so actual eval should not block
+    context.gatherSourceJoin(this, root).await()
+    return root.eval(this) as Result?
 
 
 }
