@@ -15,6 +15,31 @@ import java.util.Map;
 @Slf4j
 public class BaseResponse {
 
+    public static class BaseResult implements  ResultDescribable {
+
+        public static final BaseResult SUCCEEDED = new BaseResult(0, "Succeeded");
+        public static final BaseResult ERROR_INTERNAL_ERROR = new BaseResult(-1, "Internal Error");
+
+        public BaseResult(int code, final String desc) {
+            this.code = code;
+            this.desc = desc;
+        }
+
+        private int code;
+        private String desc;
+
+        @Override
+        public int getResultCode() {
+            return code;
+        }
+
+        @Override
+        public String getResultDescription() {
+            return desc;
+        }
+    }
+
+/*
     public enum BaseResultParams implements ResultDescribable {
 
         SUCCEEDED(0, "Succeeded"),
@@ -39,6 +64,7 @@ public class BaseResponse {
             return desc;
         }
     }
+*/
 
     public BaseResponse(ResultDescribable describable) {
         this.setResult(describable);
@@ -70,7 +96,7 @@ public class BaseResponse {
 
     }
 
-    @SwaggerResultDescribable(clazzDescribable = BaseResultParams.class, value = "result code")
+    @SwaggerResultDescribable(clazzDescribable = BaseResult.class, value = "result code")
     public int getResultCode() {
         return resultCode;
     }
@@ -97,6 +123,10 @@ public class BaseResponse {
             log.error("", ex);
             return null;
         }
-
     }
+
+    public static BaseResponse of(ResultDescribable describable) {
+        return new BaseResponse(describable);
+    }
+
 }

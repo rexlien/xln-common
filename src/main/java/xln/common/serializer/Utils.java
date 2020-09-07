@@ -1,8 +1,10 @@
 package xln.common.serializer;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 
 public class Utils {
 
@@ -22,5 +24,14 @@ public class Utils {
             }
         };
         return builder;
+    }
+
+    public static ObjectMapper createObjectMapper() {
+
+        var objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new KotlinModule());
+        objectMapper.setDefaultTyping(Utils.createJsonCompliantResolverBuilder(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE));
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return objectMapper;
     }
 }
