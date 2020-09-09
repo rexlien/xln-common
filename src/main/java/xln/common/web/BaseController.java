@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebInputException;
 
+import javax.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -46,6 +47,15 @@ public class BaseController
 
         log.error("", ex);
         return new ResponseEntity("Internal Server Error", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity handleException(ConstraintViolationException ex) {
+
+        log.warn("contraint Violation", ex);
+        BaseResponse response = new BaseResponse();
+        response.setResult(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
+        return new ResponseEntity(response, HttpStatus.BAD_REQUEST);
     }
 
 
