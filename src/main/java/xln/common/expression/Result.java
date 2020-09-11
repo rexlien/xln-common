@@ -7,7 +7,26 @@ import java.util.List;
 public class Result {
 
     public static class Progress {
+        public Object getCurrent() {
+            return current;
+        }
+
+        public Progress setCurrent(Object current) {
+            this.current = current;
+            return this;
+        }
+
         private Object current;
+
+        public Object getTarget() {
+            return target;
+        }
+
+        public Progress setTarget(Object target) {
+            this.target = target;
+            return this;
+        }
+
         private Object target;
 
         public Progress(Object current, Object target) {
@@ -40,6 +59,11 @@ public class Result {
     }
 
     private Boolean result;
+
+    public Progress getProgress() {
+        return progress;
+    }
+
     private Progress progress;
 
     public String getTag() {

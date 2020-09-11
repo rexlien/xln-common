@@ -30,11 +30,11 @@ suspend fun ConditionEvaluator.startEvalAsync(root : Element) : Any? {
 
 }
 
-suspend fun ProgressConditionEvaluator.startEvalAsync(root : Element) : Result? {
+suspend fun ProgressConditionEvaluator.startEvalAsync(root : Element) : Result {
 
     //await when gathering so actual eval should not block
     context.gatherSourceJoin(this, root).await()
-    return root.eval(this) as Result?
+    return root.eval(this) as Result
 
 
 }
