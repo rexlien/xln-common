@@ -6,6 +6,7 @@ import etcdserverpb.Rpc;
 import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import xln.common.dist.KeyUtils;
 import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 
@@ -149,10 +150,27 @@ public class KVManager {
 
     }
 
+    public static Rpc.RangeRequest createDirectoryRangeRequest(String directory) {
+        return Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(directory)).
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(directory))).build();
+    }
+
 
     public Mono<Rpc.PutResponse> put(PutOptions option) {
 
         var requestMono = createRequest(option);
+        return requestMono.flatMap( r -> {
+            return Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(r), client.getScheduler()));
+
+        });
+    }
+
+    public Mono<Rpc.PutResponse> put(String key, ByteString value) {
+
+        var putOption = new PutOptions();
+        putOption.key = key;
+        putOption.value = value;
+        var requestMono = createRequest(putOption);
         return requestMono.flatMap( r -> {
             return Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(r), client.getScheduler()));
 
@@ -167,6 +185,22 @@ public class KVManager {
     public Mono<Rpc.RangeResponse> get(Rpc.RangeRequest request) {
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
     }
+
+    public Mono<ByteString> get(String key) {
+
+        Rpc.RangeRequest request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build();
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler())).flatMap(
+                r -> {
+                    if(r.getCount() == 0) {
+                        return Mono.empty();
+                    }
+                    return Mono.just(r.getKvs(0).getValue());
+                }
+        );
+
+
+    }
+
 
     public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactOptions options) {
 

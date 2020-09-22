@@ -17,6 +17,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import xln.common.config.CommonConfig;
 import xln.common.config.ServiceConfig;
 
 import javax.annotation.PostConstruct;
@@ -28,10 +29,15 @@ import java.util.List;
 public class Context implements ApplicationContextAware {
 
 
+    public Context(CommonConfig commonConfig) {
+        this.commonConfig = commonConfig;
+    }
+
     private static final String DEV_PROFILE = "dev";
     private static final String LOCAL_PROFILE = "local";
     private static final String TEST_PROFILE = "test";
 
+    private final CommonConfig commonConfig;
     @Autowired
     private GenericApplicationContext context;
 
@@ -115,5 +121,7 @@ public class Context implements ApplicationContextAware {
     public boolean isTestEnv() {
         return isTest;
     }
+
+    public String getServiceName() {return commonConfig.getAppName();}
 
 }

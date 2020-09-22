@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/duration.proto";
+
+package xln.common.proto.config;
+
+message Config {
+    map<string,  google.protobuf.Any> props = 1;
+
+}
