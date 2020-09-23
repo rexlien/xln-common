@@ -20,8 +20,6 @@ import java.util.List;
 @Slf4j
 public class AppInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
-    private static Logger logger = LoggerFactory.getLogger(AppInitializer.class);
-
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
 
@@ -42,10 +40,9 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
                 env.getPropertySources().addLast(propertySource);
             }
             //env.getPropertySources().addFirst(new ResourcePropertySource("classpath:xln-common" + suffix + ".properties"));
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
 
-            logger.error("XLN Property Load failed");
+            log.warn("XLN Property Load failed");
         }
 
 
