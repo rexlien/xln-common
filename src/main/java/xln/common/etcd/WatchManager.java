@@ -108,7 +108,7 @@ public class WatchManager {
 
     private final GrpcFluxStream<Rpc.WatchRequest, Rpc.WatchResponse> watchStream;
 
-    private final Flux<Rpc.WatchResponse> eventSource;
+    private final EmitterProcessor<Rpc.WatchResponse> eventSource;
     private final FluxSink<Rpc.WatchResponse> sink;
 
 
@@ -117,30 +117,43 @@ public class WatchManager {
         this.client = client;
         this.stub = WatchGrpc.newStub(client.getChannel());
 
-        CompletableFuture<FluxSink<Rpc.WatchResponse>> sinkFuture = new CompletableFuture<>();
+        //CompletableFuture<FluxSink<Rpc.WatchResponse>> sinkFuture = new CompletableFuture<>();
+        /*
         this.eventSource = Flux.<Rpc.WatchResponse>create((r) -> {
             sinkFuture.complete(r);
         }).publish().autoConnect(0);
+*/
 
 
 
-        this.sink = sinkFuture.get();
-        this.watchStream = new GrpcFluxStream<>() {
+        //this.sink = sinkFuture.get();
+        eventSource = EmitterProcessor.create();
+        sink = eventSource.sink();
+        this.watchStream = new GrpcFluxStream<>(client.getChannel(), "watchStream", true) {
 
             @Override
             public void onNext(Rpc.WatchResponse value) {
                 sink.next(value);
             }
+
+            @Override
+            public void onReconnected() {
+                super.onReconnected();
+                //sink.next(Rpc.WatchResponse.getDefaultInstance());
+            }
+
             @Override
             public void onError(Throwable t) {
+                log.error("watch stream error");
+
                 super.onError(t);
-                //sink.error(t);
+
             }
+
 
             @Override
             public void onCompleted() {
                 super.onCompleted();
-                //sink.complete();
             }
         };
         this.watchStream.initStreamSink(() -> {
@@ -211,6 +224,10 @@ public class WatchManager {
 
     public Flux<Rpc.WatchResponse> getEventSource() {
         return eventSource;
+    }
+
+    public Flux<GrpcFluxStream.ConnectionEvent> getConnectionEventSource() {
+        return watchStream.getConnectionEventSource();
     }
 
 

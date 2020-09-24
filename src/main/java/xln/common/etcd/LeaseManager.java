@@ -3,6 +3,7 @@ package xln.common.etcd;
 import etcdserverpb.LeaseGrpc;
 import etcdserverpb.Rpc;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -145,7 +146,7 @@ public class LeaseManager {
     private final ScheduledFuture keepAliveFuture;
     private volatile long streamTerm = -1L;
 
-    private final Flux<LeaseEvent> producer;
+    private final EmitterProcessor<LeaseEvent> producer;
     private final FluxSink<LeaseEvent> producerSink;
 
     public LeaseManager(EtcdClient client) throws Exception {
@@ -153,14 +154,23 @@ public class LeaseManager {
         this.executorService = this.client.getScheduler();
 
         CompletableFuture<FluxSink<LeaseEvent>> leaseSink = new CompletableFuture<>();
-        this.producer = Flux.<LeaseEvent>create((r) -> {
-            leaseSink.complete(r);
 
-        }).publish().autoConnect(0);
+        producer = EmitterProcessor.create();
+        //emitterProcessor.
 
-        this.producerSink = leaseSink.get();
 
-       this.keepAliveStream = new GrpcFluxStream<etcdserverpb.Rpc.LeaseKeepAliveRequest, Rpc.LeaseKeepAliveResponse>() {
+        //this.producer = Flux.<LeaseEvent>create((r) -> {
+        //    leaseSink.complete(r);
+//
+  //      }).publish().autoConnect(0);
+
+        //this.producerSink = leaseSink.get();
+        producer.subscribe((r)->{
+
+        });
+        this.producerSink = producer.sink();
+
+       this.keepAliveStream = new GrpcFluxStream<>(client.getChannel(), "lease Stream", true) {
 
            @Override
             public void onNext(Rpc.LeaseKeepAliveResponse value) {
@@ -172,12 +182,13 @@ public class LeaseManager {
                 });
             }
 
-
             @Override
             public void onCompleted() {
                 super.onCompleted();
                 log.info("completed");
             }
+
+
         };
 
 

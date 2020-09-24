@@ -2,26 +2,36 @@ package xln.common.etcd
 
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
+import kotlinx.coroutines.runBlocking
 import mvccpb.Kv
+import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Service
+import reactor.core.Disposable
 import xln.common.Context
 import xln.common.config.CommonConfig
 import xln.common.config.EtcdConfig
+import xln.common.grpc.GrpcFluxStream
 import xln.common.proto.config.ConfigOuterClass
 import xln.common.service.EtcdClient
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import javax.annotation.PreDestroy
 
 @Service
 @ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
 class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context) {
 
-    data class Path(val directory: String, val key: String)
 
+    private val log = LoggerFactory.getLogger(this.javaClass);
+
+    data class Path(val directory: String, val key: String)
 
     private val PREFIX_KEY = "xln-config/"
 
@@ -31,6 +41,56 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
     private val customThreadFactory = CustomizableThreadFactory("xln-configStore")
     private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
+
+
+    @Volatile
+    private var subscribers = ConcurrentHashMap<Long, Disposable>()
+
+    init {
+        watchManager.connectionEventSource.subscribe {
+            if (it == GrpcFluxStream.ConnectionEvent.RE_CONNECTED) {
+                serializeExecutor.submit {
+                    runBlocking {
+                        restartWatch()
+                    }
+                }
+
+            } else if(it == GrpcFluxStream.ConnectionEvent.DISCONNECTED) {
+                serializeExecutor.submit {
+                    //subscriber?.dispose()
+                    cleanSubscribers()
+                }
+            }
+        }
+        restartWatch()
+    }
+
+    @PreDestroy
+    private fun destroy() {
+        cleanSubscribers()
+    }
+
+    private fun cleanSubscribers() {
+
+        subscribers.forEach {
+            it.value.dispose()
+        }
+        subscribers.clear()
+    }
+
+    private fun restartWatch() {
+
+        try {
+            etcdConfig.configWatchDirs.forEach {
+                runBlocking {
+                    log.info("config Watch Directoring : ${it}")
+                    startWatch(it)
+                }
+            }
+        }catch (ex: Exception) {
+            log.error("config watch failed", ex);
+        }
+    }
 
     private fun genKey(directory: String, key: String) : String {
         return "${PREFIX_KEY}${etcdConfig.configNamespace}/${directory}/${key}"
@@ -73,7 +133,9 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
     suspend fun startWatch(directory: String) {
 
+        log.debug("start watch")
         val res = watchManager.watchPath(genDir(directory), true, true)
+
 
         res.response.kvsList.forEach {
 
@@ -82,28 +144,33 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
             put(directory, path.key, config)
         }
         val watchID = res.watchID
-        watchManager.eventSource.subscribe {
+        subscribers.put(watchID, watchManager.eventSource.subscribe {
 
-            if(watchID == it.watchId) {
+            //if there's error restart watch
+
+            if (watchID == it.watchId) {
                 serializeExecutor.submit {
+                    try {
+                        for (watchEvent in it.eventsList) {
 
-                    for (watchEvent in it.eventsList) {
+                            val path = keyToPath(watchEvent.kv.key.toStringUtf8())
+                            if (watchEvent.type == Kv.Event.EventType.DELETE) {
+                                configMap[path.directory]?.remove(path.key)
+                            } else if (watchEvent.type == Kv.Event.EventType.PUT) {
 
-                        val path = keyToPath(watchEvent.kv.key.toStringUtf8())
-                        if(watchEvent.type == Kv.Event.EventType.DELETE) {
-                            configMap[path.directory]?.remove(path.key)
-                        } else if(watchEvent.type == Kv.Event.EventType.PUT) {
+                                val config = ConfigOuterClass.Config.parseFrom(watchEvent.kv.value)
+                                put(path.directory, path.key, config)
+                            }
 
-                            val config =ConfigOuterClass.Config.parseFrom(watchEvent.kv.value)
-                            put(path.directory, path.key, config)
                         }
-
+                    } catch (ex: Exception) {
+                        log.error("Config watch failed", ex)
                     }
 
                 }
             }
 
-        }
+        })
         res.watcherTrigger.awaitSingle()
 
     }

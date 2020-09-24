@@ -121,8 +121,8 @@ public class EtcdClient {
     }
 
 
-    public Channel getChannel() {
-        return stickyChannel;
+    public ManagedChannel getChannel() {
+        return managedChannel;
     }
 
 
