@@ -104,7 +104,8 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
                     return new Result(map.containsKey(condition.getTarget()), new Result.Progress(map, condition.getTarget())).setTag(condition.getTag());
                 } else {
                     log.error("Only map src can check contains condition");
-                    return new Result(false).setTag(condition.getTag());
+                    //return src in progress?
+                    return new Result(false, new Result.Progress(src, condition.getTarget())).setTag(condition.getTag());
                 }
             } else {
 
@@ -148,6 +149,7 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
             }
 
         }
-        return new Result(false);
+        //even source is null, target still returns in progress
+        return new Result(false,  new Result.Progress(null, condition.getTarget())).setTag(condition.getTag());
     }
 }
