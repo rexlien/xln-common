@@ -24,15 +24,20 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import javax.annotation.PreDestroy
 
+typealias WatchHandler = (watchID: Long, phase: ConfigStore.WatchPhase, events: List<Kv.Event> ) -> Unit
+
 @Service
 @ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
 class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context) {
 
+    enum class WatchPhase {
+        INIT,
+        RUNNING,
+    }
 
     private val log = LoggerFactory.getLogger(this.javaClass);
 
     data class Path(val directory: String, val key: String)
-
     private val PREFIX_KEY = "xln-config/"
 
     private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, ConfigOuterClass.Config>>()
@@ -41,6 +46,10 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
     private val customThreadFactory = CustomizableThreadFactory("xln-configStore")
     private val serializeExecutor = Executors.newFixedThreadPool(1, this.customThreadFactory)
+
+    data class WatchRegistry(val handler: WatchHandler)
+
+    private val registeredWatch = ConcurrentHashMap<String, WatchRegistry>()
 
 
     @Volatile
@@ -62,7 +71,15 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
                 }
             }
         }
-        restartWatch()
+        startConfigWatch()
+    }
+
+    suspend fun registerWatch(directory: String, watchHandler: WatchHandler)  {
+
+        registeredWatch[directory] = WatchRegistry(watchHandler)
+        startWatch(directory, watchHandler)
+        log.info("Directory:${directory} watch registered")
+
     }
 
     @PreDestroy
@@ -78,12 +95,11 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
         subscribers.clear()
     }
 
-    private fun restartWatch() {
+    private fun startConfigWatch() {
 
         try {
             etcdConfig.configWatchDirs.forEach {
                 runBlocking {
-                    log.info("config Watch Directoring : ${it}")
                     startWatch(it)
                 }
             }
@@ -91,6 +107,24 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
             log.error("config watch failed", ex);
         }
     }
+
+    private suspend fun restartWatch() {
+
+        startConfigWatch()
+
+        try {
+
+            registeredWatch.forEach {
+                startWatch(it.key, it.value.handler)
+            }
+
+        }catch (ex: Exception) {
+
+            log.error("registered watch failed", ex)
+        }
+    }
+
+
 
     private fun genKey(directory: String, key: String) : String {
         return "${PREFIX_KEY}${etcdConfig.configNamespace}/${directory}/${key}"
@@ -131,10 +165,12 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
     }
 
-    suspend fun startWatch(directory: String) {
+    suspend fun startWatch(directory: String, watchHandler: WatchHandler? = null) {
 
-        log.debug("start watch")
+        log.info("Config Directory Start Watching : ${directory}")
+        //log.debug("start watch")
         val res = watchManager.watchPath(genDir(directory), true, true)
+
 
 
         res.response.kvsList.forEach {
@@ -142,7 +178,23 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
             val path = keyToPath(it.key.toStringUtf8())
             val config = ConfigOuterClass.Config.parseFrom(it.value)
             put(directory, path.key, config)
+
         }
+
+        if (watchHandler != null) {
+            try {
+
+                val tmpList = mutableListOf<Kv.Event>()
+                res.response.kvsList.forEach {
+                    tmpList.add(Kv.Event.newBuilder().setKv(it).setType(Kv.Event.EventType.PUT).build())
+
+                }
+                watchHandler(res.watchID, WatchPhase.INIT, tmpList)
+            }catch (ex: Exception) {
+                log.error("Handler, error", ex)
+            }
+        }
+
         val watchID = res.watchID
         subscribers.put(watchID, watchManager.eventSource.subscribe {
 
@@ -150,6 +202,15 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
             if (watchID == it.watchId) {
                 serializeExecutor.submit {
+
+                    if (watchHandler != null) {
+                        try {
+                            watchHandler(res.watchID, WatchPhase.RUNNING, it.eventsList)
+                        }catch (ex: Exception) {
+                            log.error("Handler, error", ex)
+                        }
+                    }
+
                     try {
                         for (watchEvent in it.eventsList) {
 

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import xln.common.cache.CustomCacheResolver;
 import xln.common.cache.ReactiveRedisCacheManager;
 import xln.common.config.CacheConfig;
+import xln.common.proto.command.Command;
 import xln.common.serializer.GenericJackson2JsonRedisSerializer;
 
 import javax.annotation.PostConstruct;
@@ -141,6 +142,33 @@ public class CacheService {
             return null;
         }
         return manager.getCache(cacheName);
+    }
+
+
+    public void invalidCache(Command.CacheTask cacheTask) {
+        var cacheManager = getCacheManager(cacheTask.getCacheManagerName().getValue());
+        if (cacheManager != null) {
+            if (!cacheTask.hasCacheName()) {
+                log.debug("Cache Manager Clearing: " + cacheTask.getCacheManagerName().getValue());
+                for (var cacheName : cacheManager.getCacheNames()) {
+                    var cache = cacheManager.getCache(cacheName);
+                    if(cache != null) {
+                        cache.clear();
+                    }
+                }
+            } else {
+                var cache = cacheManager.getCache(cacheTask.getCacheName().getValue());
+                if (cache != null) {
+                    if (!cacheTask.hasKey()) {
+                        log.debug("Cache Clearing: " + cacheTask.getCacheName().getValue());
+                        cache.clear();
+                    } else {
+                        log.debug("Cache Key Evicting: " + cacheTask.getCacheName().getValue() + cacheTask.getCacheName().getValue());
+                        cache.evict(cacheTask.getKey().getValue());
+                    }
+                }
+            }
+        }
     }
 
 }

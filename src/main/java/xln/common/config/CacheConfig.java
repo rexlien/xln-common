@@ -23,22 +23,110 @@ import java.util.Map;
 
 @ConfigurationProperties(prefix="xln.cache-config")
 @Configuration
-@Data
 @EnableCaching
 public class CacheConfig {
 
-    @Data
+
+    public Map<String, RedisCacheConfig> getRedisCacheConfig() {
+        return redisCacheConfig;
+    }
+
+    public CacheConfig setRedisCacheConfig(Map<String, RedisCacheConfig> redisCacheConfig) {
+        this.redisCacheConfig = redisCacheConfig;
+        return this;
+    }
+
+    public Map<String, CaffeineConfig> getCaffeineConfig() {
+        return caffeineConfig;
+    }
+
+    public CacheConfig setCaffeineConfig(Map<String, CaffeineConfig> caffeineConfig) {
+        this.caffeineConfig = caffeineConfig;
+        return this;
+    }
+
+    public CacheControllerConfig getCacheControllerConfig() {
+        return cacheControllerConfig;
+    }
+
+    public CacheConfig setCacheControllerConfig(CacheControllerConfig cacheControllerConfig) {
+        this.cacheControllerConfig = cacheControllerConfig;
+        return this;
+    }
+
     public static class RedisCacheConfig {
         private String redisServerName;
         private int ttl = 0;
         private boolean addPrefix = true;
         private boolean cacheWhenNull = false;
 
+        public String getRedisServerName() {
+            return redisServerName;
+        }
+
+        public RedisCacheConfig setRedisServerName(String redisServerName) {
+            this.redisServerName = redisServerName;
+            return this;
+        }
+
+        public int getTtl() {
+            return ttl;
+        }
+
+        public RedisCacheConfig setTtl(int ttl) {
+            this.ttl = ttl;
+            return this;
+        }
+
+        public boolean isAddPrefix() {
+            return addPrefix;
+        }
+
+        public RedisCacheConfig setAddPrefix(boolean addPrefix) {
+            this.addPrefix = addPrefix;
+            return this;
+        }
+
+        public boolean isCacheWhenNull() {
+            return cacheWhenNull;
+        }
+
+        public RedisCacheConfig setCacheWhenNull(boolean cacheWhenNull) {
+            this.cacheWhenNull = cacheWhenNull;
+            return this;
+        }
     }
 
-    @Data
+
     public static class CaffeineConfig {
         private int maxSize = -1;
+
+        public int getMaxSize() {
+            return maxSize;
+        }
+
+        public CaffeineConfig setMaxSize(int maxSize) {
+            this.maxSize = maxSize;
+            return this;
+        }
+
+        public ExpirePolicy getExpirePolicy() {
+            return expirePolicy;
+        }
+
+        public CaffeineConfig setExpirePolicy(ExpirePolicy expirePolicy) {
+            this.expirePolicy = expirePolicy;
+            return this;
+        }
+
+        public int getExpireTime() {
+            return expireTime;
+        }
+
+        public CaffeineConfig setExpireTime(int expireTime) {
+            this.expireTime = expireTime;
+            return this;
+        }
 
         public enum ExpirePolicy {
             ACCESS("access"),
@@ -57,12 +145,48 @@ public class CacheConfig {
 
     }
 
-    @Data
+
     public static class CacheControllerConfig {
         private String redisServerName = "";
         private String topicPattern = "cache-tasks";
         private boolean publisher = false;
         private boolean subscriber = false;
+
+        public String getRedisServerName() {
+            return redisServerName;
+        }
+
+        public CacheControllerConfig setRedisServerName(String redisServerName) {
+            this.redisServerName = redisServerName;
+            return this;
+        }
+
+        public String getTopicPattern() {
+            return topicPattern;
+        }
+
+        public CacheControllerConfig setTopicPattern(String topicPattern) {
+            this.topicPattern = topicPattern;
+            return this;
+        }
+
+        public boolean isPublisher() {
+            return publisher;
+        }
+
+        public CacheControllerConfig setPublisher(boolean publisher) {
+            this.publisher = publisher;
+            return this;
+        }
+
+        public boolean isSubscriber() {
+            return subscriber;
+        }
+
+        public CacheControllerConfig setSubscriber(boolean subscriber) {
+            this.subscriber = subscriber;
+            return this;
+        }
     }
 
     private Map<String, RedisCacheConfig> redisCacheConfig = new HashMap<>();
