@@ -72,9 +72,12 @@ public class RedisTest {
                 });
 
         try {
+            /*
             while(!resultLock.tryAcquire(500, TimeUnit.MILLISECONDS )) {
                 cacheController.publishCacheInvalidation(new CacheController.CacheInvalidateTask("caffeine", "cache", "cache"));
             }
+
+             */
 
         }catch (Exception ex) {
 
