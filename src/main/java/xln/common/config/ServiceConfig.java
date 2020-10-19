@@ -1,12 +1,21 @@
 package xln.common.config;
 
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
+import xln.common.service.MongoService;
+import xln.common.service.RedisService;
 
 import javax.annotation.PostConstruct;
 import java.util.*;
@@ -64,5 +73,20 @@ public class ServiceConfig
         private String path;
     }
 
- 
+    private String autoConfigSpringTemplate = "default";
+
+    @ConditionalOnProperty(prefix ="xln.service-config", name = "autoConfigSpringTemplate")
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory(@Autowired RedisService redisService) {
+        return redisService.getConnectionFactory(autoConfigSpringTemplate);
+    }
+
+    @ConditionalOnProperty(prefix ="xln.service-config", name = "autoConfigSpringTemplate")
+    @Bean
+    public RedisTemplate redisTemplate(@Autowired RedisService redisService) {
+        return redisService.getTemplate(autoConfigSpringTemplate, String.class);
+    }
+
+
+
 }
