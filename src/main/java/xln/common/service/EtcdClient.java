@@ -102,6 +102,10 @@ public class EtcdClient {
         this.managedChannel.shutdown().awaitTermination(3, TimeUnit.SECONDS);
     }
 
+    public ConnectivityState getConnectivityState(boolean requestConnection) {
+        return this.managedChannel.getState(requestConnection);
+    }
+
     public ScheduledExecutorService getScheduler() {
         return scheduler;
     }
