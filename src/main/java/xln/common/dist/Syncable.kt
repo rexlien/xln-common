@@ -1,19 +1,19 @@
 package xln.common.dist
 
 import com.google.protobuf.AbstractMessage
-import org.apache.groovy.util.concurrentlinkedhashmap.ConcurrentLinkedHashMap
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.ConcurrentMap
+import com.google.protobuf.ByteString
+import com.google.protobuf.GeneratedMessage
+import com.google.protobuf.GeneratedMessageV3
+import mvccpb.Kv
 import java.util.concurrent.ConcurrentSkipListMap
 import kotlin.math.max
 import kotlin.math.min
 
 interface Versioned  {
 
-    fun version(): Long
-    fun modRevision(): Long
-    fun createRevision(): Long
+    fun getVersion(): Long
+    fun getModRevision(): Long
+    fun getCreateRevision(): Long
 
     var deleteRevision : Long
 
@@ -57,10 +57,10 @@ class VersionHistory {
     }
 
     @Synchronized fun add(versioned: Versioned) {
-        history[versioned.version()] = versioned
+        history[versioned.getVersion()] = versioned
 
-        headVersion = max(headVersion, versioned.version())
-        tailVersion = min(tailVersion, versioned.version())
+        headVersion = max(headVersion, versioned.getVersion())
+        tailVersion = min(tailVersion, versioned.getVersion())
 
 
         //history.floorKey()
@@ -80,21 +80,62 @@ class VersionHistory {
 
 }
 
+
+open class VersioneWrapper<T>(var value: T,
+                              private var version: Long, private var modRevision: Long, private var createRevision: Long) : Versioned {
+
+
+    fun set(value: T, version: Long, modRevision: Long, createRevision: Long) {
+        this.value = value
+        this.version = version
+        this.modRevision = modRevision
+        this.createRevision = createRevision
+    }
+
+
+
+        override fun getVersion(): Long {
+            return version
+        }
+
+        override fun getModRevision(): Long {
+            return modRevision
+        }
+
+        override fun getCreateRevision(): Long {
+            return createRevision
+        }
+
+    override var deleteRevision: Long = 0L
+
+
+}
+
+
+class VersionedProto<T: AbstractMessage> : VersioneWrapper<T> {
+
+    constructor(kv: Kv.KeyValue, valueParser: (ByteString) -> T ) : super(valueParser(kv.value), kv.version, kv.modRevision, kv.createRevision){
+
+    }
+
+
+}
+
 /**
  *
 */
 class VersionedProp() : Versioned {
 
-    override fun version(): Long {
-        return prop?.version()?: 0L
+    override fun getVersion(): Long {
+        return prop?.getVersion()?: 0L
     }
 
-    override fun modRevision(): Long {
-        return prop?.modRevision()?: 0L
+    override fun getModRevision(): Long {
+        return prop?.getModRevision()?: 0L
     }
 
-    override fun createRevision(): Long {
-        return prop?.createRevision()?: 0L
+    override fun getCreateRevision(): Long {
+        return prop?.getCreateRevision()?: 0L
     }
 
     override var deleteRevision = 0L
@@ -116,8 +157,8 @@ class VersionedProp() : Versioned {
             return true
         }
 
-        if(prop!!.modRevision() > this.prop!!.modRevision()) {
-            if(this.prop!!.createRevision() != prop.createRevision()) {
+        if(prop!!.getModRevision() > this.prop!!.getModRevision()) {
+            if(this.prop!!.getCreateRevision() != prop.getCreateRevision()) {
                 versionHistory.clear()
             }
             this.prop = prop
@@ -130,10 +171,10 @@ class VersionedProp() : Versioned {
 
     fun deleteProp(prop: Versioned) {
         if(this.prop != null) {
-            if (prop!!.modRevision() > this.prop!!.modRevision()) {
-                if(this.prop!!.createRevision() == prop.createRevision()) {
+            if (prop!!.getModRevision() > this.prop!!.getModRevision()) {
+                if(this.prop!!.getCreateRevision() == prop.getCreateRevision()) {
 
-                    this.prop!!.deleteRevision = prop.modRevision()
+                    this.prop!!.deleteRevision = prop.getModRevision()
 
                 }
             }

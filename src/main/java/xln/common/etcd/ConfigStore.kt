@@ -17,6 +17,9 @@ import reactor.core.Disposable
 import xln.common.Context
 import xln.common.config.CommonConfig
 import xln.common.config.EtcdConfig
+import xln.common.dist.Versioned
+import xln.common.dist.VersionedProto
+import xln.common.dist.versionAdd
 import xln.common.grpc.GrpcFluxStream
 import xln.common.proto.config.ConfigOuterClass
 import xln.common.service.EtcdClient
@@ -40,7 +43,9 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
     data class Path(val directory: String, val key: String)
     private val PREFIX_KEY = "xln-config/"
 
-    private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, ConfigOuterClass.Config>>()
+    //private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, Versioned>>()//ConfigOuterClass.Config>>()
+    private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, VersionedProto<ConfigOuterClass.Config>>>()
+
     private val watchManager = etcdClient.watchManager
     private val kvManager = etcdClient.kvManager
 
@@ -139,13 +144,25 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
         return Path(tokens[tokens.size - 2], tokens[tokens.size - 1])
     }
-
+/*
     private fun put(directory: String, key: String, value: ConfigOuterClass.Config) {
         if (!configMap.containsKey(directory)) {
             configMap.putIfAbsent(directory, ConcurrentHashMap())
         }
-        configMap[directory]?.put(key, value)
+
+        val config = VersionedProto(value)
+        configMap[directory]?.versionAdd(key, config)
     }
+*/
+    private fun put(directory: String, key: String, kv: Kv.KeyValue) {
+        if (!configMap.containsKey(directory)) {
+            configMap.putIfAbsent(directory, ConcurrentHashMap())
+        }
+
+        val config = VersionedProto(kv) {ConfigOuterClass.Config.parseFrom(it)}
+        configMap[directory]?.versionAdd(key, config)
+    }
+
 
 
     suspend fun store(directory: String, key: String, config: ConfigOuterClass.Config) {
@@ -153,7 +170,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
         val res = kvManager.put(genKey(directory, key), config.toByteString()).awaitSingle()
     }
 
-    suspend fun retrieve(directory: String, key: String) : ConfigOuterClass.Config? {
+    private suspend fun retrieve(directory: String, key: String) : ConfigOuterClass.Config? {
 
         val bytes = kvManager.get(genKey(directory, key)).awaitFirstOrNull()
         if (bytes != null) {
@@ -172,12 +189,11 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
         val res = watchManager.watchPath(genDir(directory), true, true)
 
 
-
         res.response.kvsList.forEach {
 
             val path = keyToPath(it.key.toStringUtf8())
-            val config = ConfigOuterClass.Config.parseFrom(it.value)
-            put(directory, path.key, config)
+            //val config = ConfigOuterClass.Config.parseFrom(it.value)
+            put(directory, path.key, it)
 
         }
 
@@ -219,8 +235,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
                                 configMap[path.directory]?.remove(path.key)
                             } else if (watchEvent.type == Kv.Event.EventType.PUT) {
 
-                                val config = ConfigOuterClass.Config.parseFrom(watchEvent.kv.value)
-                                put(path.directory, path.key, config)
+                                put(path.directory, path.key, watchEvent.kv)
                             }
 
                         }
@@ -237,6 +252,14 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
     }
 
     fun getConfig(directory: String, key: String) : ConfigOuterClass.Config? {
+        return configMap[directory]?.get(key)?.value
+    }
+
+    fun getConfigs(directory: String) : HashMap<String, VersionedProto<ConfigOuterClass.Config>> {
+        return HashMap<String, VersionedProto<ConfigOuterClass.Config>>(configMap[directory])
+    }
+
+    fun getConfigWithVersion(directory: String, key: String): VersionedProto<ConfigOuterClass.Config>? {
         return configMap[directory]?.get(key)
     }
 

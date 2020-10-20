@@ -4,15 +4,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListMap
 import java.util.function.Consumer
 
-fun ConcurrentHashMap<String, Versioned>.versionAdd(key : String, versioned : Versioned, onAdd: Consumer<Versioned>?) {
-
+fun <T: Versioned> ConcurrentHashMap<String, T>.versionAdd(key : String, versioned : T, onAdd: Consumer<Versioned>? = null) {
 
     this.compute(key) { k, v ->
         if(v == null) {
             onAdd?.accept(versioned)
             versioned
         }
-        else if(v.modRevision() > versioned.modRevision()) {
+        else if(v.getModRevision() > versioned.getModRevision()) {
             //log.debug("update ${key} rejected ${versioned.modRevision()}")
             v
         } else {
@@ -23,10 +22,10 @@ fun ConcurrentHashMap<String, Versioned>.versionAdd(key : String, versioned : Ve
 
 }
 
-fun ConcurrentHashMap<String, Versioned>.versionRemove(key : String, versioned : Versioned, onDelete: Consumer<Versioned>?) {
+fun <T: Versioned> ConcurrentHashMap<String, T>.versionRemove(key : String, versioned : T, onDelete: Consumer<Versioned>?) {
 
     this.computeIfPresent(key) { k, v ->
-        if(v.modRevision() > versioned.modRevision()) {
+        if(v.getModRevision() > versioned.getModRevision()) {
             v
         } else {
             onDelete?.accept(v)
@@ -44,7 +43,7 @@ fun ConcurrentHashMap<String, VersionedProp>.versionPropAdd(key : String, versio
             onAdd?.accept(versioned)
             VersionedProp(versioned)
         }
-        else if(v.modRevision() > versioned.modRevision()) {
+        else if(v.getModRevision() > versioned.getModRevision()) {
             //log.debug("update ${key} rejected ${versioned.modRevision()}")
             v
         } else {
@@ -59,7 +58,7 @@ fun ConcurrentHashMap<String, VersionedProp>.versionPropAdd(key : String, versio
 fun ConcurrentHashMap<String, VersionedProp>.versionPropRemove(key : String, versioned : Versioned, onDelete: Consumer<Versioned>?) {
 
     this.computeIfPresent(key) { k, v ->
-        if(v.modRevision() > versioned.modRevision()) {
+        if(v.getModRevision() > versioned.getModRevision()) {
             v
         } else {
             onDelete?.accept(v)

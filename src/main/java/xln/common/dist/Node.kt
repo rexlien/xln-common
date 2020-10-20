@@ -174,16 +174,16 @@ class Root : Versioned, ClusterAware {
 
     private val etcdClient: EtcdClient
     private val cluster: Cluster
-    override fun version(): Long {
-        return controllerNode.version()
+    override fun getVersion(): Long {
+        return controllerNode.getVersion()
     }
 
-    override fun modRevision(): Long {
-        return controllerNode.modRevision()
+    override fun getModRevision(): Long {
+        return controllerNode.getModRevision()
     }
 
-    override fun createRevision(): Long {
-        return controllerNode.createRevision()
+    override fun getCreateRevision(): Long {
+        return controllerNode.getCreateRevision()
     }
 
     override var deleteRevision = -1L
@@ -259,18 +259,18 @@ class Node : Versioned {
         }
     }
 
-    var version = 0L
-    var modRevision = 0L
-    var createRevision = 0L
-    override fun version(): Long {
+    private var version = 0L
+    private var modRevision = 0L
+    private var createRevision = 0L
+    override fun getVersion(): Long {
         return version
     }
 
-    override fun modRevision(): Long {
+    override fun getModRevision(): Long {
         return modRevision
     }
 
-    override fun createRevision(): Long {
+    override fun getCreateRevision(): Long {
         return createRevision
     }
 
