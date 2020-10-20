@@ -53,7 +53,11 @@ public class APIAction implements Action {
     public Object invoke(Context context) {
         String resolvedPath = context.patternReplace(path);
         String resolvedBody = context.patternReplace(body);
-        return HttpUtils.httpCallMonoResponseEntity(resolvedPath, null, HttpMethod.resolve(method), Object.class, headers, resolvedBody);
+        var resolvedHeaders = new HashMap<String, String>();
+        for(var kv : headers.entrySet()) {
+            resolvedHeaders.put(context.patternReplace(kv.getKey()), context.patternReplace(kv.getValue()));
+        }
+        return HttpUtils.httpCallMonoResponseEntity(resolvedPath, null, HttpMethod.resolve(method), Object.class, resolvedHeaders, resolvedBody);
     }
 
     @Override
