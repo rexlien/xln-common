@@ -42,4 +42,16 @@ public class EtcdConfig {
 
     private volatile ArrayList<String> configWatchDirs = new ArrayList<>();
 
+    public boolean isEnableVersionMeter() {
+        return enableVersionMeter;
+    }
+
+    public EtcdConfig setEnableVersionMeter(boolean enableVersionMeter) {
+        this.enableVersionMeter = enableVersionMeter;
+        return this;
+    }
+
+    private volatile boolean enableVersionMeter = false;
+
+
 }

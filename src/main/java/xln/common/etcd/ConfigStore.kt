@@ -2,6 +2,8 @@ package xln.common.etcd
 
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
+import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.retry
@@ -31,7 +33,7 @@ typealias WatchHandler = (watchID: Long, phase: ConfigStore.WatchPhase, events: 
 
 @Service
 @ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
-class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context) {
+class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context, private val meterRegistry: MeterRegistry) {
 
     enum class WatchPhase {
         INIT,
@@ -45,6 +47,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
     //private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, Versioned>>()//ConfigOuterClass.Config>>()
     private val configMap = ConcurrentHashMap<String, ConcurrentHashMap<String, VersionedProto<ConfigOuterClass.Config>>>()
+    private val meterMap = ConcurrentHashMap<String, Gauge>()
 
     private val watchManager = etcdClient.watchManager
     private val kvManager = etcdClient.kvManager
@@ -152,7 +155,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
         val config = VersionedProto(value)
         configMap[directory]?.versionAdd(key, config)
-    }
+    }(
 */
     private fun put(directory: String, key: String, kv: Kv.KeyValue) {
         if (!configMap.containsKey(directory)) {
@@ -161,6 +164,23 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
         val config = VersionedProto(kv) {ConfigOuterClass.Config.parseFrom(it)}
         configMap[directory]?.versionAdd(key, config)
+
+        if(etcdConfig.isEnableVersionMeter) {
+            val meterName = "xln.config.version.count"
+            val path = "${directory}.${key}"
+            val meterKey = "${meterName}.${path}"
+            if (!meterMap.contains(meterKey)) {
+                val gauge = Gauge.builder(meterName, configMap[directory], { it ->
+
+                    val config = it?.get(key)
+                    if (config != null) {
+                        return@builder config.getVersion().toDouble()
+                    }
+                    .0
+                }).tag("path", path).register(meterRegistry)
+                meterMap[meterKey] = gauge
+            }
+        }
     }
 
 
