@@ -163,7 +163,7 @@ public class CacheService {
                         log.debug("Cache Clearing: " + cacheTask.getCacheName().getValue());
                         cache.clear();
                     } else {
-                        log.debug("Cache Key Evicting: " + cacheTask.getCacheName().getValue() + cacheTask.getCacheName().getValue());
+                        log.debug("Cache Key Evicting: " + cacheTask.getCacheName().getValue() + ":" + cacheTask.getKey().getValue());
                         cache.evict(cacheTask.getKey().getValue());
                     }
                 }
