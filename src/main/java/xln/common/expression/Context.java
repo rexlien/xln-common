@@ -51,10 +51,15 @@ public class Context {
         return sb.toString();
     }
 
+    public static String getSourceHashKey(String path, Map<String, String> headers) {
+
+        return new StringBuilder().append(path).append(":").append(headers.hashCode()).toString();
+    }
+
     public static abstract class DataProvider {
 
 
-        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params);
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers);
 
         public String getPathReplacement(String placeholder) {
             return "";
@@ -65,7 +70,7 @@ public class Context {
         }
 
 
-        public CompletableFuture<Object> resolve(Context context, String path) {
+        public CompletableFuture<Object> resolve(Context context, String path, Map<String, String> headers) {
 
             if(path == null) {
 
@@ -95,7 +100,7 @@ public class Context {
                 if(uri.getPort() != -1) {
                     host += ":" + String.valueOf(uri.getPort());
                 }
-                return resolveURL(context, uri.getScheme(), host, uri.getPath(),  parameters);
+                return resolveURL(context, uri.getScheme(), host, uri.getPath(),  parameters, headers);
             } else {
 
                 log.warn("path needs to have scheme");
@@ -117,7 +122,7 @@ public class Context {
         evaluator.traverse(root, (e) -> {
             if(e instanceof Condition) {
                 Condition c = (Condition) e;
-                sources.put(c.getSrcPath(), provider.resolve(this, c.getSrcPath()));
+                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders()));
             }
         }, null);
 
@@ -130,9 +135,12 @@ public class Context {
         return CompletableFuture.allOf(list.toArray(new CompletableFuture[list.size()]));
     }
 
-    public CompletableFuture<Object> getSource(String path) {
-        return sources.get(path);
+    public CompletableFuture<Object> getSource(String path, Map<String, String> headers) {
+
+        return sources.get(Context.getSourceHashKey(path, headers));
     }
+
+
 
     public String patternReplace(String path) {
         return Context.patternReplace(path, provider);

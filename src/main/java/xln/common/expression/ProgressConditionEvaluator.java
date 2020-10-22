@@ -92,7 +92,7 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
 
         Object src = null;
         try {
-            src = context.getSource(condition.getSrcPath()).get(10, TimeUnit.SECONDS);
+            src = context.getSource(condition.getSrcPath(), condition.getSrcHeaders()).get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("could not get context source", e);
         }

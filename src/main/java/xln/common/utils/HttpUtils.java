@@ -35,9 +35,15 @@ public class HttpUtils {
         }
     }
 
-    public static <T> Mono<ResponseEntity<T>> httpGetMonoEntity(String url, Class type) {
+    public static <T> Mono<ResponseEntity<T>> httpGetMonoEntity(String url, Map<String, String> headers, Class type) {
         try {
-            return reactiveClient.get().uri(url).retrieve().toEntity(type);
+            return reactiveClient.get().uri(url).headers((t) -> {
+                if(headers != null) {
+                    for (Map.Entry<String, String> e : headers.entrySet()) {
+                        t.add(e.getKey(), e.getValue());
+                    }
+                }
+            }).retrieve().toEntity(type);
 
         } catch (Exception ex) {
             log.error("", ex);

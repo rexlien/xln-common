@@ -36,14 +36,14 @@ open class GeneralDataProvider : Context.DataProvider {
 
     }
 
-    private fun callHttp(url: String, key: String): Mono<ResponseEntity<String>> {
+    private fun callHttp(url: String, headers: Map<String, String>, key: String): Mono<ResponseEntity<String>> {
 
         var cacheMono = httpMonoCache.get(key)
         if (cacheMono != null) {
             return cacheMono
         }
 
-        cacheMono = HttpUtils.httpGetMonoEntity<String>(url, String::class.java).cache()
+        cacheMono = HttpUtils.httpGetMonoEntity<String>(url, headers, String::class.java).cache()
         httpMonoCache[key] = cacheMono
         return cacheMono
 
@@ -63,7 +63,7 @@ open class GeneralDataProvider : Context.DataProvider {
     }
 
 
-    override fun resolveURL(context: Context, scheme: String, host: String, path: String, params: MultiValueMap<String, *>): CompletableFuture<Any?>? {
+    override fun resolveURL(context: Context, scheme: String, host: String, path: String, params: MultiValueMap<String, *>, headers: Map<String, String>): CompletableFuture<Any?>? {
         val func = resolveFunc[scheme]
         if (func != null) {
             return func.method(context, scheme, host, path, params)
@@ -83,8 +83,9 @@ open class GeneralDataProvider : Context.DataProvider {
             }
 
             val paramsHash = hf.hashString(paramsString, Charsets.UTF_8)
+            val srcHash = Context.getSourceHashKey(path, headers)
 
-            responseMono = callHttp(url, "$host$path:$paramsHash")
+            responseMono = callHttp(url, headers, "$host$srcHash:$paramsHash")
 
             return GlobalScope.future {
 
