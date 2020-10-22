@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalField;
 import java.util.Collections;
 import java.util.List;
@@ -63,6 +64,18 @@ public class RateLimiter {
         var offset = tz.getOffset(now);
 
         //long now = Instant.now().atZone(ZoneId.systemDefault()).getSecond() * 1000;
+        long nowOffset = now + offset;
+        long nextTtl = interval - (nowOffset % interval);
+        return acquireCount(key, nextTtl, false);
+
+    }
+
+    //zoneID: either string represent offset UTC+xxx or compliant region ID
+    public Mono<AcquiredInfo> acquireCountInInterval(String key, long interval, String zoneID) {
+
+        long now = Instant.now().toEpochMilli();
+        var offset = TimeZone.getTimeZone(ZoneId.of(zoneID)).getOffset(now);//.ofOffset("UTC", ZoneOffset.of(zoneOffset))).getOffset(now);
+
         long nowOffset = now + offset;
         long nextTtl = interval - (nowOffset % interval);
         return acquireCount(key, nextTtl, false);
