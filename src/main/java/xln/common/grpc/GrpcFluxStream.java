@@ -7,10 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.*;
 import reactor.util.retry.Retry;
 import xln.common.proto.command.Command;
 import xln.common.utils.FluxSinkPair;
@@ -18,6 +15,7 @@ import xln.common.utils.FluxUtils;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -30,14 +28,20 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
         DISCONNECTED,
     }
 
+    private enum ConnectionState {
+        CONNECTED,
+        DISCONNECTED
+    }
+
     private Flux<R> streamSink;
     private volatile Mono<StreamObserver<V>> reqStream;
     private volatile FluxSink<R> publisher;
-    private CompletableFuture<StreamObserver<V>> sinkFuture;
+    private volatile CompletableFuture<StreamObserver<V>> sinkFuture;
     private final String name;
     private final boolean enableRetry;
     private final ManagedChannel managedChannel;
     private final FluxSinkPair<ConnectionEvent> connectionEventFlux;
+    private volatile ConnectionState connectionState = ConnectionState.DISCONNECTED;
 
     public GrpcFluxStream(ManagedChannel channel, String name, boolean enableRetry ) {
         this.name = name;
@@ -47,17 +51,18 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
     }
 
 
-
     private Mono<StreamObserver<V>> resetRequestStream() {
        sinkFuture = new CompletableFuture<>();
         return Mono.fromFuture(sinkFuture);
 
     }
 
-
     public  Flux<R> initStreamSink(Supplier<StreamObserver<V>> sourceSupplier) {
 
-        this.streamSink = Flux.<R>create((r) -> {
+
+        this.streamSink = Flux.create((r) -> {
+
+            //NOTE: in non-grpc thread when reconnected
             log.debug("Stream init:" + name);
 
             GrpcFluxStream.this.publisher = r;
@@ -70,7 +75,9 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
                 onReconnected();
             }
             sinkFuture.complete(observer);
-
+            if(this.managedChannel.getState(true) == ConnectivityState.READY) {
+                connectionState = ConnectionState.CONNECTED;
+            }
 
         });
         if(enableRetry) {
@@ -125,26 +132,29 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
     @Override
     public void onError(Throwable t) {
 
+        connectionState = ConnectionState.DISCONNECTED;
         connectionEventFlux.getSink().next(ConnectionEvent.DISCONNECTED);
+        try {
+            reqStream.block().onCompleted();
+        }catch (Exception ex) {
+        }
+        reqStream = resetRequestStream();
+
         if(managedChannel != null) {
             notifyConnected();
         }
 
-        try {
-            reqStream.block().onCompleted();
-        }catch (Exception ex) {
 
-        }
-        reqStream = resetRequestStream();//Mono.empty();
-        log.debug(t.getMessage());
-        //publisher.error(t);
+
     }
 
     @Override
     public void onCompleted() {
         log.debug("onCompleted");
         try {
-            reqStream.block().onCompleted();
+            if (connectionState == ConnectionState.CONNECTED) {
+                reqStream.block(Duration.ofMillis(1000)).onCompleted();
+            }
         }catch (Exception ex) {
 
         }
