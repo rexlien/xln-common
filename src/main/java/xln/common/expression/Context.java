@@ -80,6 +80,10 @@ public class Context {
             }
 
             path = patternReplace(path, this);
+            var replacedHeaders = new HashMap<String, String>();
+            for(var kv : headers.entrySet()) {
+                replacedHeaders.put(context.patternReplace(kv.getKey()), context.patternReplace(kv.getValue()));
+            }
 
             URI uri;
             try {
@@ -100,7 +104,7 @@ public class Context {
                 if(uri.getPort() != -1) {
                     host += ":" + String.valueOf(uri.getPort());
                 }
-                return resolveURL(context, uri.getScheme(), host, uri.getPath(),  parameters, headers);
+                return resolveURL(context, uri.getScheme(), host, uri.getPath(),  parameters, replacedHeaders);
             } else {
 
                 log.warn("path needs to have scheme");
