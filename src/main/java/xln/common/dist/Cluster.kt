@@ -16,6 +16,9 @@ import org.springframework.boot.actuate.autoconfigure.web.server.LocalManagement
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.web.context.WebServerInitializedEvent
 import org.springframework.context.ApplicationListener
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
@@ -38,6 +41,7 @@ import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
 import xln.common.utils.FluxUtils
+import xln.common.utils.HttpUtils
 import xln.common.utils.NetUtils
 import java.time.Duration
 import java.util.*
@@ -346,6 +350,28 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
             }
         }
         return results
+    }
+
+    suspend fun httpBroadcast(request : ServerHttpRequest, path : String): MutableMap<String, BroadcastResult> {
+
+        val results  = mutableMapOf<String, BroadcastResult>()
+        root.forEachNode {
+
+            val key = it.storeKey?:return@forEachNode
+            try {
+                val response = HttpUtils.httpCallMonoResponseEntity<Any>("http://${it.info?.address}:${it.info?.webPort}/${path}", null, request.method
+                        , Any::class.java, request.headers.toSingleValueMap(), request.body).awaitSingle()
+                results[key] = BroadcastResult(response?.body.toString(), "")
+
+            }catch (ex: Exception) {
+                log.error("Broadcast error: ${it.storeKey}", ex)
+                results[key] =  BroadcastResult("", ex.toString())
+            }
+
+        }
+
+        return results
+
     }
 
     suspend fun getNodes() : List<Node>{

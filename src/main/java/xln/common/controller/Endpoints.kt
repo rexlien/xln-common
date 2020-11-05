@@ -5,8 +5,10 @@ import kotlinx.coroutines.reactive.awaitSingle
 import org.springframework.boot.actuate.endpoint.web.annotation.RestControllerEndpoint
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.*
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.reactive.function.server.ServerRequest
 import xln.common.dist.Cluster
 import xln.common.dist.Node
 import xln.common.etcd.ConfigStore
@@ -53,8 +55,8 @@ class ClusterController(private val cluster: Cluster, private val configStore: C
         if(cluster.isLeader()) {
             return ResponseEntity.ok(BroadcastResponse(BroadcastCode.OK, cluster.broadcast(serviceName, methodName, payload)))
         } else {
+            //send to leader
             val nodeInfo = cluster.getLeader()?.info?:return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(BroadcastResponse(BroadcastCode.LEADER_NOT_FOUND, null))
-
             val response = HttpUtils.httpCallMonoResponseEntity<BroadcastResponse>("http://${nodeInfo.address}:${nodeInfo.webPort}/actuator/xln-cluster/grpc-broadcast/$serviceName/$methodName", null, HttpMethod.POST
                     ,BroadcastResponse::class.java,  null, payload).awaitFirstOrNull()
 
@@ -67,6 +69,30 @@ class ClusterController(private val cluster: Cluster, private val configStore: C
         }
     }
 
+    @RequestMapping("/http-broadcast/{path}")
+    suspend fun httpBroadcast(request : ServerHttpRequest,
+                              @PathVariable("path") path: String) : ResponseEntity<BroadcastResponse>{
+
+        if(cluster.isLeader()) {
+
+            val replacePath = path.replace("$", "/")
+            return ResponseEntity.ok(BroadcastResponse(BroadcastCode.OK, cluster.httpBroadcast(request, replacePath)))
+        } else {
+
+            //send to leader
+            val nodeInfo = cluster.getLeader()?.info?:return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(BroadcastResponse(BroadcastCode.LEADER_NOT_FOUND, null))
+            val response = HttpUtils.httpCallMonoResponseEntity<BroadcastResponse>("http://${nodeInfo?.address}:${nodeInfo?.webPort}/actuator/xln-cluster/http-broadcast/${path}", null, request.method
+                    ,Any::class.java,  request.headers.toSingleValueMap(), request.body).awaitSingle()
+
+            if(response == null || response.statusCode != HttpStatus.OK) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(BroadcastResponse(BroadcastCode.LEADER_NOT_FOUND, null))
+            }
+
+            return ResponseEntity.ok(response.body)
+        }
+
+
+    }
 
     @PostMapping("/configure")
     suspend fun configure(@RequestBody request: ConfigRequest) : ResponseEntity<BaseResponse> {
