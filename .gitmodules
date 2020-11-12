@@ -1,3 +1,6 @@
 [submodule "buildSrc"]
 	path = buildSrc
 	url = https://github.com/rexlien/buildSrc.git
+[submodule "src/main/xln-proto"]
+	path = src/main/xln-proto
+	url = https://github.com/rexlien/xln-proto.git
