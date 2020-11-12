@@ -26,5 +26,14 @@ apply from : "jar.gradle"
 apply from : "deps.gradle"
 apply from : "web.gradle"
 
+
+sourceSets {
+    main {
+        proto {
+            srcDir 'src/main/xln-proto'
+        }
+    }
+}
+
 project.xlnCompileOnly(libs.sparkSet)
 
