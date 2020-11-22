@@ -32,7 +32,7 @@ import javax.annotation.PreDestroy
 typealias WatchHandler = (watchID: Long, phase: ConfigStore.WatchPhase, events: List<Kv.Event> ) -> Unit
 
 @Service
-@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
+@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]"])
 class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context, private val meterRegistry: MeterRegistry) {
 
     enum class WatchPhase {

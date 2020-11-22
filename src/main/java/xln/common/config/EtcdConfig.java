@@ -2,19 +2,23 @@ package xln.common.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import xln.common.annotation.ProxyEndpoint;
+import xln.common.aspect.PropertyChangeAware;
+import xln.common.proxy.EndPoint;
 
 import java.util.ArrayList;
 
 @ConfigurationProperties(prefix="xln.etcd-config")
 @Configuration
-public class EtcdConfig {
+public class EtcdConfig implements PropertyChangeAware {
 
-    public String getHosts() {
-        return hosts;
+    public EndPoint getEndPoint() {
+        return endPoint;
     }
 
-    public EtcdConfig setHosts(String hosts) {
-        this.hosts = hosts;
+    public EtcdConfig setEndPoint(EndPoint endPoint) {
+
+        this.endPoint = endPoint;
         return this;
     }
 
@@ -27,7 +31,8 @@ public class EtcdConfig {
         return this;
     }
 
-    private volatile String hosts;
+    //@ProxyEndpoint
+    private volatile EndPoint endPoint = new EndPoint();
 
     private volatile String configNamespace = "ns";
 

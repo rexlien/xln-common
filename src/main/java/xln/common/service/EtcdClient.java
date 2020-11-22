@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-@ConditionalOnProperty(prefix ="xln.etcd-config", name = "hosts")
+@ConditionalOnProperty(prefix ="xln.etcd-config", name = "endPoint.hosts[0]")
 @Component
 @Slf4j
 public class EtcdClient {
@@ -78,7 +78,7 @@ public class EtcdClient {
         serviceConfig.put("stickinessMetadataKey", "xln-sticky-key");
 
         this.managedChannel = ManagedChannelBuilder.forTarget("multiaddress").nameResolverFactory(
-                MultiAddressNameResolver.MultiAddressNameResolverFactory.of(etcdConfig.getHosts())).
+                MultiAddressNameResolver.MultiAddressNameResolverFactory.of(etcdConfig.getEndPoint().getHosts())).
                 defaultLoadBalancingPolicy("round_robin").defaultServiceConfig(serviceConfig).
                 usePlaintext().build();
 
