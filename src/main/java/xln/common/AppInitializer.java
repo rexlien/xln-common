@@ -1,6 +1,9 @@
 package xln.common;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +15,16 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import xln.common.annotation.ProxyEndpoint;
+import xln.common.aspect.ConfigPointcut;
 import xln.common.config.CommonConfig;
+import xln.common.proto.proxypb.ProxyOuterClass;
+import xln.common.proto.proxypb.ProxyServiceGrpc;
+import xln.common.proxy.EndPoint;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class AppInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
@@ -46,6 +55,44 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
         }
 
 
+        ConfigPointcut.registerCallback(EndPoint.class, (joinPoint) -> {
+
+            try {
+
+                var endPoint = (EndPoint)joinPoint.getArgs()[0];
+
+                var property = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.host");
+
+                if(property == null || property.equals("")) {
+                    joinPoint.proceed();
+                }
+
+                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).build();
+                var stub = ProxyServiceGrpc.newBlockingStub(channel).withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
+                var builder = ProxyOuterClass.ProxyMatchRequest.newBuilder().setCluster("test");
+
+
+
+
+
+                //builder.addProxies()
+
+                //build()
+
+                //stub.matchProxy()
+
+
+
+                channel.shutdown();
+
+            }catch (Throwable ex) {
+
+                log.error("", ex);
+            }
+        });
+
+        var property = env.getProperty("xln.common.aspect.callbacks");
+        //if(property )
 
 
     }

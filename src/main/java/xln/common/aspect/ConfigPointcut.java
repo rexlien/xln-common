@@ -7,42 +7,51 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 @Aspect
 @Component
 @Slf4j
 public class ConfigPointcut {
 
-    public class Proxy {
+    static private ConcurrentHashMap<Class, Consumer<ProceedingJoinPoint>> callbacks = new ConcurrentHashMap<>();
 
-        public String upstream;
-        public String proxy;
-        public String name;
+    static public void registerCallback(Class clazz, Consumer<ProceedingJoinPoint> callback) {
+        callbacks.put(clazz, callback);
+    }
 
+    @Pointcut("execution(public * xln.common.config.*.get*(..)) && @annotation(xln.common.annotation.AspectGetter)")
+    public void aspectGet() {
 
     }
 
-
-    @Pointcut("execution(public * xln.common.config.*.get*(..)) && @annotation(xln.common.annotation.ProxyEndpoint)")
-    public void proxyGetEndPoint() {
-
-    }
-
-    @Pointcut("execution(public * xln.common.config.*.set*(..)) && @annotation(xln.common.annotation.ProxyEndpoint)")
-    public void proxySetEndPoint() {
+    @Pointcut("execution(public * xln.common.config.*.set*(..)) && @annotation(xln.common.annotation.AspectSetter)")
+    public void aspectSet() {
 
     }
 
-    @Around("proxyGetEndPoint()")
+    @Around("aspectGet()")
     public Object getProxy(ProceedingJoinPoint joinPoint) throws Throwable {
 
-        return new Proxy();
+        //MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+
+        return joinPoint.proceed();
     }
 
-    @Around("proxySetEndPoint()")
+    @Around("aspectSet()")
     public void setProxy(ProceedingJoinPoint joinPoint) throws Throwable {
 
-        int test = 10;
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        var targetClass = signature.getParameterTypes()[0];
+        var callback = callbacks.get(targetClass);
+        if(callback != null) {
+            callback.accept(joinPoint);
+        }
+
     }
 }
