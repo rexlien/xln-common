@@ -22,6 +22,7 @@ import xln.common.proto.proxypb.ProxyOuterClass;
 import xln.common.proto.proxypb.ProxyServiceGrpc;
 import xln.common.proxy.EndPoint;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -58,32 +59,33 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
         ConfigPointcut.registerCallback(EndPoint.class, (joinPoint) -> {
 
             try {
-
                 var endPoint = (EndPoint)joinPoint.getArgs()[0];
-
                 var property = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.host");
 
                 if(property == null || property.equals("")) {
                     joinPoint.proceed();
+                    return;
                 }
 
-                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).build();
+                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).usePlaintext().build();
                 var stub = ProxyServiceGrpc.newBlockingStub(channel).withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
-                var builder = ProxyOuterClass.ProxyMatchRequest.newBuilder().setCluster("test");
 
+                var proxyBuilder = ProxyOuterClass.Proxy.newBuilder().setName(endPoint.name);
+                for(var host : endPoint.hosts) {
+                    proxyBuilder.addUpStreamHosts(host);
+                }
 
+                //match and replace endpoint
+                var matched = stub.matchProxy(ProxyOuterClass.ProxyMatchRequest.newBuilder().setCluster("cluster").addProxies(proxyBuilder.build()).build());
+                var matchedProxiesList = matched.getProxiesList();
+                if(matchedProxiesList.size() > 0) {
+                    var proxy = matchedProxiesList.get(0);
 
-
-
-                //builder.addProxies()
-
-                //build()
-
-                //stub.matchProxy()
-
-
-
+                    endPoint.name = proxy.getName();
+                    endPoint.setHosts(proxy.getUpStreamHostsList());
+                }
                 channel.shutdown();
+                joinPoint.proceed();
 
             }catch (Throwable ex) {
 
