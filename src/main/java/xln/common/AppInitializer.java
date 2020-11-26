@@ -1,5 +1,6 @@
 package xln.common;
 
+import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,7 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
 
         ConfigPointcut.registerCallback(EndPoint.class, (joinPoint) -> {
 
+            ManagedChannel channel = null;
             try {
                 var endPoint = (EndPoint)joinPoint.getArgs()[0];
                 var property = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.host");
@@ -68,11 +70,16 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
                 }
 
                 var timeout = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.timeout", Long.class, -1L);
+                var waitReady = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.waitReady", Boolean.class, true);
 
-                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).usePlaintext().build();
-                var stub = ProxyServiceGrpc.newBlockingStub(channel);//.withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
+                channel = ManagedChannelBuilder.forTarget(property).usePlaintext().build();
+                var stub = ProxyServiceGrpc.newBlockingStub(channel);
                 if(timeout != -1L) {
                     stub = stub.withDeadlineAfter(timeout, TimeUnit.MILLISECONDS);
+                }
+
+                if(waitReady) {
+                    stub = stub.withWaitForReady();
                 }
                 var proxyBuilder = ProxyOuterClass.Proxy.newBuilder().setName(endPoint.name);
                 for(var host : endPoint.hosts) {
@@ -94,6 +101,10 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
             }catch (Throwable ex) {
 
                 log.warn("Reset toxi configs failed,  toxi environment won't work", ex);
+            } finally {
+                if(channel != null) {
+                    channel.shutdown();
+                }
             }
         });
 
