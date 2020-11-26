@@ -67,9 +67,13 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
                     return;
                 }
 
-                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).usePlaintext().build();
-                var stub = ProxyServiceGrpc.newBlockingStub(channel).withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
+                var timeout = applicationContext.getEnvironment().getProperty("xln.toxi-proxy.timeout", Long.class, -1L);
 
+                ManagedChannel channel = ManagedChannelBuilder.forTarget(property).usePlaintext().build();
+                var stub = ProxyServiceGrpc.newBlockingStub(channel);//.withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
+                if(timeout != -1L) {
+                    stub = stub.withDeadlineAfter(timeout, TimeUnit.MILLISECONDS);
+                }
                 var proxyBuilder = ProxyOuterClass.Proxy.newBuilder().setName(endPoint.name);
                 for(var host : endPoint.hosts) {
                     proxyBuilder.addUpStreamHosts(host);
@@ -89,7 +93,7 @@ public class AppInitializer implements ApplicationContextInitializer<Configurabl
 
             }catch (Throwable ex) {
 
-                log.error("", ex);
+                log.warn("Reset toxi configs failed,  toxi environment won't work", ex);
             }
         });
 
