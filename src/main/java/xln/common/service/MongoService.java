@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 import xln.common.config.MongoConfig;
+import xln.common.config.MongoConfig.MongoServerConfig;
 
 @Service
 @Slf4j
@@ -45,7 +46,9 @@ public class MongoService {
         private ReactiveMongoTemplate reactiveMongoTemplate;
 
 
-        public MongoClient(MongoConfig.MongoServerConfig config) {
+        public MongoClient(MongoServerConfig config) {
+
+            var joinedEndPoint = String.join(",", config.getEndPoint().hosts);
 
             if(config.isNonReactive()) {
 
@@ -57,7 +60,7 @@ public class MongoService {
                 }
                 StringBuilder strBuilder = new StringBuilder();
                 strBuilder.append(MONGO_SCHEME).append(config.getUser()).append(":").append(config.getPw()).
-                        append("@").append(config.getHosts()).append("/").append(config.getDatabase()).
+                        append("@").append(joinedEndPoint).append("/").append(config.getDatabase()).
                         append("?").append("authSource=admin");
 
                 String mongoURI = strBuilder.toString();
@@ -83,7 +86,7 @@ public class MongoService {
 
                 StringBuilder strBuilder = new StringBuilder();
                 strBuilder.append(MONGO_SCHEME).append(config.getUser()).append(":").append(config.getPw()).
-                        append("@").append(config.getHosts()).append("/").append(config.getDatabase()).
+                        append("@").append(joinedEndPoint).append("/").append(config.getDatabase()).
                         append("?").append("authSource=admin").append("&connectTimeoutMS=").append(config.getConnectionTimeout()).append("&minPoolSize=").append(config.getMinHostConnection());
 
                 if(config.getReplSetName() != null) {
@@ -202,7 +205,7 @@ public class MongoService {
     @PostConstruct
     private void init() {
 
-        for (Map.Entry<String, MongoConfig.MongoServerConfig> entry : config.getMongoConfigs().entrySet()) {
+        for (Map.Entry<String, MongoServerConfig> entry : config.getMongoConfigs().entrySet()) {
 
             MongoClient newClient = new MongoClient(entry.getValue());
             mongoClients.put(entry.getKey(), newClient);

@@ -25,6 +25,12 @@ public class ConfigPointcut {
         callbacks.put(clazz, callback);
     }
 
+    static private ConcurrentHashMap<Class, Consumer<ProceedingJoinPoint>> getCallbacks = new ConcurrentHashMap<>();
+
+    static public void registeGetCallback(Class clazz, Consumer<ProceedingJoinPoint> callback) {
+        getCallbacks.put(clazz, callback);
+    }
+
     @Pointcut("execution(public * xln.common.config.*.get*(..)) && @annotation(xln.common.annotation.AspectGetter)")
     public void aspectGet() {
 
@@ -38,8 +44,16 @@ public class ConfigPointcut {
     @Around("aspectGet()")
     public Object getProxy(ProceedingJoinPoint joinPoint) throws Throwable {
 
+        /*
         //MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        //var targetClass = signature.getParameterTypes()[0];
+        var callback = getCallbacks.get(signature.getReturnType());
+        if(callback != null) {
+            callback.accept(joinPoint);
+        }
 
+         */
         return joinPoint.proceed();
     }
 

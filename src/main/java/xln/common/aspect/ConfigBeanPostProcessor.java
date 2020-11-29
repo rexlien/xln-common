@@ -77,6 +77,13 @@ public class ConfigBeanPostProcessor implements BeanPostProcessor {
         var fields = clazz.getDeclaredFields();
         for(var field : fields) {
 
+/*
+            if(!field.getType().isPrimitive() && field.getType().getPackageName().startsWith("xln")) {
+                log.info(field.getType().toString());
+                getAllFields(field.getType(), ret);
+            }
+
+ */
             ret.add(field);
         }
 

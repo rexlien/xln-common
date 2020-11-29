@@ -7,7 +7,6 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import xln.common.annotation.AspectField;
 import xln.common.annotation.AspectGetter;
 import xln.common.annotation.AspectSetter;
-import xln.common.aspect.PropertyChangeAware;
 import xln.common.proxy.EndPoint;
 
 import java.lang.reflect.InvocationHandler;
@@ -16,7 +15,7 @@ import java.util.ArrayList;
 
 @ConfigurationProperties(prefix="xln.etcd-config")
 @Configuration
-public class EtcdConfig implements PropertyChangeAware {
+public class EtcdConfig {
 
     @AspectGetter
     public EndPoint getEndPoint() {
