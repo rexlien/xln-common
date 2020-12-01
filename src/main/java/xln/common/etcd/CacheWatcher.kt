@@ -14,7 +14,7 @@ import xln.common.service.EtcdClient
 import xln.common.utils.ProtoUtils
 
 @Service
-@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
+@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]"])
 class CacheWatcher(private val configStore: ConfigStore, private val etcdClient: EtcdClient, private val etcdConfig: EtcdConfig, private val cacheService: CacheService) {
 
     private val log = LoggerFactory.getLogger(this.javaClass);

@@ -68,19 +68,20 @@ public class MultiAddressNameResolver extends NameResolver {
 
     public static class MultiAddressNameResolverFactory extends NameResolver.Factory {
 
-        private String addresses;
+        private Collection<String> addresses;
 
-        public MultiAddressNameResolverFactory(String addresses) {
+        //public MultiAddressNameResolverFactory(String addresses) {
+         //   this.addresses = addresses;
+        //}
+
+        public MultiAddressNameResolverFactory(Collection<String> addresses) {
             this.addresses = addresses;
         }
 
         @Override
         public NameResolver newNameResolver(URI targetUri, Args args) {
-
-
             var resolver = new MultiAddressNameResolver("xln", addresses);
             return resolver;
-
 
         }
 
@@ -89,7 +90,7 @@ public class MultiAddressNameResolver extends NameResolver {
             return "multiaddress";
         }
 
-        public static MultiAddressNameResolverFactory of(String addresses) {
+        public static MultiAddressNameResolverFactory of(Collection<String> addresses) {
             return new MultiAddressNameResolverFactory(addresses);
         }
     }

@@ -16,6 +16,7 @@ public class Condition implements Element{
     private Object target;
     private String tag;
     private Map<String, String> srcHeaders = new HashMap<>();
+    private String srcBody = "";
 
     public Condition(String srcPath, int op, Object target, String tag) {
         this(srcPath, op, target);

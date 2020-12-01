@@ -1,20 +1,31 @@
 package xln.common.config;
 
+import org.aspectj.lang.annotation.Aspect;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import xln.common.annotation.AspectField;
+import xln.common.annotation.AspectGetter;
+import xln.common.annotation.AspectSetter;
+import xln.common.proxy.EndPoint;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 @ConfigurationProperties(prefix="xln.etcd-config")
 @Configuration
 public class EtcdConfig {
 
-    public String getHosts() {
-        return hosts;
+    @AspectGetter
+    public EndPoint getEndPoint() {
+        return endPoint;
     }
 
-    public EtcdConfig setHosts(String hosts) {
-        this.hosts = hosts;
+    @AspectSetter
+    public EtcdConfig setEndPoint(EndPoint endPoint) {
+
+        this.endPoint = endPoint;
         return this;
     }
 
@@ -27,7 +38,9 @@ public class EtcdConfig {
         return this;
     }
 
-    private volatile String hosts;
+
+    @AspectField
+    private volatile EndPoint endPoint = new EndPoint();
 
     private volatile String configNamespace = "ns";
 
@@ -52,6 +65,5 @@ public class EtcdConfig {
     }
 
     private volatile boolean enableVersionMeter = false;
-
 
 }
