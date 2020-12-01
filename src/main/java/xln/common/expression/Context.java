@@ -128,7 +128,7 @@ public class Context {
         evaluator.traverse(root, (e) -> {
             if(e instanceof Condition) {
                 Condition c = (Condition) e;
-                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getBody()));
+                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()));
             }
         }, null);
 
