@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collector;
@@ -19,6 +20,13 @@ public class Context {
 
     public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
     private Map<String, Object> contextMap = new HashMap<>();
+
+    //private Evaluator evaluator;
+    private DataProvider provider;
+
+    //use for cache condition source body as map
+    private ConcurrentHashMap<Condition, Map<Object, Object>> conditionSrcCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, CompletableFuture<Object>> sources = new ConcurrentHashMap<>();
 
 
     public Context(DataProvider provider) {
@@ -51,7 +59,7 @@ public class Context {
         return sb.toString();
     }
 
-    public static String getSourceHashKey(String path, Map<String, String> headers, String body) {
+    public static String getSourceHashKey(String path, Map<String, String> headers, Object body) {
 
         return new StringBuilder().append(path).append(":").append(headers.hashCode()).append(":").append(body.hashCode()).toString();
     }
@@ -128,7 +136,7 @@ public class Context {
         evaluator.traverse(root, (e) -> {
             if(e instanceof Condition) {
                 Condition c = (Condition) e;
-                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()));
+                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody().toString()));
             }
         }, null);
 
@@ -141,7 +149,7 @@ public class Context {
         return CompletableFuture.allOf(list.toArray(new CompletableFuture[list.size()]));
     }
 
-    public CompletableFuture<Object> getSource(String path, Map<String, String> headers, String body) {
+    public CompletableFuture<Object> getSource(String path, Map<String, String> headers, Object body) {
 
         return sources.get(Context.getSourceHashKey(path, headers, body));
     }
@@ -153,9 +161,6 @@ public class Context {
     }
 
 
-    private HashMap<String, CompletableFuture<Object>> sources = new HashMap<>();
 
-    //private Evaluator evaluator;
-    private DataProvider provider;
 
 }
