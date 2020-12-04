@@ -1,5 +1,6 @@
 package xln.common.expression;
 
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -59,6 +60,20 @@ public class Context {
         return sb.toString();
     }
 
+    public static Object patternReplace(Object obj, DataProvider provider) {
+        if(obj instanceof String) {
+            return patternReplace((String)obj, provider);
+        } else {
+
+            Gson gson = new Gson();
+            var json = gson.toJson(obj);
+            json = patternReplace(json, provider);
+            obj = gson.fromJson(json, obj.getClass());
+            return obj;
+        }
+
+    }
+
     public static String getSourceHashKey(String path, Map<String, String> headers, Object body) {
 
         return new StringBuilder().append(path).append(":").append(headers.hashCode()).append(":").append(body.hashCode()).toString();
@@ -67,7 +82,7 @@ public class Context {
     public static abstract class DataProvider {
 
 
-        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers, String body);
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers, Object body);
 
         public String getPathReplacement(String placeholder) {
             return "";
@@ -78,7 +93,7 @@ public class Context {
         }
 
 
-        public CompletableFuture<Object> resolve(Context context, String path, Map<String, String> headers, String body) {
+        public CompletableFuture<Object> resolve(Context context, String path, Map<String, String> headers, Object body) {
 
             if(path == null) {
 
@@ -136,7 +151,7 @@ public class Context {
         evaluator.traverse(root, (e) -> {
             if(e instanceof Condition) {
                 Condition c = (Condition) e;
-                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody().toString()));
+                sources.put(Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()), provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()));
             }
         }, null);
 

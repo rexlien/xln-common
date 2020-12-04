@@ -37,7 +37,7 @@ open class GeneralDataProvider : Context.DataProvider {
 
     }
 
-    private fun callHttp(url: String, headers: Map<String, String>,  body: String, key: String): Mono<ResponseEntity<String>> {
+    private fun callHttp(url: String, headers: Map<String, String>,  body: Any, key: String): Mono<ResponseEntity<String>> {
 
         var cacheMono = httpMonoCache.get(key)
         if (cacheMono != null) {
@@ -64,7 +64,7 @@ open class GeneralDataProvider : Context.DataProvider {
     }
 
 
-    override fun resolveURL(context: Context, scheme: String, host: String, path: String, params: MultiValueMap<String, *>, headers: Map<String, String>, body: String): CompletableFuture<Any?>? {
+    override fun resolveURL(context: Context, scheme: String, host: String, path: String, params: MultiValueMap<String, *>, headers: Map<String, String>, body: Any): CompletableFuture<Any?>? {
         val func = resolveFunc[scheme]
         if (func != null) {
             return func.method(context, scheme, host, path, params)

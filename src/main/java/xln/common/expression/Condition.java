@@ -22,7 +22,7 @@ public class Condition implements Element{
 
     @JsonDeserialize(using = ObjectDeserializer.class)
     @JsonSerialize(using = ObjectSerializer.class)
-    private volatile Object srcBody;
+    private Object srcBody = "";
 /*
     public Condition setSrcBody(String srcBody) {
         this.srcBody = srcBody;
