@@ -1,5 +1,6 @@
 package xln.common.expression;
 
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collector;
@@ -19,6 +21,13 @@ public class Context {
 
     public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
     private Map<String, Object> contextMap = new HashMap<>();
+
+    //private Evaluator evaluator;
+    private DataProvider provider;
+
+    //use for cache condition source body as map
+    private ConcurrentHashMap<Condition, Map<Object, Object>> conditionSrcCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, CompletableFuture<Object>> sources = new ConcurrentHashMap<>();
 
 
     public Context(DataProvider provider) {
@@ -51,7 +60,21 @@ public class Context {
         return sb.toString();
     }
 
-    public static String getSourceHashKey(String path, Map<String, String> headers, String body) {
+    public static Object patternReplace(Object obj, DataProvider provider) {
+        if(obj instanceof String) {
+            return patternReplace((String)obj, provider);
+        } else {
+
+            Gson gson = new Gson();
+            var json = gson.toJson(obj);
+            json = patternReplace(json, provider);
+            obj = gson.fromJson(json, obj.getClass());
+            return obj;
+        }
+
+    }
+
+    public static String getSourceHashKey(String path, Map<String, String> headers, Object body) {
 
         return new StringBuilder().append(path).append(":").append(headers.hashCode()).append(":").append(body.hashCode()).toString();
     }
@@ -59,7 +82,7 @@ public class Context {
     public static abstract class DataProvider {
 
 
-        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers, String body);
+        public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers, Object body);
 
         public String getPathReplacement(String placeholder) {
             return "";
@@ -70,7 +93,7 @@ public class Context {
         }
 
 
-        public CompletableFuture<Object> resolve(Context context, String path, Map<String, String> headers, String body) {
+        public CompletableFuture<Object> resolve(Context context, String path, Map<String, String> headers, Object body) {
 
             if(path == null) {
 
@@ -141,7 +164,7 @@ public class Context {
         return CompletableFuture.allOf(list.toArray(new CompletableFuture[list.size()]));
     }
 
-    public CompletableFuture<Object> getSource(String path, Map<String, String> headers, String body) {
+    public CompletableFuture<Object> getSource(String path, Map<String, String> headers, Object body) {
 
         return sources.get(Context.getSourceHashKey(path, headers, body));
     }
@@ -153,9 +176,6 @@ public class Context {
     }
 
 
-    private HashMap<String, CompletableFuture<Object>> sources = new HashMap<>();
 
-    //private Evaluator evaluator;
-    private DataProvider provider;
 
 }
