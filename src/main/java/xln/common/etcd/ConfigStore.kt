@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
 import mvccpb.Kv
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -31,6 +32,8 @@ import javax.annotation.PreDestroy
 
 typealias WatchHandler = (watchID: Long, phase: ConfigStore.WatchPhase, events: List<Kv.Event> ) -> Unit
 
+private val log = KotlinLogging.logger {}
+
 @Service
 @ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]"])
 class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient, private val context: Context, private val meterRegistry: MeterRegistry) {
@@ -39,8 +42,6 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
         INIT,
         RUNNING,
     }
-
-    private val log = LoggerFactory.getLogger(this.javaClass);
 
     data class Path(val directory: String, val key: String)
     private val PREFIX_KEY = "xln-config/"

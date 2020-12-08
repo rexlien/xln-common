@@ -24,9 +24,6 @@ import javax.annotation.PreDestroy
 @Service
 class CacheController(private val redisService: RedisService, private val cacheService: CacheService, private val cacheConfig: CacheConfig) {
 
-
-    private val log = LoggerFactory.getLogger(this.javaClass)
-
     @Volatile
     private var messageListenerContainer: RedisMessageListenerContainer? = null
 

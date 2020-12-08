@@ -17,6 +17,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
+import mu.KotlinLogging
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import xln.common.config.ClusterConfig
@@ -31,13 +32,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
+private val log = KotlinLogging.logger {}
 
 class ChannelManager {
 
     private val clusterChannels = ConcurrentHashMap<String, ManagedChannel>()
     private val grpcReflection = xln.common.grpc.GrpcReflection()
-    private val log = LoggerFactory.getLogger(ChannelManager::class.java)
-
 
     fun openChannel(node : Node) {
         val nodeInfo = node.info?:return

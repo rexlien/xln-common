@@ -7,6 +7,7 @@ import com.google.common.hash.Hashing
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import kotlinx.coroutines.reactive.awaitFirstOrNull
+import mu.KotlinLogging
 import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.util.MultiValueMap
@@ -19,6 +20,8 @@ import java.nio.charset.Charset
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
+
+private val log = KotlinLogging.logger {}
 
 /**
  * General data provider that handle scheme http path, the path url may contains _resPath parameter to specify an attribute in json response as source
@@ -41,9 +44,12 @@ open class GeneralDataProvider : Context.DataProvider {
 
         var cacheMono = httpMonoCache.get(key)
         if (cacheMono != null) {
+
+            log.debug { "cached hit: $key" }
             return cacheMono
         }
 
+        log.debug("cached missed : $key")
         cacheMono = HttpUtils.httpCallMonoResponseEntity<String>(url, null, HttpMethod.GET, String::class.java, headers, body).cache()
         httpMonoCache[key] = cacheMono
         return cacheMono
@@ -86,7 +92,7 @@ open class GeneralDataProvider : Context.DataProvider {
             val paramsHash = hf.hashString(paramsString, Charsets.UTF_8)
             val srcHash = hf.hashString(Context.getSourceHashKey(path, headers, body), Charsets.UTF_8)
 
-            responseMono = callHttp(url, headers, body,"$host$srcHash:$paramsHash")
+            responseMono = callHttp(url, headers, body,"$host:$srcHash:$paramsHash")
 
             return GlobalScope.future {
 

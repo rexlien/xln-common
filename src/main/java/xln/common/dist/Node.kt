@@ -7,6 +7,7 @@ import io.grpc.ManagedChannel
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import lombok.extern.slf4j.Slf4j
+import mu.KotlinLogging
 import mvccpb.Kv
 import org.slf4j.LoggerFactory
 import xln.common.etcd.KVManager
@@ -25,9 +26,10 @@ import java.util.concurrent.ConcurrentSkipListMap
 import java.util.function.Consumer
 import kotlin.collections.HashMap
 
+private val log = KotlinLogging.logger {}
+
 class Root : Versioned, ClusterAware {
 
-    private val log = LoggerFactory.getLogger(this.javaClass);
     private val channelManager : ChannelManager
 
     constructor(cluster: Cluster, selfKey: String, channelManager: ChannelManager) {
@@ -197,9 +199,6 @@ class Root : Versioned, ClusterAware {
 class Node : Versioned {
 
     var info: Dist.NodeInfo? = null
-
-    private val log = LoggerFactory.getLogger(this.javaClass);
-
     private var cluster: Cluster
     private var self = false
     var storeKey: String? = null

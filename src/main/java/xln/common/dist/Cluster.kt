@@ -9,6 +9,7 @@ import io.grpc.protobuf.services.ProtoReflectionService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.mono
+import mu.KotlinLogging
 import mvccpb.Kv
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -53,6 +54,8 @@ import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
 
 
+private val log = KotlinLogging.logger {}
+
 @Component
 @ConditionalOnBean(EtcdClient::class)
 class ClusterProperty(private val commonConfig: CommonConfig, private val context : Context ) {
@@ -91,7 +94,6 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     }().start()
 
     var myNodeInfo: Dist.NodeInfo? = null
-    private val log = LoggerFactory.getLogger(this.javaClass);
 
     init {
 

@@ -119,7 +119,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     //implementation group: 'com.fasterxml.jackson.module', name: 'jackson- module-kotlin', version: '2.10.0'
-    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.+"
+    implementation "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.+"
+    implementation 'io.github.microutils:kotlin-logging:1.12.0'
 
     compileOnly 'org.codehaus.groovy:groovy-all:2.5.4'
     compile group: 'net.logstash.logback', name: 'logstash-logback-encoder', version: '6.4'
