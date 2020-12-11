@@ -1,0 +1,33 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    jmx:
+      exposure:
+        include: "*"
+  endpoint:
+    shutdown:
+      enabled: true
+    health:
+      group:
+        readiness:
+          include: "etcd,mongo"
+      show-details: ALWAYS
+      probes:
+        enabled: true
+
+server:
+  shutdown: graceful
+#spring:
+#  lifecycle:
+#    timeout-per-shutdown-phase: 1m
+
+logging:
+  level:
+    root: INFO
+    xln.common: DEBUG
+  file:
+    name: ./data/spring/log.txt
+
+logging.file.max-history: 10
