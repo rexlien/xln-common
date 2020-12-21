@@ -20,6 +20,9 @@ import reactor.core.publisher.Flux
 import xln.common.serializer.Utils
 import xln.common.web.BaseController
 
+/**
+ * base controller class for implementing REST data provider for React-admin
+ */
 abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>) : BaseController() {
 
     private val log = LoggerFactory.getLogger(this.javaClass);
@@ -55,13 +58,13 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     open suspend fun getOne(@PathVariable("id") id: String): String? {
 
-        val badge = repository.findById(ObjectId(id)).awaitSingle()
+        val obj = repository.findById(ObjectId(id)).awaitSingle()
 
         val objectMapper = ObjectMapper()
         objectMapper.setDefaultTyping(Utils.createJsonCompliantResolverBuilder(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE))
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         try {
-            return objectMapper.writeValueAsString(badge)
+            return objectMapper.writeValueAsString(obj)
         } catch (ex: Exception) {
             return null
         }
@@ -109,7 +112,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
                 collectionChanged(obj)
 
             }catch (ex: RuntimeException) {
-                log.error("delete failed", ex)
+                log.error("data delete failed", ex)
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
 
             }
@@ -136,7 +139,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
                 collectionChanged(obj)
 
             } catch (ex: RuntimeException) {
-                log.error("badge modify failed", ex)
+                log.error("data modify failed", ex)
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
             }
 
