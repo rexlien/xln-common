@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.util.Map;
 
-//string to basic primitive object, strip type information
+//string to Gson converted object, strip type information
 @Slf4j
 public class ObjectDeserializer extends JsonDeserializer<Object> {
 
@@ -27,26 +27,28 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
 
     }
 
-    //public StringMapObjectDeserializer(Class<?> vc) {
-     //   super(vc);
-    //}
-
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext deserializer) {
 
         ObjectCodec codec = parser.getCodec();
 
         try {
+            Gson gson = new Gson();
             JsonNode node = codec.readTree(parser);
 
-            var text = node.asText();
-            if(text == null) {
-                return "";
+            String text = "";
+            if(node.isObject()) {
+
+                text = node.toString();
+            }
+            else {
+                text = node.asText();
+                if (text == null) {
+                    return "";
+                }
             }
 
-            Gson gson = new Gson();
             try {
-
                 var map = gson.fromJson(text, new TypeToken<Map<Object, Object>>() {}.getType());
                 if(map != null) {
                     return map;
