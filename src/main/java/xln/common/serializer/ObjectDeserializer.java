@@ -57,7 +57,7 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
             }catch (JsonSyntaxException ex) {
 
                 //if it's not json format return whole string
-                log.warn("json syntax error", ex);
+                log.info("json parse error, ignore and return as string: " + text);
                 return text;
             }
 
