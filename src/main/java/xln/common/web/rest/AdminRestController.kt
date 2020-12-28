@@ -107,7 +107,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         if (obj != null) {
             try {
                 beforeObjectDelete(obj)
-                repository.deleteById(ObjectId(id)).awaitSingle()
+                repository.deleteById(ObjectId(id)).awaitFirstOrNull()
                 afterObjectDelete(obj)
                 collectionChanged(obj)
 
