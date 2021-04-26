@@ -22,13 +22,13 @@ public class ObjectSerializer extends JsonSerializer<Object> {
             if (((String) value).isEmpty()){
                 gen.writeString(value.toString());
             } else {
-                gen.writeString(gson.toJson(value));
+                gen.writeString(value.toString());//gson.toJson(value));
             }
 
         } else {
-            gen.writeString(gson.toJson(value));
+            gen.writeObject(value);
         }
-        
+
     }
 
     @Override
