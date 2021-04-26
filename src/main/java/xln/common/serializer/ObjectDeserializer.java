@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,7 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
         ObjectCodec codec = parser.getCodec();
 
         try {
-            Gson gson = new Gson();
+            Gson gson = new GsonBuilder().create();
             JsonNode node = codec.readTree(parser);
 
             String text = "";
@@ -42,7 +43,7 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
                 text = node.toString();
             }
             else {
-                text = node.asText();
+                text = node.toString();
                 if (text == null) {
                     return "";
                 }
@@ -53,11 +54,12 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
                 if(map != null) {
                     return map;
                 }
-                return text;
+
             }catch (JsonSyntaxException ex) {
 
                 //if it's not json format return whole string
                 log.info("json parse error, ignore and return as string: " + text);
+                text = gson.fromJson(text, String.class);
                 return text;
             }
 
@@ -65,6 +67,7 @@ public class ObjectDeserializer extends JsonDeserializer<Object> {
             log.error("", ex);
             return "";
         }
+        return "";
 
     }
 

@@ -17,7 +17,18 @@ public class ObjectSerializer extends JsonSerializer<Object> {
 
         var gson = new Gson();
 
-        gen.writeString(gson.toJson(value));
+        if (value instanceof String) {
+
+            if (((String) value).isEmpty()){
+                gen.writeString(value.toString());
+            } else {
+                gen.writeString(gson.toJson(value));
+            }
+
+        } else {
+            gen.writeString(gson.toJson(value));
+        }
+        
     }
 
     @Override
