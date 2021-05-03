@@ -24,7 +24,7 @@ import xln.common.web.HttpException
 
 @Component
 @RestControllerEndpoint(id = "xln-cluster")
-@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
+@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]"])
 class ClusterController(private val cluster: Cluster, private val configStore: ConfigStore) : BaseController() {
 
     @GetMapping("nodes", produces=[MediaType.APPLICATION_JSON_VALUE])

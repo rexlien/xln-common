@@ -87,9 +87,17 @@ xln.mongo-config:
       connectionTimeout: 60000
       minHostConnection : 1
 
-xln.etcd-config:
-  hosts: "127.0.0.1:2379"
-
 xln:
-  cluster-config:
-    port: 47000
+  etcd-config:
+    endPoint:
+      name: etcd
+      hosts:
+        - "127.0.0.1:2379"
+        - "127.0.0.1:2379"
+        - "127.0.0.1:2379"
+    configNamespace: "local"
+    configWatchDirs:
+      - "gu-admin"
+    enableVersionMeter: true
+    cluster-config:
+      port: 47000

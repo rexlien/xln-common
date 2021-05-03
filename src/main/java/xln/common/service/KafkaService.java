@@ -43,33 +43,32 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class KafkaService {
 
-    private Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
-    private Map<String, KafkaConfig.KafkaConsumerConfig> consumerConfigs;
+    private final Map<String, KafkaConfig.KafkaProducerConfig> producerConfigs;
+    private final Map<String, KafkaConfig.KafkaConsumerConfig> consumerConfigs;
 
-    //private KafkaSender<Integer, Object> sender;
-
-    //private Map<String, Object> producerProp = new HashMap<>();
-
-    private ConcurrentHashMap<String, Map<String, Object>> producerProps = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String, Map<String, Object>> consumerProps = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Map<String, Object>> producerProps = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Map<String, Object>> consumerProps = new ConcurrentHashMap<>();
 
 
-    private ConcurrentHashMap<String, KafkaSender<String, Object>> kafkaSenders = new ConcurrentHashMap<>();
-    private AtomicInteger consumerID = new AtomicInteger(0);
-    private AtomicInteger correlationID = new AtomicInteger(0);
+    private final ConcurrentHashMap<String, KafkaSender<String, Object>> kafkaSenders = new ConcurrentHashMap<>();
+    private final AtomicInteger consumerID = new AtomicInteger(0);
+    private final AtomicInteger correlationID = new AtomicInteger(0);
 
-    private ProtoLogService protoLogService;
+    private final ProtoLogService protoLogService;
+    private final KafkaConfig kafkaConfig;
 
-    @Autowired
-    private KafkaConfig kafkaConfig;
+    public KafkaService(KafkaConfig kafkaConfig, ProtoLogService protoLogService) {
 
-    public KafkaService(ProtoLogService protoLogService) {
         this.protoLogService = protoLogService;
+        this.kafkaConfig = kafkaConfig;
+        producerConfigs = kafkaConfig.getProducerConfigs();
+        consumerConfigs = kafkaConfig.getConsumersConfigs();
+
     }
 
     @PostConstruct
     private void init() {
-        producerConfigs = kafkaConfig.getProducerConfigs();
+
         if (producerConfigs != null) {
             for (Map.Entry<String, KafkaConfig.KafkaProducerConfig> kv : producerConfigs.entrySet()) {
 
@@ -98,7 +97,7 @@ public class KafkaService {
             }
         }
 
-        consumerConfigs = kafkaConfig.getConsumersConfigs();
+
         for (Map.Entry<String, KafkaConfig.KafkaConsumerConfig> kv : consumerConfigs.entrySet()) {
 
             StringBuilder builder = new StringBuilder();
@@ -188,9 +187,9 @@ public class KafkaService {
 
         ReceiverOptions<K, V> receiverOption = ReceiverOptions.create(newMap);
         //receiverOption.commitInterval();
-        receiverOption.subscription(topic);
+        receiverOption = receiverOption.subscription(topic);
 
-        return KafkaReceiver.create(receiverOption).receive();
+        return  KafkaReceiver.create(receiverOption).receive();
 
     }
 

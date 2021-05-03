@@ -34,6 +34,8 @@ sourceSets {
         }
     }
 }
-
+dependencies {
+    testCompile "org.testcontainers:kafka:1.15.3"
+}
 project.xlnCompileOnly(libs.sparkSet)
 

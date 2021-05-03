@@ -3,6 +3,7 @@ package xln.common.test;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -15,22 +16,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Import;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
+import reactor.util.retry.Retry;
+import xln.common.config.KafkaConfig;
 import xln.common.proto.command.Command;
 import xln.common.serializer.ProtoKafkaSerializer;
 import xln.common.service.KafkaService;
 import xln.common.service.ProtoLogService;
 
-import java.util.Collections;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 
 
@@ -40,6 +50,20 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class KafkaTest
 {
+
+    @DynamicPropertySource
+    static void dynamicProperties(DynamicPropertyRegistry registry) {
+        //
+        kafka.start();
+
+        //var bootstrap = kafka.getBootstrapServers();
+        registry.add("xln.kafka-config.producerConfigs.producer0.serverUrls", kafka::getBootstrapServers);
+        registry.add("xln.kafka-config.producerConfigs.producer1.serverUrls", kafka::getBootstrapServers);
+
+        registry.add("xln.kafka-config.consumersConfigs.kafkaC0.serverUrls", kafka::getBootstrapServers);
+        registry.add("xln.kafka-config.consumersConfigs.kafkaC1.serverUrls", kafka::getBootstrapServers);
+
+    }
     @Autowired
     private KafkaService kafkaService;
 
@@ -51,6 +75,9 @@ public class KafkaTest
     private KafkaSender<String, Object> sender;
 
     private boolean inited = false;
+
+    public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.4.3"));
+
 
     @Before
     public void setup() {
@@ -82,7 +109,7 @@ public class KafkaTest
 
         //ReceiverRecord<String, String> receiverRecord = kafkaService.<String, String>startConsume("kafkaC0", Collections.singletonList("test-xln")).blockLast();
 
-        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.elastic()).subscribe(r -> {
+        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.boundedElastic()).subscribe(r -> {
 
 
             logger.info(r.topic());
@@ -97,6 +124,44 @@ public class KafkaTest
 
 
         lock.acquire();
+    }
+
+    @Test
+    public void testConsumeException() throws Exception {
+
+        Semaphore lock = new Semaphore(0);
+
+        Set<Integer> testProcessed = new HashSet<>();
+
+        for(int i = 0; i < 10; i++) {
+            kafkaService.sendObject("producer0", "test-xln2", null, i);
+            testProcessed.add(i);
+        }
+
+        var random = new Random();
+        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.boundedElastic()).flatMap(r -> {
+
+            logger.info(r.topic());
+            logger.info(String.valueOf(r.offset()));
+            logger.info(r.key());
+
+
+            if (random.nextFloat()  > 0.5f) {
+                return Flux.error(new IllegalArgumentException("Exception"));
+            }
+
+            r.receiverOffset().acknowledge();
+            testProcessed.remove((Integer)r.value());
+            if(testProcessed.isEmpty()) {
+                lock.release();
+            }
+
+            return Flux.just(r);
+
+        }).retryWhen(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(3))).subscribe();
+
+        lock.acquire();
+
     }
 
     @Test
