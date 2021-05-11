@@ -3,6 +3,7 @@ package xln.common.test;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
+import io.netty.util.internal.ConcurrentSet;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -41,6 +42,7 @@ import xln.common.service.ProtoLogService;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
 
@@ -96,7 +98,7 @@ public class KafkaTest
 
 
         Semaphore lock = new Semaphore(0);
-        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord("test-xln2", null, new Integer(123)), 1);
+        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord("testProduceAndConsume", null, new Integer(123)), 1);
 
         sender.send(Mono.fromCallable(()->{return record;})).doOnError(e-> {
             logger.error("Exception", e);}).subscribe(res -> {
@@ -109,7 +111,7 @@ public class KafkaTest
 
         //ReceiverRecord<String, String> receiverRecord = kafkaService.<String, String>startConsume("kafkaC0", Collections.singletonList("test-xln")).blockLast();
 
-        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.boundedElastic()).subscribe(r -> {
+        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("testProduceAndConsume")).publishOn(Schedulers.boundedElastic()).subscribe(r -> {
 
 
             logger.info(r.topic());
@@ -131,15 +133,15 @@ public class KafkaTest
 
         Semaphore lock = new Semaphore(0);
 
-        Set<Integer> testProcessed = new HashSet<>();
+        ConcurrentHashMap<Integer, Integer> testProcessed = new ConcurrentHashMap<>();
 
         for(int i = 0; i < 10; i++) {
-            kafkaService.sendObject("producer0", "test-xln2", null, i);
-            testProcessed.add(i);
+            kafkaService.sendObject("producer0", "testConsumeException", null, i);
+            testProcessed.put(i, i);
         }
 
         var random = new Random();
-        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("test-xln2")).publishOn(Schedulers.boundedElastic()).flatMap(r -> {
+        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("testConsumeException")).publishOn(Schedulers.boundedElastic()).flatMap(r -> {
 
             logger.info(r.topic());
             logger.info(String.valueOf(r.offset()));
@@ -147,11 +149,14 @@ public class KafkaTest
 
 
             if (random.nextFloat()  > 0.5f) {
+                log.error("Exception throwing");
                 return Flux.error(new IllegalArgumentException("Exception"));
             }
 
             r.receiverOffset().acknowledge();
-            testProcessed.remove((Integer)r.value());
+
+            Assert.assertTrue(testProcessed.contains(r.value()));
+            testProcessed.remove(r.value());
             if(testProcessed.isEmpty()) {
                 lock.release();
             }
@@ -169,9 +174,9 @@ public class KafkaTest
 
         Semaphore lock = new Semaphore(0);
 
-       kafkaService.sendMessage("producer1", "proto-test", null, Command.TestKafkaPayLoad.newBuilder().setPayload("hello").build());
+       kafkaService.sendMessage("producer1", "testProtoKafka", null, Command.TestKafkaPayLoad.newBuilder().setPayload("hello").build());
 
-        kafkaService.<String, Object>startConsume("kafkaC1", Collections.singletonList("proto-test")).publishOn(Schedulers.elastic()).subscribe(r -> {
+        kafkaService.<String, Object>startConsume("kafkaC1", Collections.singletonList("testProtoKafka")).publishOn(Schedulers.elastic()).subscribe(r -> {
 
             logger.info(r.topic());
             logger.info(String.valueOf(r.offset()));
@@ -199,7 +204,7 @@ public class KafkaTest
     @Test
     public void testFailedRetry() {
         KafkaSender<String, Object> sender = kafkaService.createProducer("producer1", "producer1", ProtoKafkaSerializer.class);
-        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord("proto-test", null, new Integer(123)), 1);
+        SenderRecord<String, Object, Integer> record = SenderRecord.create(new ProducerRecord("testFailedRetry", null, new Integer(123)), 1);
 
         sender.send(Mono.fromCallable(()->{return record;})).doOnError(e-> {
             logger.error("Exception", e);}).subscribe(res -> {
@@ -216,7 +221,7 @@ public class KafkaTest
     @Test
     public void testKafkaMessage() {
 
-        Command.KafkaMessage kafkaMessage = Command.KafkaMessage.newBuilder().setTopic("test").setPayload(Any.pack(Command.TestKafkaPayLoad.newBuilder().setPayload("hello").setPayload2("hello2").build())).build();
+        Command.KafkaMessage kafkaMessage = Command.KafkaMessage.newBuilder().setTopic("testKafkaMessage").setPayload(Any.pack(Command.TestKafkaPayLoad.newBuilder().setPayload("hello").setPayload2("hello2").build())).build();
         Command.Retry retryCommand = Command.Retry.newBuilder().setPath("kafka://" + "kafka0").setObj(Any.pack(kafkaMessage)).build();
 
         logService.log(Any.pack(retryCommand));
