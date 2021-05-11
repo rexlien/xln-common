@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import xln.common.grpc.JacksonSerializer
 
-@Configuration
+@Configuration("XLNWebConfig")
 open class Config {
 
     @Bean
