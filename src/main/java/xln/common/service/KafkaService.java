@@ -26,6 +26,8 @@ import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
+//import reactor.util.retry.Retry;
+import reactor.retry.Retry;
 import xln.common.config.KafkaConfig;
 import xln.common.config.ServiceConfig;
 import xln.common.proto.command.Command;
@@ -33,11 +35,17 @@ import xln.common.proto.command.Command;
 import javax.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import static reactor.util.retry.Retry.max;
+import static reactor.util.retry.Retry.withThrowable;
 
 @Service
 @Slf4j
@@ -182,7 +190,8 @@ public class KafkaService {
         try {
             newMap.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName() + "-" + String.valueOf(consumerID.getAndIncrement()));
         } catch (UnknownHostException ex) {
-            log.error(ex.toString());
+            log.error("", ex);
+            return null;
         }
 
         ReceiverOptions<K, V> receiverOption = ReceiverOptions.create(newMap);
@@ -190,6 +199,33 @@ public class KafkaService {
         receiverOption = receiverOption.subscription(topic);
 
         return  KafkaReceiver.create(receiverOption).receive();
+
+    }
+
+    //safe consume with retry mechinism built-in
+    public <K, V> Flux<ReceiverRecord<K, V>> startSafeConsume(String consumerName, Collection<String> topic,
+                                                              Consumer<ReceiverRecord<K, V>> processor, Duration maxBackoff) {
+
+        HashMap<String, Object> newMap = new HashMap<String, Object>(consumerProps.get(consumerName));
+        try {
+            newMap.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName() + "-" + String.valueOf(consumerID.getAndIncrement()));
+        } catch (UnknownHostException ex) {
+            log.error("", ex);
+            return null;
+        }
+
+        ReceiverOptions<K, V> receiverOption = ReceiverOptions.create(newMap);
+        receiverOption = receiverOption.subscription(topic);
+
+        return  KafkaReceiver.create(receiverOption).receive().flatMap( r-> {
+            try {
+                processor.accept(r);
+            }catch (Exception ex) {
+                log.error("Kafka retry consume exception:",ex);
+                return Flux.error(ex);
+            }
+            return Flux.just(r);
+        }).retryWhen(withThrowable(Retry.any().retryMax(Long.MAX_VALUE).exponentialBackoffWithJitter(Duration.ofSeconds(1), maxBackoff)));
 
     }
 

@@ -3,9 +3,13 @@ package xln.common.test;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
+import com.mongodb.internal.connection.ConcurrentLinkedDeque;
 import io.netty.util.internal.ConcurrentSet;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Assert;
@@ -43,6 +47,7 @@ import xln.common.service.ProtoLogService;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
 
@@ -56,7 +61,15 @@ public class KafkaTest
     @DynamicPropertySource
     static void dynamicProperties(DynamicPropertyRegistry registry) {
         //
+
         kafka.start();
+
+        AdminClient adminClient = AdminClient.create(Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers()));
+        try {
+            adminClient.createTopics(List.of(new NewTopic("testConsumeExceptionWhileMaintainOrder", 3, (short) 1))).all().get();
+        }catch (Exception ex) {
+            ex.printStackTrace();
+        }
 
         //var bootstrap = kafka.getBootstrapServers();
         registry.add("xln.kafka-config.producerConfigs.producer0.serverUrls", kafka::getBootstrapServers);
@@ -129,45 +142,83 @@ public class KafkaTest
     }
 
     @Test
-    public void testConsumeException() throws Exception {
+    public void testConsumeExceptionWhileMaintainOrder() throws Exception {
 
         Semaphore lock = new Semaphore(0);
+        ConcurrentHashMap<Integer, ConcurrentLinkedQueue<Integer>> testProcessed = new ConcurrentHashMap<>();
 
-        ConcurrentHashMap<Integer, Integer> testProcessed = new ConcurrentHashMap<>();
 
-        for(int i = 0; i < 10; i++) {
-            kafkaService.sendObject("producer0", "testConsumeException", null, i);
-            testProcessed.put(i, i);
+        for(int i = 0; i < 90; i++) {
+            var result = kafkaService.sendObject("producer0", "testConsumeExceptionWhileMaintainOrder", null, i).blockFirst();
+            testProcessed.putIfAbsent(result.recordMetadata().partition(), new ConcurrentLinkedQueue<>());
+            testProcessed.get(result.recordMetadata().partition()).add(i);
         }
 
         var random = new Random();
-        kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("testConsumeException")).publishOn(Schedulers.boundedElastic()).flatMap(r -> {
 
-            logger.info(r.topic());
-            logger.info(String.valueOf(r.offset()));
-            logger.info(r.key());
+        for (int i = 0; i < 3; i++) {
+//            kafkaService.<String, Object>startConsume("kafkaC0", Collections.singletonList("testConsumeExceptionWhileMaintainOrder")).flatMap(r -> {
+//
+//                logger.info("Partition: " + r.partition());
+//                logger.info(String.valueOf(r.offset()));
+//                logger.info(r.key());
+//                logger.info("value: " + r.value().toString());
+//
+//
+//                if (random.nextFloat() > 0.6f) {
+//                    log.error("Exception throwing");
+//                    return Flux.error(new IllegalArgumentException("Exception"));
+//                }
+//
+//                r.receiverOffset().acknowledge();
+//
+//
+//                var expected = testProcessed.get(r.partition()).poll();
+//                if (testProcessed.get(r.partition()).isEmpty()) {
+//                    testProcessed.remove(r.partition());
+//                }
+//                if (expected != r.value() || testProcessed.isEmpty()) {
+//                    //log.error("error");
+//                    lock.release();
+//                }
+//
+//                return Flux.just(r);
+//
+//            }).retryWhen(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(3))).subscribe();
+
+            kafkaService.<String, Object>startSafeConsume("kafkaC0", Collections.singletonList("testConsumeExceptionWhileMaintainOrder"), r -> {
+
+                logger.info("Partition: " + r.partition());
+                logger.info(String.valueOf(r.offset()));
+                logger.info(r.key());
+                logger.info("value: " + r.value().toString());
 
 
-            if (random.nextFloat()  > 0.5f) {
-                log.error("Exception throwing");
-                return Flux.error(new IllegalArgumentException("Exception"));
-            }
+                if (random.nextFloat() > 0.6f) {
+                    log.error("Exception throwing");
+                    throw new IllegalArgumentException("Exception");
+                }
 
-            r.receiverOffset().acknowledge();
+                r.receiverOffset().acknowledge();
 
-            Assert.assertTrue(testProcessed.contains(r.value()));
-            testProcessed.remove(r.value());
-            if(testProcessed.isEmpty()) {
-                lock.release();
-            }
+                var expected = testProcessed.get(r.partition()).poll();
+                if (testProcessed.get(r.partition()).isEmpty()) {
+                    testProcessed.remove(r.partition());
+                }
+                if (expected != r.value() || testProcessed.isEmpty()) {
+                    log.error("error");
+                    lock.release();
+                }
+                //return Flux.just(r);
 
-            return Flux.just(r);
-
-        }).retryWhen(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(3))).subscribe();
-
+            }, Duration.ofSeconds(5)).subscribe();
+        }
         lock.acquire();
+        Assert.assertTrue(testProcessed.isEmpty());
 
     }
+
+
 
     @Test
     public void testProtoKafka()  throws InterruptedException {
