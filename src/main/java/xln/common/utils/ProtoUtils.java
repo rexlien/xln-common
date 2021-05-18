@@ -31,9 +31,7 @@ public final class ProtoUtils {
 
     public static String json(Message msg) {
         try {
-
-
-            return JsonFormat.printer().print(msg);
+            return JsonFormat.printer().omittingInsignificantWhitespace().print(msg);
         }catch (Exception ex) {
             log.error("Print json failed", ex);
             return null;
@@ -44,7 +42,7 @@ public final class ProtoUtils {
 
         try {
             var type = JsonFormat.TypeRegistry.newBuilder().add(msg.getDescriptorForType()).build();
-            return JsonFormat.printer().usingTypeRegistry(type).print(msg);
+            return JsonFormat.printer().omittingInsignificantWhitespace().usingTypeRegistry(type).print(msg);
         }catch (Exception ex) {
             log.error("Print json failed", ex);
             return null;

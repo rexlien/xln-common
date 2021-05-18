@@ -4,10 +4,12 @@
 depends on org/springframework/boot/logging/logback/base.xml
 -->
 <included>
+    <turboFilter class="xln.common.log.XLNTurboFilter">
+    </turboFilter>
     <appender name="LOGSTASH-FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        <filter class="xln.common.log.XLNFilter">
             <level>${XLN_LOGSTASH_LEVEL}</level>
         </filter>
         <file>${LOG_FILE}.${XLN_K8S_NS}.${XLN_K8S_POD}.${XLN_K8S_CONT_NAME}.${XLN_K8S_CONT_ID}.logstash</file>
@@ -19,4 +21,20 @@ depends on org/springframework/boot/logging/logback/base.xml
             <totalSizeCap>${LOG_FILE_TOTAL_SIZE_CAP:-0}</totalSizeCap>
         </rollingPolicy>
     </appender>
+
+<!--    <appender name="METRICS-LOG-FILE"-->
+<!--              class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--        <encoder class="net.logstash.logback.encoder.LogstashEncoder">-->
+<!--            <enableContextMap>true</enableContextMap>-->
+<!--        </encoder>-->
+<!--        <file>${LOG_FILE}-metrics.logstash</file>-->
+<!--        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">-->
+<!--            <cleanHistoryOnStart>${LOG_FILE_CLEAN_HISTORY_ON_START:-false}</cleanHistoryOnStart>-->
+<!--            <fileNamePattern>${ROLLING_FILE_NAME_PATTERN:-${LOG_FILE}.metrics-log.%d{yyyy-MM-dd}.%i.gz}</fileNamePattern>-->
+<!--            <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>-->
+<!--            <maxHistory>1</maxHistory>-->
+<!--            <totalSizeCap>${LOG_FILE_TOTAL_SIZE_CAP:-0}</totalSizeCap>-->
+<!--        </rollingPolicy>-->
+
+<!--    </appender>-->
 </included>
