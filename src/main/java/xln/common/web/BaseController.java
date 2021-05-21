@@ -30,7 +30,27 @@ public class BaseController
     @ExceptionHandler(HttpException.class)
     public ResponseEntity handleAPIRequestException(HttpException ex) {
 
-        return new ResponseEntity(ex.getBody(), ex.getStatus());
+        var httpBody = ex.getHttpBody();
+
+        if(httpBody == null) {
+            httpBody = ex.getStatus().toString();
+        }
+
+        var logBody = ex.getLogBody();
+        if(logBody == null) {
+            logBody = ex.getHttpBody();
+            if(logBody == null) {
+                logBody = ex.getStatus().toString();
+            }
+        }
+        if(ex.getErrorLevel()) {
+            log.error(logBody, ex);
+        } else {
+            log.info(logBody, ex);
+        }
+        return new ResponseEntity(httpBody, ex.getStatus());
+
+
     }
 
     @ExceptionHandler(BaseResponseException.class)
