@@ -84,10 +84,10 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         if (obj != null) {
             try {
 
-                beforeObjectChanged(obj)
+                //TODO: this in fact is not atomic, might have slim chance to retrieve unexpected oldObj
+                var oldObj = repository.findById(ObjectId(id)).awaitFirstOrNull()
                 repository.save(obj).awaitSingle()
-                afterObjectChanged(obj)
-                collectionChanged(obj)
+                collectionChanged(oldObj, obj)
 
             } catch (ex: RuntimeException) {
                 log.error("data modify failed", ex)
@@ -106,10 +106,8 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         var obj = repository.findById(ObjectId(id)).awaitFirstOrNull()
         if (obj != null) {
             try {
-                beforeObjectDelete(obj)
                 repository.deleteById(ObjectId(id)).awaitFirstOrNull()
-                afterObjectDelete(obj)
-                collectionChanged(obj)
+                collectionChanged(obj, null)
 
             }catch (ex: RuntimeException) {
                 log.error("data delete failed", ex)
@@ -133,10 +131,8 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
         if (obj != null) {
             try {
-                beforeObjectCreated(obj)
                 repository.insert(obj).awaitSingle()
-                afterObjectCreated(obj)
-                collectionChanged(obj)
+                collectionChanged(null, obj)
 
             } catch (ex: RuntimeException) {
                 log.error("data modify failed", ex)
@@ -151,32 +147,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     protected abstract fun readObject(body: String, objectMapper: ObjectMapper) : T?
 
-
-    protected open suspend fun beforeObjectChanged(obj: T) {
-
-    }
-
-    protected open suspend fun beforeObjectCreated(obj: T) {
-
-    }
-
-    protected open suspend fun beforeObjectDelete(obj: T) {
-
-    }
-
-    protected open suspend fun afterObjectChanged(obj: T) {
-
-    }
-
-    protected open suspend fun afterObjectCreated(obj: T) {
-
-    }
-
-    protected open suspend fun afterObjectDelete(obj: T) {
-
-    }
-
-    protected open suspend fun collectionChanged(obj: T) {
+    protected open suspend fun collectionChanged(oldObj: T?, obj: T?) {
 
     }
 
