@@ -20,7 +20,7 @@ dependencies {
     }
     compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '3.0.0-SNAPSHOT'
 */
-    implementation "org.springdoc:springdoc-openapi-webflux-ui:1.4.2"
-    compile group: 'org.springdoc', name: 'springdoc-openapi-kotlin', version: '1.4.2'
+    implementation "org.springdoc:springdoc-openapi-webflux-ui:1.5.9"
+    compile group: 'org.springdoc', name: 'springdoc-openapi-kotlin', version: '1.5.9'
 
 }
