@@ -71,23 +71,26 @@ public class BaseResponse {
     }
     public BaseResponse() {}
 
-    public void addProperty(String key, Object value) {
+    public BaseResponse addProperty(String key, Object value) {
         if(properties == null) {
             properties = new HashMap<>();
         }
         properties.put(key, value);
+        return this;
     }
 
     @JsonIgnore
-    public void setResult(int resultCode, String description) {
+    public BaseResponse setResult(int resultCode, String description) {
         this.resultCode = resultCode;
         addProperty("_description", description);
+        return this;
     }
 
     @JsonIgnore
-    public void setResult(ResultDescribable describable) {
+    public BaseResponse setResult(ResultDescribable describable) {
         resultCode = describable.getResultCode();
         addProperty("_description", describable.getResultDescription());
+        return this;
     }
 
     @JsonIgnore
@@ -96,7 +99,6 @@ public class BaseResponse {
 
     }
 
-    @SwaggerResultDescribable(clazzDescribable = BaseResult.class, value = "result code")
     public int getResultCode() {
         return resultCode;
     }
