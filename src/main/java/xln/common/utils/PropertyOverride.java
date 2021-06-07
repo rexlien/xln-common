@@ -1,23 +1,23 @@
 package xln.common.utils;
 
-public class Override {
+public class PropertyOverride {
 
     private boolean overridden;
     private Object overrideObj;
 
-    public Override(boolean override, Object overrideObj) {
+    public PropertyOverride(boolean override, Object overrideObj) {
         this.overridden = override;
         this.overrideObj = overrideObj;
     }
 
-    public Override() {
+    public PropertyOverride() {
     }
 
     public boolean isOverridden() {
         return overridden;
     }
 
-    public Override setOverridden(boolean overridden) {
+    public PropertyOverride setOverridden(boolean overridden) {
         this.overridden = overridden;
         return this;
     }
@@ -26,7 +26,7 @@ public class Override {
         return overrideObj;
     }
 
-    public Override setOverrideObj(Object overrideObj) {
+    public PropertyOverride setOverrideObj(Object overrideObj) {
         this.overrideObj = overrideObj;
         return this;
     }
