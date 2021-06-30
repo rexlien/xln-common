@@ -2,33 +2,43 @@ package xln.common.web.rest
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.mongodb.BasicDBObject
+import com.mongodb.internal.operation.OrderBy
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
+import org.bson.Document
+import org.bson.conversions.Bson
 import org.bson.types.ObjectId
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import org.slf4j.LoggerFactory
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate
+import org.springframework.data.mongodb.core.query.Query
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestParam
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import xln.common.serializer.Utils
+import xln.common.service.MongoService
 import xln.common.web.BaseController
+
 
 /**
  * base controller class for implementing REST data provider for React-admin
  */
-abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>) : BaseController() {
+abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>, protected val mongoService: MongoService) : BaseController() {
 
-    private val log = LoggerFactory.getLogger(this.javaClass);
+    private val log = LoggerFactory.getLogger(this.javaClass)
 
-    open suspend fun get(@RequestParam("_end") end: Int, @RequestParam("_order") order: String, @RequestParam("_sort") sort: String,
-                       @RequestParam("_start") start: Int): ResponseEntity<List<T>> {
+    open suspend fun get(end: Int,order: String, sort: String,
+                       start: Int,  filter: String, entityClazz: Class<T>): ResponseEntity<List<T>> {
+
 
         val total = repository.count().awaitSingle()
         val headers = object : HttpHeaders() {
@@ -37,22 +47,53 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
                 add("X-Total-Count", total.toString())
             }
         }
-
         val pageSize = end - start
-        val page = start / pageSize
-        val sortObj: Sort
+        //val page = start / pageSize
+        //val sortObj: Sort
+        var sortObj : Bson
         if (order == "ASC") {
-            sortObj = Sort.by(Sort.Direction.ASC, sort)
+            //sortObj = Sort.by(Sort.Direction.ASC, sort)
+            sortObj = BasicDBObject("_id", OrderBy.ASC.intRepresentation)
         } else {
-            sortObj = Sort.by(Sort.Direction.DESC, sort)
+            //sortObj = Sort.by(Sort.Direction.DESC, sort)
+            sortObj = BasicDBObject("_id", OrderBy.DESC.intRepresentation)
         }
-        val pageableRequest = PageRequest.of(page, pageSize, sortObj)
+        //val pageableRequest = PageRequest.of(page, pageSize, sortObj)
+        //val sortObj = """{"$sort":$sortValue}"""
 
         var objects: MutableList<T> = mutableListOf()
+        //(repository.findAllBy(pageableRequest) as Flux<T>).asFlow().toList(objects)
+        val mongoTemplate = mongoService.getSpringTemplate(ReactiveMongoTemplate::class.java)
 
-        (repository.findAllBy(pageableRequest) as Flux<T>).asFlow().toList(objects)
+        (mongoTemplate.execute(entityClazz) {
+            val dbObject = Document.parse(filter)
+            val subscriber = Sinks.many().multicast().directBestEffort<Document>()
+
+            val ret = subscriber.asFlux().flatMap {
+                Mono.just(mongoTemplate.converter.read(entityClazz, it))
+            }
+            it.find(dbObject).sort(sortObj).skip(start).limit(pageSize).subscribe(object : Subscriber<Document> {
+                override fun onSubscribe(s: Subscription?) {
+                    s?.request(Long.MAX_VALUE)
+                }
+
+                override fun onNext(t: Document?) {
+                    subscriber.tryEmitNext(t)
+                }
+
+                override fun onError(t: Throwable?) {
+                    subscriber.tryEmitError(t)
+                }
+
+                override fun onComplete() {
+                    subscriber.tryEmitComplete()
+                }
+
+            })
+            return@execute ret
+
+        } as Flux<T>).asFlow().toList(objects)
         return ResponseEntity.ok().headers(headers).body(objects)
-
 
     }
 
