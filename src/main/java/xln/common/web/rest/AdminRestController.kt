@@ -15,7 +15,6 @@ import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import org.slf4j.LoggerFactory
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
-import org.springframework.data.mongodb.core.query.Query
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -32,21 +31,26 @@ import xln.common.web.BaseController
 /**
  * base controller class for implementing REST data provider for React-admin
  */
-abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>, protected val mongoService: MongoService) : BaseController() {
+abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>, private val entityClazz: Class<T>, protected val mongoService: MongoService) : BaseController() {
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
     open suspend fun get(end: Int,order: String, sort: String,
-                       start: Int,  filter: String, entityClazz: Class<T>): ResponseEntity<List<T>> {
+                       start: Int,  filter: String): ResponseEntity<List<T>> {
 
+        val mongoTemplate = mongoService.getSpringTemplate(ReactiveMongoTemplate::class.java)
+        val filterObj = Document.parse(filter)
 
-        val total = repository.count().awaitSingle()
+        val total = mongoTemplate.execute(entityClazz) {
+            it.countDocuments(filterObj)
+        }.awaitSingle()
         val headers = object : HttpHeaders() {
             init {
                 add("Access-Control-Expose-Headers", "X-Total-Count")
                 add("X-Total-Count", total.toString())
             }
         }
+
         val pageSize = end - start
         //val page = start / pageSize
         //val sortObj: Sort
@@ -63,16 +67,15 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
         var objects: MutableList<T> = mutableListOf()
         //(repository.findAllBy(pageableRequest) as Flux<T>).asFlow().toList(objects)
-        val mongoTemplate = mongoService.getSpringTemplate(ReactiveMongoTemplate::class.java)
 
         (mongoTemplate.execute(entityClazz) {
-            val dbObject = Document.parse(filter)
+
             val subscriber = Sinks.many().multicast().directBestEffort<Document>()
 
             val ret = subscriber.asFlux().flatMap {
                 Mono.just(mongoTemplate.converter.read(entityClazz, it))
             }
-            it.find(dbObject).sort(sortObj).skip(start).limit(pageSize).subscribe(object : Subscriber<Document> {
+            it.find(filterObj).sort(sortObj).skip(start).limit(pageSize).subscribe(object : Subscriber<Document> {
                 override fun onSubscribe(s: Subscription?) {
                     s?.request(Long.MAX_VALUE)
                 }
@@ -93,6 +96,8 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
             return@execute ret
 
         } as Flux<T>).asFlow().toList(objects)
+
+
         return ResponseEntity.ok().headers(headers).body(objects)
 
     }
@@ -116,7 +121,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         val objectMapper =  Utils.createObjectMapper()
         var obj: T?
         try {
-            obj = readObject(body, objectMapper)
+            obj = objectMapper.readValue(body, entityClazz)//readObject(body, objectMapper)
         } catch (ex: Exception) {
             log.error("jackson read failed", ex)
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
@@ -160,17 +165,19 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun createOne(@RequestBody body: String): ResponseEntity<Any?> {
+    open suspend fun createOne(body: String, afterCreated: (obj: T) -> Unit = {}): ResponseEntity<Any?> {
 
         val objectMapper =  Utils.createObjectMapper()
         var obj: T? = null
         try {
-            obj = readObject(body, objectMapper)
+            obj = objectMapper.readValue(body, entityClazz)
+
         } catch (ex: Exception) {
             log.error("jackson read failed", ex)
         }
 
         if (obj != null) {
+            afterCreated(obj)
             try {
                 repository.insert(obj).awaitSingle()
                 collectionChanged(null, obj)
@@ -184,9 +191,6 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         return ResponseEntity.ok().body(obj)
 
     }
-
-
-    protected abstract fun readObject(body: String, objectMapper: ObjectMapper) : T?
 
     protected open suspend fun collectionChanged(oldObj: T?, obj: T?) {
 
