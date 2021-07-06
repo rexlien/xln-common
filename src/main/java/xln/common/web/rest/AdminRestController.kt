@@ -102,7 +102,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun getOne(@PathVariable("id") id: String): String? {
+    open suspend fun getOne(id: String): String? {
 
         val obj = repository.findById(ObjectId(id)).awaitSingle()
 
@@ -116,7 +116,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         }
     }
 
-    open suspend fun putOne(@PathVariable("id") id: String, @RequestBody body: String): ResponseEntity<Any?> {
+    open suspend fun putOne(id: String, body: String, beforeSave: suspend (oldObj:T?, obj: T) -> Unit = { _: T?, _: T -> }): ResponseEntity<Any?> {
 
         val objectMapper =  Utils.createObjectMapper()
         var obj: T?
@@ -132,6 +132,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
                 //TODO: this in fact is not atomic, might have slim chance to retrieve unexpected oldObj
                 var oldObj = repository.findById(ObjectId(id)).awaitFirstOrNull()
+                beforeSave(oldObj, obj)
                 repository.save(obj).awaitSingle()
                 collectionChanged(oldObj, obj)
 
@@ -146,7 +147,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun deleteOne(@PathVariable("id") id: String): ResponseEntity<Any?> {
+    open suspend fun deleteOne(id: String): ResponseEntity<Any?> {
 
 
         var obj = repository.findById(ObjectId(id)).awaitFirstOrNull()
@@ -165,7 +166,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun createOne(body: String, afterCreated: (obj: T) -> Unit = {}): ResponseEntity<Any?> {
+    open suspend fun createOne(body: String, afterCreated: suspend (obj: T) -> Unit = {}): ResponseEntity<Any?> {
 
         val objectMapper =  Utils.createObjectMapper()
         var obj: T? = null
