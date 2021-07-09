@@ -59,8 +59,8 @@ buildscript {
     }
 
     ext {
-        boot_version = '2.3.3.RELEASE'
-        spring_version = '5.2.8.RELEASE'
+        boot_version = '2.4.8'
+        spring_version = '5.3.6'
         //scala_version = '2.13.0'
         versions = [:]
         libs = [:]
