@@ -6,3 +6,14 @@ bootJar {
     classifier = 'boot'
     enabled=false
 }
+
+bootJarMainClassName {
+
+    enabled=false
+}
+
+//tasks.whenTaskAdded { task ->
+//    if (task.name.startsWith("extractInclude") && task.name.endsWith("Proto")) {
+ //       task.enabled = false
+//    }
+//}
