@@ -15,7 +15,6 @@ import javax.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-@RestController
 @Slf4j
 public class BaseController
 {
