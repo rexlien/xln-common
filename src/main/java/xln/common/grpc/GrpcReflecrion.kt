@@ -128,7 +128,7 @@ class GrpcReflection {
         reflectionStream.initStreamSink {
             ServerReflectionGrpc.newStub(channel).serverReflectionInfo(reflectionStream)
 
-        }.subscribe { it ->
+        }.autoConnect().subscribe { it ->
             if(it.hasListServicesResponse()) {
 
                 val serviceList = mutableListOf<ServiceResponse>()
@@ -166,6 +166,7 @@ class GrpcReflection {
         reflectionStream.streamSource.awaitSingle().onNext(ServerReflectionRequest.newBuilder().setListServices("").build())
 
         val protos = resultFuture.await()
+        reflectionStream.requestComplete()
         val fds = GrpcReflectionUtils.genFileDescriptor(protos)
         val types = GrpcReflectionUtils.getTypes(fds)
         val typeRegistry =  TypeRegistry.newBuilder().add(types).build()

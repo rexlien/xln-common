@@ -57,7 +57,7 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
 
     }
 
-    public  Flux<R> initStreamSink(Supplier<StreamObserver<V>> sourceSupplier) {
+    public  ConnectableFlux<R> initStreamSink(Supplier<StreamObserver<V>> sourceSupplier) {
 
 
         this.streamSink = Flux.create((r) -> {
@@ -84,8 +84,7 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
             streamSink = streamSink.retryWhen(Retry.fixedDelay(Integer.MAX_VALUE,
                     Duration.ofSeconds(1)));
         }
-        this.streamSink.subscribe();
-        return this.streamSink;
+        return this.streamSink.publish();
     }
 
     public Flux<R> getStreamSink() {
@@ -159,6 +158,16 @@ public abstract class GrpcFluxStream<V, R> implements StreamObserver<R> {
 
         }
         publisher.complete();
+    }
 
+    //actively complete
+    public void requestComplete() {
+        log.debug("request complete");
+        try {
+            reqStream.block(Duration.ofMillis(1000)).onCompleted();
+        }catch (Exception ex) {
+
+        }
+        //publisher.complete();
     }
 }

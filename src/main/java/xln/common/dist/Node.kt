@@ -134,6 +134,8 @@ class Root : Versioned, ClusterAware {
             }
         }
 
+        channelManager.cleanChannel()
+
     }
 
     suspend fun forEachNode(lambda: suspend (Node) -> Unit ) {

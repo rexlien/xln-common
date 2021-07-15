@@ -55,6 +55,7 @@ class ChannelManager {
     }
 
     fun closeChannel(node: Node) {
+
         val key = node.storeKey
         val channel = clusterChannels[key]?:return
 
@@ -64,6 +65,16 @@ class ChannelManager {
         channel.shutdown()
 
 
+    }
+
+    fun cleanChannel() {
+
+        log.debug("clean channels")
+        clusterChannels.forEach {
+            grpcReflection.cleanReflection(it.value)
+            it.value.shutdown()
+        }
+        clusterChannels.clear()
     }
 
     suspend fun callMethodJson(node: Node, serviceName: String, methodName: String, jsonPayLoad: String) : String? {

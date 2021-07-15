@@ -194,7 +194,7 @@ public class LeaseManager {
 
         this.keepAliveStream.initStreamSink(()->{
             return LeaseGrpc.newStub(client.getChannel()).leaseKeepAlive(LeaseManager.this.keepAliveStream);
-        });
+        }).connect();
 
         this.keepAliveFuture = executorService.scheduleAtFixedRate(() -> {
 
@@ -248,7 +248,7 @@ public class LeaseManager {
 
     public void shutdown() {
         this.keepAliveFuture.cancel(true);
-        keepAliveStream.onCompleted();
+        keepAliveStream.requestComplete();
         producerSink.complete();
     }
 
