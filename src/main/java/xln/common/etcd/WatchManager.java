@@ -158,7 +158,7 @@ public class WatchManager {
         };
         this.watchStream.initStreamSink(() -> {
             return this.stub.watch(watchStream);
-        });
+        }).connect();
 
 
     }
