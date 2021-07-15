@@ -222,7 +222,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         leaseEvents.dispose()
         watchEvents.dispose()
 
-        server?.shutdown()?.awaitTermination(30, TimeUnit.SECONDS)
+        server.shutdownNow()//?.awaitTermination(30, TimeUnit.SECONDS)
 
     }
 
