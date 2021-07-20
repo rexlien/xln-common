@@ -49,8 +49,8 @@ public class RateLimiter {
             newKey = key.concat("::").concat(Long.toString(millis));
         }
         final var finalKey = newKey;
-        return redisService.runScript(reactiveRedisTemplate, "_acquiredCount", List.of(newKey), List.of(millis)).next().cast(List.class).map((r)-> {
-            Number result =  (Number)r.get(0);
+        return redisService.runScript(reactiveRedisTemplate, "_acquiredCount", List.of(newKey), List.of(millis)).next().cast(Number.class).map((r)-> {
+            Number result =  r;//.get(0);
             AcquiredInfo info = new AcquiredInfo(finalKey, result.longValue());
             return info;
 
@@ -85,8 +85,8 @@ public class RateLimiter {
 
     public Mono<Long> releaseCount(String key) {
 
-        return redisService.runScript(reactiveRedisTemplate, "_releaseCount", List.of(key), Collections.emptyList()).next().cast(List.class).map((r)-> {
-            Number result =  (Number)r.get(0);
+        return redisService.runScript(reactiveRedisTemplate, "_releaseCount", List.of(key), Collections.emptyList()).next().cast(Number.class).map((r)-> {
+            Number result =  r;//.get(0);
             return result.longValue();
 
         });
