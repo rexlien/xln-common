@@ -4,12 +4,24 @@ allprojects {
 
     repositories {
 
+        maven {
+            url "https://maven.pkg.github.com/rexlien/maven"
+            credentials {
+                username=project.findProperty("gpr.name") ?: System.getenv("GPR_NAME")
+                password=project.findProperty("gpr.key") ?: System.getenv("GPR_KEY")
+            }
+            content {
+                includeGroup "com.github.rexlien"
+                includeGroup "org.apache.spark"
+            }
+        }
         //
         //jcenter()
         mavenCentral()
-        maven {url "https://dl.bintray.com/rlien-2/java"}
-        maven {url "https://repo.spring.io/milestone/"}
-        maven {url "https://repo.spring.io/plugins-release/"}
+        //maven {url "https://dl.bintray.com/rlien-2/java"}
+
+        //maven {url "https://repo.spring.io/milestone/"}
+        //maven {url "https://repo.spring.io/plugins-release/"}
         //maven {url "http://oss.jfrog.org/artifactory/oss-snapshot-local"}
 
     }
