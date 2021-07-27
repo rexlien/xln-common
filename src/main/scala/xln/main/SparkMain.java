@@ -45,9 +45,27 @@ public class SparkMain {
                 context = null;
             } else {
                 System.out.println("no runner class");
+                context.close();
 
             }
         }
+        SparkExecutorApp.context = context;
+        return context;
+    }
+
+    public static <T> ConfigurableApplicationContext executorRunMain(String[] args, Class<T> appClass) {
+
+        SpringApplicationBuilder builder = new SpringApplicationBuilder(appClass);
+        String isWeb = System.getenv("XLN_SPARK_WEB");
+        if(isWeb != null && isWeb.equals("true")) {
+            builder.web(WebApplicationType.REACTIVE);
+        } else {
+            builder.web(WebApplicationType.NONE);
+        }
+        builder.registerShutdownHook(true);
+        SpringApplication spring = builder.build();
+        ConfigurableApplicationContext context = spring.run();
+
         SparkExecutorApp.context = context;
         return context;
     }

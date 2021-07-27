@@ -90,6 +90,7 @@ public class SparkConfig {
 
     private String timeout = "600s";
     private String driverPort = "50999";
+    private Boolean localHost = false;
 
 
     public Map<String, String> getExecutorEnv() {
@@ -105,12 +106,16 @@ public class SparkConfig {
 
     public static SparkConf build(SparkConfig config) {
 
-        var ip = "";
-        try {
-            var address = InetAddress.getLocalHost();
-            ip = address.getHostAddress();
-        } catch(Exception ex) {
+        //using local address IP of Driver in some local environment, ex:LAN, cause spark executor spit out
+        //TOO LARGE FRAME exception when download jars from Driver.
+        var ip = "127.0.0.1";
+        if(!config.localHost) {
+            try {
+                var address = InetAddress.getLocalHost();
+                ip = address.getHostAddress();
+            } catch (Exception ex) {
 
+            }
         }
 
         var conf = new SparkConf().set("spark.driver.port", config.getDriverPort()).set("spark.driver.host", ip).set("spark.network.timeout", config.getTimeout()) //set("spark.executor.userClassPathFirst", "true").
@@ -141,6 +146,12 @@ public class SparkConfig {
     }
 
 
+    public Boolean getLocalHost() {
+        return localHost;
+    }
 
-
+    public SparkConfig setLocalHost(Boolean localHost) {
+        this.localHost = localHost;
+        return this;
+    }
 }
