@@ -18,6 +18,14 @@ public abstract class Evaluator<T> {
         return (T)root.eval(this);
     }
 
+    public void gather(Element root) {
+        context.gatherSource(this, root);
+    }
+
+    public T evalRoot(Element root) {
+        return (T)root.eval(this);
+    }
+
     public void traverse(Element root, Consumer<Element> visitCB, Runnable finishCB) {
 
         Stack<Element> s = new Stack<>();
