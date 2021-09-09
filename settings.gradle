@@ -5,10 +5,10 @@ pluginManagement {
             if (requested.id.id.startsWith("org.springframework.boot"))
                 useVersion("2.4.8")
             if (requested.id.id.startsWith("com.google.protobuf"))
-                useVersion("0.8.10")
+                useVersion("0.8.17")
             if (requested.id.id.startsWith("org.jetbrains.kotlin.jvm"))
-                useVersion("1.4.10")
-            
+                useVersion("1.5.20")
+
         }
     }
 }
