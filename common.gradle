@@ -69,7 +69,7 @@ buildscript {
 
     repositories {
 
-        jcenter()
+        //jcenter()
     }
 
     ext {
@@ -115,6 +115,37 @@ buildscript {
                 }
             }
         }
+
+        xlnTestImplement = { set ->
+
+            if(set instanceof GString) {
+                project.dependencies {
+                    testImplementation set
+                }
+            } else if(set instanceof List) {
+                set.collect {
+                    def str = it
+                    if(str instanceof xln.gradle.Dependency) {
+                        xln.gradle.Dependency dep = str
+                        project.dependencies {
+                            testImplementation(dep.module) {
+                                if(dep.exclude != null) {
+
+                                    //print("hello, $dep.exclude")
+                                    exclude module: dep.exclude
+                                }
+
+                            }
+                        }
+                    } else {
+                        project.dependencies {
+                            testImplementation str
+                        }
+                    }
+                }
+            }
+        }
+
 
         xlnCompileOnly = { set ->
 

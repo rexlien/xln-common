@@ -59,13 +59,13 @@ dependencies {
 
     implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.4.5'
 
-    compile "org.springframework.boot:spring-boot-gradle-plugin:$boot_version"
+    implementation "org.springframework.boot:spring-boot-gradle-plugin:$boot_version"
 
-    compile "org.springframework.boot:spring-boot:$boot_version"
+    implementation "org.springframework.boot:spring-boot:$boot_version"
 
-    compile group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
+    implementation group: 'org.springframework.data', name: 'spring-data-redis', version: "$boot_version"
     //compile group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: "$boot_version"
-    compile "org.springframework:spring-aspects:$spring_version"
+    implementation "org.springframework:spring-aspects:$spring_version"
     //compile 'org.springframework.data:spring-data-r2dbc:1.0.0.RC1'
     //compile 'io.r2dbc:r2dbc-pool:0.8.0.M8'
     //compile 'com.github.jasync-sql:jasync-mysql:1.0.11'
@@ -74,43 +74,43 @@ dependencies {
     //implementation("io.r2dbc:r2dbc-h2")
 
     //compile group: 'org.springframework.boot', name: 'spring-boot-starter-cache', version: "$boot_version"
-    compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'
+    implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.7.0'
 
 
-    compile group: 'io.projectreactor.addons', name: 'reactor-extra', version: '3.4.3'
+    implementation group: 'io.projectreactor.addons', name: 'reactor-extra', version: '3.4.3'
     //compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "$boot_version"
     //compile 'org.mongodb:mongodb-driver-reactivestreams:1.11.0'
-    compile group: 'org.springframework.boot', name: 'spring-boot-actuator', version: "$boot_version"
+    implementation group: 'org.springframework.boot', name: 'spring-boot-actuator', version: "$boot_version"
 
     //compile group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.9.RELEASE'
 
     implementation 'com.google.protobuf:protobuf-gradle-plugin:0.8.10'
-    compile group: 'com.google.code.gson', name: 'gson', version: '2.8.2'
-    compile group: 'com.google.guava', name: 'guava', version: '23.0'
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.8.2'
+    implementation group: 'com.google.guava', name: 'guava', version: '23.0'
 
-    compile "io.lettuce:lettuce-core:6.0.4.RELEASE"
-    compile group: 'io.netty', name: 'netty-all', version: '4.1.51.Final'
-    compile group: 'org.quartz-scheduler', name: 'quartz', version: '2.2.1'
-    compile group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.2.1'
-    compile group: 'org.yaml', name: 'snakeyaml', version: '1.26'
-    compile 'org.redisson:redisson:3.11.5'
+    implementation "io.lettuce:lettuce-core:6.0.4.RELEASE"
+    implementation group: 'io.netty', name: 'netty-all', version: '4.1.65.Final'
+    implementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.2.1'
+    implementation group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.2.1'
+    implementation group: 'org.yaml', name: 'snakeyaml', version: '1.26'
+    implementation 'org.redisson:redisson:3.11.5'
 
-    compile("org.slf4j:slf4j-api:1.7.25")
+    implementation("org.slf4j:slf4j-api:1.7.25")
     //compile group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.25'
-    compile group: 'commons-codec', name: 'commons-codec', version: '1.13'
+    implementation group: 'commons-codec', name: 'commons-codec', version: '1.13'
     //compile("org.springframework.boot:spring-boot-starter-actuator:$boot_version")
-    compile("org.springframework.boot:spring-boot-actuator-autoconfigure:$boot_version")
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure:$boot_version")
     //testCompile 'org.springframework.boot:spring-boot-starter-test'
-    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: "$boot_version"
+    testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: "$boot_version"
 
     testCompileOnly 'org.projectlombok:lombok:1.18.10'
     compileOnly 'org.projectlombok:lombok:1.18.10'
     annotationProcessor 'org.projectlombok:lombok:1.18.10'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.10'
     compileOnly "org.springframework.boot:spring-boot-configuration-processor:$boot_version"
-    compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.5.4'
+    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: '1.5.4'
 
-    compile group: 'org.rocksdb', name: 'rocksdbjni', version: '6.1.2'
+    implementation group: 'org.rocksdb', name: 'rocksdbjni', version: '6.1.2'
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
@@ -121,17 +121,17 @@ dependencies {
     implementation 'io.github.microutils:kotlin-logging:1.12.0'
 
     compileOnly 'org.codehaus.groovy:groovy-all:2.5.4'
-    compile group: 'net.logstash.logback', name: 'logstash-logback-encoder', version: '6.4'
+    implementation group: 'net.logstash.logback', name: 'logstash-logback-encoder', version: '6.4'
     providedCompile group: 'org.springframework.boot', name: 'spring-boot-loader', version: "$boot_version"
 
-    testCompile "org.testcontainers:testcontainers:1.15.3"
+    testImplementation "org.testcontainers:testcontainers:1.15.3"
 
 
-    compile libs.scalaCollectionCompat
-    compile libs.scalaJava8Compat
-    compile libs.scalaLibrary
-    compile libs.scalaReflect
-    compile libs.scalaLogging
+    implementation libs.scalaCollectionCompat
+    implementation libs.scalaJava8Compat
+    implementation libs.scalaLibrary
+    implementation libs.scalaReflect
+    implementation libs.scalaLogging
 
     //project.xlnImplement(libs.scalaLogging)
     project.xlnImplement(libs.mongoSet)
