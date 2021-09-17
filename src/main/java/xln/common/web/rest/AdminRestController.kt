@@ -35,7 +35,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    open suspend fun get(end: Int,order: String, sort: String,
+    protected suspend fun get(end: Int,order: String, sort: String,
                        start: Int,  filter: String): ResponseEntity<List<T>> {
 
         val mongoTemplate = mongoService.getSpringTemplate(ReactiveMongoTemplate::class.java)
@@ -102,7 +102,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun getOne(id: String): String? {
+    protected suspend fun getOne(id: String): String? {
 
         val obj = repository.findById(ObjectId(id)).awaitSingle()
 
@@ -116,7 +116,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         }
     }
 
-    open suspend fun putOne(id: String, body: String, beforeSave: suspend (oldObj:T?, obj: T) -> Unit = { _: T?, _: T -> }): ResponseEntity<Any?> {
+    protected suspend fun putOne(id: String, body: String, beforeSave: suspend (oldObj:T?, obj: T) -> Unit = { _: T?, _: T -> }): ResponseEntity<Any?> {
 
         val objectMapper =  Utils.createObjectMapper()
         var obj: T?
@@ -147,7 +147,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun deleteOne(id: String): ResponseEntity<Any?> {
+    protected suspend fun deleteOne(id: String): ResponseEntity<Any?> {
 
 
         var obj = repository.findById(ObjectId(id)).awaitFirstOrNull()
@@ -166,7 +166,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
-    open suspend fun createOne(body: String, afterCreated: suspend (obj: T) -> Unit = {}): ResponseEntity<Any?> {
+    protected suspend fun createOne(body: String, afterCreated: suspend (obj: T) -> Unit = {}): ResponseEntity<Any?> {
 
         val objectMapper =  Utils.createObjectMapper()
         var obj: T? = null
