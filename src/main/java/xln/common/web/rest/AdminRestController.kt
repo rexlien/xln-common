@@ -65,7 +65,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
         //val pageableRequest = PageRequest.of(page, pageSize, sortObj)
         //val sortObj = """{"$sort":$sortValue}"""
 
-        var objects: MutableList<T> = mutableListOf()
+        val objects: MutableList<T> = mutableListOf()
         //(repository.findAllBy(pageableRequest) as Flux<T>).asFlow().toList(objects)
 
         (mongoTemplate.execute(entityClazz) {
@@ -100,6 +100,20 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
         return ResponseEntity.ok().headers(headers).body(objects)
 
+    }
+
+    protected suspend fun getMany(ids: Array<String>) :List<T> {
+
+        val objects: MutableList<T> = mutableListOf()
+
+        ids.forEach {
+            val obj = repository.findById(ObjectId(it)).awaitSingle()
+            if(obj != null) {
+                objects.add(obj)
+            }
+        }
+
+        return objects
     }
 
     protected suspend fun getOne(id: String): String? {
