@@ -1,14 +1,18 @@
 package xln.common.etcd;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
+import com.google.protobuf.util.JsonFormat;
 import etcdserverpb.KVGrpc;
 import etcdserverpb.Rpc;
 import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import xln.common.dist.KeyUtils;
+import xln.common.proto.model.Model;
 import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
+import xln.common.utils.ProtoUtils;
 
 import java.util.concurrent.TimeUnit;
 
@@ -170,16 +174,81 @@ public class KVManager {
         var putOption = new PutOptions();
         putOption.key = key;
         putOption.value = value;
-        var requestMono = createRequest(putOption);
-        return requestMono.flatMap( r -> {
-            return Mono.fromFuture(FutureUtils.toCompletableFuture(stub.put(r), client.getScheduler()));
+        return put(putOption);
+    }
 
+    public Mono<Rpc.PutResponse> put(String key, String value) {
+        return put(key, ByteString.copyFromUtf8(value));
+    }
+
+    public Mono<Rpc.PutResponse> put(String key, Message document) {
+
+        var putOption = new PutOptions();
+        putOption.key = key;
+        //document.getPayload().get
+
+        //var type = JsonFormat.TypeRegistry.newBuilder().add(document.getDescriptorForType()).
+         //       add(document.getPayload().unpack().getDescriptorForType()).build();
+
+        putOption.value = ByteString.copyFromUtf8(ProtoUtils.jsonUsingType(document));
+        return put(putOption);
+
+    }
+
+    public <T extends Message> Mono<T> getDocument(String key, Class<T> clazz) {
+        return get(key).switchIfEmpty(Mono.defer(Mono::empty)).flatMap(r -> {
+            return Mono.just(ProtoUtils.fromJson(r.toStringUtf8(), clazz));
         });
     }
 
 
+
+    //use version as increment counter
+    public Mono<Long> inc(String key) {
+        var putOption = new PutOptions();
+        putOption.key = key;
+        putOption.value = ByteString.copyFromUtf8("_ignored");
+        putOption.prevKV = true;
+        var setKey = put(putOption);
+        return setKey.flatMap((r) -> {
+            return Mono.just(r.getPrevKv().getVersion());
+        });
+    }
+
+
+
+
     public Mono<Rpc.DeleteRangeResponse> delete(Rpc.DeleteRangeRequest request) {
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.deleteRange(request), client.getScheduler()));
+    }
+
+    public Mono<Rpc.DeleteRangeResponse> delete(String key) {
+        var request = Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build();
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.deleteRange(request), client.getScheduler()));
+    }
+
+    public Mono<Rpc.RangeResponse> getPrefix(String prefix) {
+        var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(prefix)).
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(prefix))).build();
+
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
+    }
+
+    public Mono<Rpc.RangeResponse> getPrefix(String prefix, int limit) {
+
+        var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(prefix)).
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(prefix))).setLimit(limit).build();
+
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
+
+    }
+
+    public Mono<Long> getPrefixCount(String directory) {
+
+        var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(directory)).
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(directory))).setCountOnly(true).build();
+
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler())).flatMap( (r) -> Mono.just(r.getCount()));
     }
 
     public Mono<Rpc.RangeResponse> get(Rpc.RangeRequest request) {

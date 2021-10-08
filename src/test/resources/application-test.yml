@@ -78,14 +78,21 @@ xln.scheduler-config:
     cron: "0 0/1 * * * ?"
 
 xln.mongo-config:
+  autoConfigSpringTemplate: "mongo0"
   mongoConfigs:
     mongo0:
-      hosts: 127.0.0.1:30002
+      endPoint:
+        name: mongo0
+        hosts:
+          - "127.0.0.1:30002"
       user: root
       pw: 1234
-      database: test
+      database: xln-test
       connectionTimeout: 60000
       minHostConnection : 1
+      writeConcern: majority
+      writeAckTimeout: 15000
+      reactive: true
 
 xln:
   etcd-config:
@@ -99,5 +106,6 @@ xln:
     configWatchDirs:
       - "gu-admin"
     enableVersionMeter: true
-    cluster-config:
-      port: 47000
+  cluster-config:
+    port: 0
+

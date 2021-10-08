@@ -29,7 +29,11 @@ public class KeyUtils {
     public static String getEndKey(String startKey)  {
 
         StringBuilder strBuilder = new StringBuilder();
-        return strBuilder.append(startKey).replace(startKey.length() - 2, startKey.length() -1, "~").toString();
+        var lastStr = startKey.charAt(startKey.length() - 1);
+        var nextChar = String.valueOf((char)(lastStr+1));
+
+
+        return strBuilder.append(startKey).replace(startKey.length() - 1, startKey.length(), nextChar ).toString();
     }
 
 }

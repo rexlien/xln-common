@@ -40,9 +40,13 @@ public final class ProtoUtils {
 
     public static String jsonUsingType(Message msg) {
 
+        var type = JsonFormat.TypeRegistry.newBuilder().add(msg.getDescriptorForType()).build();
+        return jsonUsingType(msg, type);
+    }
+
+    public static String jsonUsingType(Message msg, JsonFormat.TypeRegistry registry) {
         try {
-            var type = JsonFormat.TypeRegistry.newBuilder().add(msg.getDescriptorForType()).build();
-            return JsonFormat.printer().omittingInsignificantWhitespace().usingTypeRegistry(type).print(msg);
+            return JsonFormat.printer().omittingInsignificantWhitespace().usingTypeRegistry(registry).print(msg);
         }catch (Exception ex) {
             log.error("Print json failed", ex);
             return null;
