@@ -2,19 +2,14 @@ package xln.common.etcd;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
-import com.google.protobuf.util.JsonFormat;
 import etcdserverpb.KVGrpc;
 import etcdserverpb.Rpc;
-import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import xln.common.dist.KeyUtils;
-import xln.common.proto.model.Model;
 import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 import xln.common.utils.ProtoUtils;
-
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class KVManager {
