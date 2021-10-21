@@ -2,7 +2,6 @@ package xln.common.dist
 
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
-import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.grpc.kotlin.AbstractCoroutineServerImpl
 import io.grpc.protobuf.services.ProtoReflectionService
@@ -11,20 +10,13 @@ import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import mvccpb.Kv
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.actuate.autoconfigure.web.server.LocalManagementPort
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.web.context.WebServerInitializedEvent
 import org.springframework.context.ApplicationListener
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestBody
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import reactor.core.publisher.Mono
@@ -33,24 +25,17 @@ import reactor.retry.retryExponentialBackoff
 import xln.common.Context
 import xln.common.config.ClusterConfig
 import xln.common.config.CommonConfig
+import xln.common.etcd.*
 import xln.common.etcd.KVManager.PutOptions
-import xln.common.etcd.LeaseManager
 import xln.common.etcd.LeaseManager.LeaseEvent
-import xln.common.etcd.WatchManager
-import xln.common.etcd.unwatch
-import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
 import xln.common.utils.FluxUtils
 import xln.common.utils.HttpUtils
 import xln.common.utils.NetUtils
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
-import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
 
 
@@ -176,8 +161,8 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
                                 val controllerNode = Node(this@Cluster, watchEvent.kv)
                                 clusterEventSource.sink.next(LeaderDown(controllerNode))
                                 log.info(watchEvent.kv.toString())
-                                var result = this@Cluster.etcdClient.kvManager.transactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
-                                        withValue(this@Cluster.myNodeInfo?.toByteString()).withIfAbsent(true).withLeaseID(curLeaseInfo?.awaitSingle()!!.leaseID)).awaitSingle()
+                                var result = this@Cluster.etcdClient.kvManager.transactPut(KVManager.TransactPut(PutOptions().withKey(this@Cluster.clusterProperty.controllerNodeDir).
+                                        withValue(this@Cluster.myNodeInfo?.toByteString()).withLeaseID(curLeaseInfo?.awaitSingle()!!.leaseID)).putIfAbsent()).awaitSingle()
                                 log.debug("controller put result:"+result.succeeded)
                             }
                         //}
@@ -281,7 +266,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         //if there's no controller before watch
         if(res.response.kvsCount == 0) {
 
-            var result = etcdClient.kvManager.transactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(this@Cluster.myNodeInfo?.toByteString()).withIfAbsent(true).withLeaseID(info.response.id)).awaitSingle()
+            var result = etcdClient.kvManager.transactPut(KVManager.TransactPut(PutOptions().withKey(clusterProperty.controllerNodeDir).withValue(this@Cluster.myNodeInfo?.toByteString()).withLeaseID(info.response.id)).putIfAbsent()).awaitSingle()
             log.debug("controller put result:"+result.succeeded)
         } else {
 
@@ -305,7 +290,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     suspend fun getNodeGroup() :Pair<Long, Map<String, Node>> {
 
         val response = etcdClient.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(clusterProperty.nodeDirectory)).
-        setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(clusterProperty.nodeDirectory))).build()).awaitSingle()
+        setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(clusterProperty.nodeDirectory))).build()).awaitSingle()
 
         val ret = mutableMapOf<String, Node>();
         response.kvsList.forEach {

@@ -11,6 +11,9 @@ import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 import xln.common.utils.ProtoUtils;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 @Slf4j
 public class KVManager {
 
@@ -43,6 +46,15 @@ public class KVManager {
 
         ByteString value;
 
+        public PutOptions withMessage(Message message) {
+
+            var json = ProtoUtils.json(message);
+            if(json == null) {
+                throw new RuntimeException();
+            }
+            return withValue(ByteString.copyFromUtf8(json));
+        }
+
 
         public boolean isPrevKV() {
             return prevKV;
@@ -72,7 +84,7 @@ public class KVManager {
         //refreshTime in millis
         long refreshTime = -1;
 
-        boolean ifAbsent = false;
+       // boolean ifAbsent = false;
 
         public PutOptions withTtlSecs(long ttl) {
             this.ttl = ttl;
@@ -84,16 +96,17 @@ public class KVManager {
             return this;
         }
 
-
+/*
         public PutOptions withIfAbsent(boolean ifAbsent) {
             this.ifAbsent = ifAbsent;
             return this;
         }
-
+*/
         static public PutOptions DEFAULT = new PutOptions();
     }
 
     public static class TransactOptions {
+
 
         public long getCheckedCreateRevision() {
             return this.checkedCreateRevision;
@@ -106,7 +119,65 @@ public class KVManager {
 
         private long checkedCreateRevision;
 
+
     }
+
+    public static class TransactPut {
+
+        private Rpc.TxnRequest.Builder txnBuilder = Rpc.TxnRequest.newBuilder();
+        private PutOptions put;
+
+        public TransactPut(PutOptions put) {
+
+            this.put = put;
+        }
+
+        private boolean ifAbsent = false;
+        private boolean ifSameVersion = false;
+
+        public PutOptions getPut() {
+            return this.put;
+        }
+
+        public Rpc.TxnRequest.Builder getTxnBuilder() {
+            return this.txnBuilder;
+        }
+
+        public Mono<Rpc.TxnRequest> buildTxnRequest(KVManager kvManager) {
+
+            var request = kvManager.createRequest(put);
+            return request.flatMap( r -> {
+                return Mono.just(txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestPut(r)).build());
+                //return Mono.<Rpc.Txn>fromFuture(FutureUtils.toCompletableFuture(future, kvManager.client.getScheduler()));
+
+            });
+
+        }
+
+
+        public TransactPut putIfAbsent() {
+            this.ifAbsent = true;
+
+            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
+                    setKey(ByteString.copyFromUtf8(put.getKey())).setCreateRevision(0).setResult(Rpc.Compare.CompareResult.EQUAL)
+                    .build());
+
+            return this;
+        }
+
+
+        public TransactPut putIfSameVersion(long version) {
+            this.ifSameVersion = true;
+
+            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.VERSION).
+                    setKey(ByteString.copyFromUtf8(put.getKey())).setVersion(version).setResult(Rpc.Compare.CompareResult.EQUAL)
+                    .build());
+
+            return this;
+        }
+    }
+
+
 
 
 
@@ -151,7 +222,12 @@ public class KVManager {
 
     public static Rpc.RangeRequest createDirectoryRangeRequest(String directory) {
         return Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(directory)).
-                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(directory))).build();
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(directory))).build();
+    }
+
+    public static Rpc.RangeRequest createRangeRequest(String prefix, Long limit) {
+        return Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(prefix)).
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(prefix))).setLimit(limit).build();
     }
 
 
@@ -224,15 +300,15 @@ public class KVManager {
 
     public Mono<Rpc.RangeResponse> getPrefix(String prefix) {
         var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(prefix)).
-                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(prefix))).build();
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(prefix))).build();
 
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
     }
 
-    public Mono<Rpc.RangeResponse> getPrefix(String prefix, int limit) {
+    public Mono<Rpc.RangeResponse> getPrefix(String prefix, long limit) {
 
         var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(prefix)).
-                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(prefix))).setLimit(limit).build();
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(prefix))).setLimit(limit).build();
 
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler()));
 
@@ -241,7 +317,7 @@ public class KVManager {
     public Mono<Long> getPrefixCount(String directory) {
 
         var request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(directory)).
-                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getEndKey(directory))).setCountOnly(true).build();
+                setRangeEnd(ByteString.copyFromUtf8(KeyUtils.getPrefixEnd(directory))).setCountOnly(true).build();
 
         return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler())).flatMap( (r) -> Mono.just(r.getCount()));
     }
@@ -261,8 +337,16 @@ public class KVManager {
                     return Mono.just(r.getKvs(0).getValue());
                 }
         );
+    }
 
+    public Mono<Rpc.RangeResponse> getRaw(String key) {
 
+        Rpc.RangeRequest request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build();
+        return Mono.fromFuture(FutureUtils.toCompletableFuture(this.stub.range(request), client.getScheduler())).flatMap(
+                r -> {
+                    return Mono.just(r);
+                }
+        );
     }
 
 
@@ -283,26 +367,73 @@ public class KVManager {
     }
 
 
+    public Mono<Rpc.TxnResponse> transactPut(TransactPut put) {
 
-    public Mono<Rpc.TxnResponse> transactPut(PutOptions options) {
-
-        var request = createRequest(options);
-        var txnBuilder = Rpc.TxnRequest.newBuilder();
-        if(options.ifAbsent) {
-            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
-                    setKey(ByteString.copyFromUtf8(options.getKey())).setCreateRevision(0).setResult(Rpc.Compare.CompareResult.EQUAL)
-                    .build());
-        }
-
+        var request = put.buildTxnRequest(this);
         return request.flatMap((r)-> {
 
-            var future = stub.txn(txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestPut(r)).build());
+            var future = stub.txn(r);//txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestPut(r)).build());
             return Mono.fromFuture(FutureUtils.toCompletableFuture(future, client.getScheduler()));
 
         });
+    }
+
+    public <T extends Message> Mono<Rpc.TxnResponse> transactModifyAndPut(String key, T defaultMsg, Class<T> clazz, Function<T, T> modifyCB) {
+        //var key = options.getKey();
+        /*
+        PutOptions put = new PutOptions().withKey(key).withMessage(defaultMsg);
+        transactPut(new TransactPut(put).putIfAbsent()).flatMap((r) -> {
+            if(r.getSucceeded()) {
+                return Mono.just(r);
+            } else {
+
+                return getRaw(key).flatMap((curV) -> {
+                    if(curV.getCount() == 9)
+                    T msg = ProtoUtils.fromJson(curV.toStringUtf8(), clazz);
+                    if(modifyCB != null) {
+                        msg = modifyCB.apply(msg);
+                    }
 
 
-        //stub.txn(Rpc.TxnRequest.newBuilder().setCompare().build())
+                    PutOptions put = new PutOptions().withKey(key)
+
+                });
+
+            }
+
+        });
+        */
+        return getRaw(key).flatMap((r) -> {
+            if (r.getCount() == 0) {
+                PutOptions put = new PutOptions().withKey(key).withMessage(defaultMsg);
+                return transactPut(new TransactPut(put).putIfAbsent()).flatMap((s) -> {
+                    if (s.getSucceeded()) {
+                        return Mono.just(s);
+                    } else {
+                        //TODO: should retry
+                        return transactModifyAndPut(key, defaultMsg, clazz, modifyCB);//Mono.just(s);
+                    }
+                });
+            } else {
+                T msg = ProtoUtils.fromJson(r.getKvs(0).getValue().toStringUtf8(), clazz);
+                if (modifyCB != null) {
+                    msg = modifyCB.apply(msg);
+                }
+                PutOptions put = new PutOptions().withKey(key).withMessage(msg);
+                return transactPut(new TransactPut(put).putIfSameVersion(r.getKvs(0).getVersion())).flatMap((s)-> {
+
+                    if(s.getSucceeded()) {
+                        return Mono.just(s);
+                    } else {
+                        return transactModifyAndPut(key, defaultMsg, clazz, modifyCB);
+                        //TODO: retry
+                    }
+                });
+            }
+        });
+
+     //       PutOptions put = new PutOptions().withKey(key)
+
 
     }
 }

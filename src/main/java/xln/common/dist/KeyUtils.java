@@ -26,14 +26,14 @@ public class KeyUtils {
 
     }
 
-    public static String getEndKey(String startKey)  {
+    public static String getPrefixEnd(String prefix)  {
 
         StringBuilder strBuilder = new StringBuilder();
-        var lastStr = startKey.charAt(startKey.length() - 1);
+        var lastStr = prefix.charAt(prefix.length() - 1);
         var nextChar = String.valueOf((char)(lastStr+1));
 
 
-        return strBuilder.append(startKey).replace(startKey.length() - 1, startKey.length(), nextChar ).toString();
+        return strBuilder.append(prefix).replace(prefix.length() - 1, prefix.length(), nextChar ).toString();
     }
 
 }

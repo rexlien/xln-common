@@ -106,6 +106,8 @@ xln:
     configWatchDirs:
       - "gu-admin"
     enableVersionMeter: true
+    dTask:
+      root: xln-test-dtask
   cluster-config:
     port: 0
 

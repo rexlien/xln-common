@@ -99,10 +99,25 @@ public class UtilTest {
         //log.info(txnResponse.getSucceeded())
         log.info(Boolean.toString(txnResponse.getSucceeded()));
         log.info(txnResponse.toString());
+
         //log.info(txnFuture.get().getResponsesList().toString());
 
 
     }
+
+    @Test
+    public void testEtcdInc() {
+
+        etcdClient.getKvManager().delete("atomicCount").block();
+
+        var response = etcdClient.getKvManager().inc("atomicCount");
+        log.info(response.block().toString());
+
+        response = etcdClient.getKvManager().inc("atomicCount");
+        log.info(response.block().toString());
+
+    }
+
 
     @Test
     public void testRandom() {

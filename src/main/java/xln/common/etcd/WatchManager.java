@@ -4,13 +4,18 @@ import com.google.protobuf.ByteString;
 import etcdserverpb.Rpc;
 import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.Disposable;
 import reactor.core.publisher.*;
+import xln.common.dist.KeyUtils;
 import xln.common.grpc.GrpcFluxStream;
 import xln.common.service.EtcdClient;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 @Slf4j
 public class WatchManager {
@@ -34,6 +39,11 @@ public class WatchManager {
 
         public WatchOptions withKeyEnd(String keyEnd) {
             this.keyEnd = keyEnd;
+            return this;
+        }
+
+        public WatchOptions prefixEnd() {
+            this.keyEnd = KeyUtils.getPrefixEnd(this.key);
             return this;
         }
 
@@ -108,9 +118,10 @@ public class WatchManager {
 
     private final GrpcFluxStream<Rpc.WatchRequest, Rpc.WatchResponse> watchStream;
 
-    private final EmitterProcessor<Rpc.WatchResponse> eventSource;
+    private final EmitterProcessor<Rpc.WatchResponse> eventProcessor;
+    private final Flux<Rpc.WatchResponse> eventSource;
     private final FluxSink<Rpc.WatchResponse> sink;
-
+    private final ConcurrentHashMap<Long, Disposable> subscribers = new ConcurrentHashMap<>();
 
     public WatchManager(EtcdClient client) throws Exception {
 
@@ -127,8 +138,12 @@ public class WatchManager {
 
 
         //this.sink = sinkFuture.get();
-        eventSource = EmitterProcessor.create();
-        sink = eventSource.sink();
+        eventProcessor = EmitterProcessor.create();
+        sink = eventProcessor.sink();
+        eventSource = eventProcessor.map((r) -> {
+            return r;
+        });
+
         this.watchStream = new GrpcFluxStream<>(client.getChannel(), "watchStream", true) {
 
             @Override
@@ -166,6 +181,9 @@ public class WatchManager {
     public void shutdown() {
         watchStream.getStreamSource().block().onCompleted();
         watchStream.onCompleted();
+        subscribers.forEach((k, v) -> {
+            v.dispose();
+        });
         sink.complete();
 
     }
@@ -228,6 +246,26 @@ public class WatchManager {
 
     public Flux<GrpcFluxStream.ConnectionEvent> getConnectionEventSource() {
         return watchStream.getConnectionEventSource();
+    }
+
+    public void subscribeEventSource(long watchId, Consumer<Rpc.WatchResponse> cb) {
+
+        var subscriber = this.eventSource.doOnEach(r -> {
+            if(r.get().getWatchId() == watchId) {
+                cb.accept(r.get());
+            }
+        }).subscribe();
+        subscribers.put(watchId, subscriber);
+
+    }
+
+    public void deSubscribeEventSource(long watchId) {
+
+        var subscriber = subscribers.get(watchId);
+        if(subscriber != null) {
+            subscriber.dispose();
+        }
+        subscribers.remove(watchId);
     }
 
 

@@ -44,6 +44,8 @@ public class EtcdConfig {
 
     private volatile String configNamespace = "ns";
 
+
+
     public ArrayList<String> getConfigWatchDirs() {
         return configWatchDirs;
     }
@@ -65,5 +67,29 @@ public class EtcdConfig {
     }
 
     private volatile boolean enableVersionMeter = false;
+
+    public static class DTaskConfig {
+        private String root = "xln-dtask";
+
+        public String getRoot() {
+            return root;
+        }
+
+        public DTaskConfig setRoot(String root) {
+            this.root = root;
+            return this;
+        }
+    }
+
+    public DTaskConfig getdTask() {
+        return dTask;
+    }
+
+    public EtcdConfig setdTask(DTaskConfig dTask) {
+        this.dTask = dTask;
+        return this;
+    }
+
+    private volatile DTaskConfig dTask = new DTaskConfig();
 
 }
