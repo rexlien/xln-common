@@ -20,23 +20,23 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
     private val root = etcdConfig.getdTask().root
 
     private companion object {
-        fun taskPath(serviceGroup: String, serviceName: String, taskId: String) : String {
-            return "$serviceGroup.$serviceName.tasks.$taskId"
+        fun taskPath(root: String, serviceGroup: String, serviceName: String, taskId: String) : String {
+            return "$root.$serviceGroup.$serviceName.tasks.$taskId"
         }
-        fun uidPath(serviceGroup: String, serviceName: String) : String {
-            return "$serviceGroup.$serviceName.id"
-        }
-
-        fun serviceTaskPath(serviceGroup: String, serviceName: String) : String {
-            return "$serviceGroup.$serviceName.tasks."
+        fun uidPath(root: String, serviceGroup: String, serviceName: String) : String {
+            return "$root.$serviceGroup.$serviceName.id"
         }
 
-        fun progressPath(serviceGroup: String, serviceName: String, taskId: String) : String {
-            return "$serviceGroup.$serviceName.progress.$taskId"
+        fun serviceTaskPath(root: String, serviceGroup: String, serviceName: String) : String {
+            return "$root.$serviceGroup.$serviceName.tasks."
         }
 
-        fun serverProgressPath(serviceGroup: String, serviceName: String) : String {
-            return "$serviceGroup.$serviceName.progress."
+        fun progressPath(root: String, serviceGroup: String, serviceName: String, taskId: String) : String {
+            return "$root.$serviceGroup.$serviceName.progress.$taskId"
+        }
+
+        fun serverProgressPath(root: String, serviceGroup: String, serviceName: String) : String {
+            return "$root.$serviceGroup.$serviceName.progress."
         }
     }
 
@@ -45,7 +45,7 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
     suspend fun allocateTask(serviceGroup: String, serviceName: String, option: AllcateTaskParam) : AllocateTaskResult {
 
-        val idPath = uidPath(serviceGroup, serviceName)
+        val idPath = uidPath(root, serviceGroup, serviceName)
         val taskId = etcdClient.kvManager.inc(idPath).awaitSingle().toString()
 
         return allocateTask(serviceGroup, serviceName, taskId, option)
@@ -53,7 +53,7 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
     suspend fun allocateTask(serviceGroup: String, serviceName: String, taskId: String, option: AllcateTaskParam) : AllocateTaskResult {
 
-        val taskPath = taskPath(serviceGroup, serviceName, taskId)
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
 
 
         val msg = DTaskOuterClass.DTask.newBuilder().setId(taskPath).putAllInputs(option.input).putAllDoneActions(option.doneAction).
@@ -69,7 +69,7 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
     suspend fun progress(serviceGroup: String, serviceName: String, taskId: String, curProgress: Int, targetProgress: Int) : Rpc.TxnResponse {
 
-        val progressPath = progressPath(serviceGroup, serviceName, taskId)
+        val progressPath = progressPath(root, serviceGroup, serviceName, taskId)
 
         val default = DTaskOuterClass.DTaskProgress.newBuilder().setCurProgress(curProgress).setTaskId(taskId).build()
         return etcdClient.kvManager.transactModifyAndPut(progressPath, default, DTaskOuterClass.DTaskProgress::class.java) {
@@ -81,13 +81,13 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
     suspend fun watchTask(serviceGroup: String, serviceName: String, taskId: String, watchFlux: (response: Rpc.WatchResponse) -> Unit) : Long {
 
-        val taskPath = taskPath(serviceGroup, serviceName, taskId)
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
         val res = etcdClient.watchManager.safeWatch(taskPath, false, false, true, {}, watchFlux)
         return res.watchID
     }
 
     suspend fun watchServiceTask(serviceGroup: String, serviceName: String, watchFlux: (response: Rpc.WatchResponse) -> Unit) : Long {
-        val servicePath = serviceTaskPath(serviceGroup, serviceName)
+        val servicePath = serviceTaskPath(root, serviceGroup, serviceName)
         val res = etcdClient.watchManager.safeWatch(servicePath, true, false, true, {}, watchFlux)
         return res.watchID
     }
@@ -98,7 +98,7 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
     suspend fun listTasks(serviceGroup: String, serviceName: String, limit: Long) : Map<String, DTaskOuterClass.DTask> {
 
-        val servicePath = serviceTaskPath(serviceGroup, serviceName)
+        val servicePath = serviceTaskPath(root, serviceGroup, serviceName)
         val response = etcdClient.kvManager.getPrefix(servicePath, limit).awaitSingle()
 
         val ret = mutableMapOf<String, DTaskOuterClass.DTask>()
@@ -109,14 +109,14 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
     }
 
     suspend fun getTask(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTask {
-        val taskPath = taskPath(serviceGroup, serviceName, taskId)
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
         val value = etcdClient.kvManager.get(taskPath).awaitSingle()
         return ProtoUtils.fromJson(value.toStringUtf8(), DTaskOuterClass.DTask::class.java)
 
     }
 
     suspend fun getProgress(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTaskProgress {
-        val progressPath = progressPath(serviceGroup, serviceName, taskId)
+        val progressPath = progressPath(root, serviceGroup, serviceName, taskId)
         val value = etcdClient.kvManager.get(progressPath).awaitSingle()
         return ProtoUtils.fromJson(value.toStringUtf8(), DTaskOuterClass.DTaskProgress::class.java)
     }
