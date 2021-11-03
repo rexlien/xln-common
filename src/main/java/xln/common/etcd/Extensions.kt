@@ -2,13 +2,9 @@ package xln.common.etcd
 
 import com.google.protobuf.ByteString
 import etcdserverpb.Rpc
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.reactive.awaitSingle
-import kotlinx.coroutines.reactor.asCoroutineDispatcher
-import kotlinx.coroutines.reactor.mono
+import kotlinx.coroutines.runBlocking
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import xln.common.dist.KeyUtils
 
 data class WatchResult(val response: Rpc.RangeResponse, val watchID: Long, val watcherTrigger: Mono<Long>)
@@ -71,20 +67,33 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
             watchFlux(it)
         }
     }
-            /*client.watchManager.eventSource.flatMap {
-        return@flatMap mono(context = Schedulers.parallel().asCoroutineDispatcher()) {
-            if(it.watchId == watchID) {
-                watchFlux(it)
+
+
+    val option = WatchManager.WatchOptions(path).withStartRevision(revision ).withWatchID(watchID).setDisconnectCB {
+        client.watchManager.deSubscribeEventSource(it)
+    }.setReconnectCB { e, v ->
+        if (e == WatchManager.WatchOptions.RewatchEvent.RE_BEFORE_REWATCH) {
+            client.watchManager.subscribeEventSource(watchID) {
+                if (it.watchId == watchID) {
+                    watchFlux(it)
+                }
+            }
+            runBlocking {
+
+                if(fullInitializeRequest) {
+                    response = client.kvManager.get(KVManager.createRangeRequest(path, 0)).awaitSingle()
+                } else {
+                    response = client.kvManager.get(KVManager.createRangeRequest(path, 1)).awaitSingle()
+                }
+                beforeStartWatch(response)
             }
         }
-    }.subscribe()
-*/
 
-    val option = WatchManager.WatchOptions(path).withStartRevision(revision ).withWatchID(watchID)
+    }
     if(prefixWatch) {
         option.withKeyEnd(KeyUtils.getPrefixEnd(path))
     }
-    client.watchManager.startWatch(option).awaitSingle()
+    client.watchManager.safeStartWatch(option).awaitSingle()
 
     return SafeWatchResult(watchID, revision)
 
@@ -95,7 +104,7 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
 suspend fun WatchManager.safeUnWatch(watchID : Long) : Boolean {
 
     client.watchManager.deSubscribeEventSource(watchID)
-    return unwatch(watchID)
+    return safeStopWatch(watchID).awaitSingle()
 }
 
 suspend fun WatchManager.unwatch(watchID : Long) : Boolean {

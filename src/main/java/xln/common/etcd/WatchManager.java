@@ -4,17 +4,22 @@ import com.google.protobuf.ByteString;
 import etcdserverpb.Rpc;
 import etcdserverpb.WatchGrpc;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import reactor.core.Disposable;
-import reactor.core.publisher.*;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import xln.common.dist.KeyUtils;
 import xln.common.grpc.GrpcFluxStream;
 import xln.common.service.EtcdClient;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -23,15 +28,13 @@ public class WatchManager {
     final WatchGrpc.WatchStub stub;
     final EtcdClient client;
 
-    AtomicLong nextWatchID = new AtomicLong(1);
-
-
-    public static class WatchEvent {
-
-
-    }
 
     public static class WatchOptions {
+
+        public enum RewatchEvent {
+            RE_BEFORE_REWATCH,
+            RE_AFTER_REWATCH
+        }
 
         public WatchOptions(String key) {
             this.key = key;
@@ -112,18 +115,59 @@ public class WatchManager {
 
         private long watchID = 0;
 
+        public BiConsumer<RewatchEvent, Long> getReconnectCB() {
+            return reconnectCB;
+        }
+
+        public WatchOptions setReconnectCB(BiConsumer<RewatchEvent, Long> reconnectCB) {
+            this.reconnectCB = reconnectCB;
+            return this;
+        }
+
+        public Consumer<Long> getDisconnectCB() {
+            return disconnectCB;
+        }
+
+        public WatchOptions setDisconnectCB(Consumer<Long> disconnectCB) {
+            this.disconnectCB = disconnectCB;
+            return this;
+        }
+
+        private BiConsumer<RewatchEvent, Long> reconnectCB;
+        private Consumer<Long> disconnectCB;
+
     }
 
-    private AtomicLong curWatchID = new AtomicLong(1);
+    private AtomicLong nextWatchID = new AtomicLong(1);
+    public AtomicLong getNextWatchID() {
+        return nextWatchID;
+    }
 
     private final GrpcFluxStream<Rpc.WatchRequest, Rpc.WatchResponse> watchStream;
 
     private final EmitterProcessor<Rpc.WatchResponse> eventProcessor;
     private final Flux<Rpc.WatchResponse> eventSource;
     private final FluxSink<Rpc.WatchResponse> sink;
+    private final ExecutorService serializeExecutor = Executors.newFixedThreadPool(1, new CustomizableThreadFactory("xln-watchManager"));
+/*
+    public static class WatchCommand {
+        
+        private Consumer<Long> reconnectCB;
+        private Consumer<Long> disconnectCB;
+        private WatchOptions watchOptions;
+
+        public WatchCommand(WatchOptions watchOptions, Consumer<Long> reconnectCB, Consumer<Long> disconnectCB) {
+            this.reconnectCB = reconnectCB;
+            this.disconnectCB = disconnectCB;
+            this.watchOptions = watchOptions;
+        }
+    }
+
+ */
+    private final ConcurrentHashMap<Long, WatchOptions> watchCommands = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Disposable> subscribers = new ConcurrentHashMap<>();
 
-    public WatchManager(EtcdClient client) throws Exception {
+    public WatchManager(EtcdClient client) {
 
         this.client = client;
         this.stub = WatchGrpc.newStub(client.getChannel());
@@ -171,6 +215,44 @@ public class WatchManager {
                 super.onCompleted();
             }
         };
+
+        //register
+        this.watchStream.getConnectionEventSource().subscribe((r) ->{
+
+            if (r == GrpcFluxStream.ConnectionEvent.RE_CONNECTED) {
+                log.info("Watch manager reconnected");
+                serializeExecutor.submit(() ->{
+                    watchCommands.forEach((k, v) -> {
+
+                        if(v.reconnectCB != null) {
+                            v.reconnectCB.accept(WatchOptions.RewatchEvent.RE_BEFORE_REWATCH, v.watchID);
+                        }
+                        //clare revision to start rewatch just from now.
+                        //NOTE: is it useful to watch from received revision just before disconnected?
+                        v.withStartRevision(0L);
+                        this.startWatch(v).block(Duration.ofMillis(3000));
+
+                        log.debug("rewatch started");
+                        if(v.reconnectCB != null) {
+                            v.reconnectCB.accept(WatchOptions.RewatchEvent.RE_AFTER_REWATCH, v.watchID);
+                        }
+                    });
+                });
+
+                //this.startWatch()
+
+            } else if(r == GrpcFluxStream.ConnectionEvent.DISCONNECTED) {
+                log.info("Watch manager disconnected");
+                serializeExecutor.submit(() -> {
+                    watchCommands.forEach((k, v) -> {
+                        if(v.disconnectCB != null) {
+                            v.disconnectCB.accept(v.watchID);
+                        }
+                    });
+                });
+            }
+
+        });
         this.watchStream.initStreamSink(() -> {
             return this.stub.watch(watchStream);
         }).connect();
@@ -181,6 +263,7 @@ public class WatchManager {
     public void shutdown() {
         watchStream.getStreamSource().block().onCompleted();
         watchStream.onCompleted();
+        watchCommands.clear();
         subscribers.forEach((k, v) -> {
             v.dispose();
         });
@@ -219,7 +302,7 @@ public class WatchManager {
 
         long watchID = options.getWatchID();
         if(options.getWatchID() == 0) {
-            watchID = curWatchID.getAndIncrement();
+            watchID = nextWatchID.getAndIncrement();
             options.withWatchID(watchID);
         }
         final long myWatchID = watchID;
@@ -231,6 +314,17 @@ public class WatchManager {
 
     }
 
+    public Mono<Long> safeStartWatch(WatchOptions options) {
+        return startWatch(options).flatMap(r -> {
+            //reconnectCB.accept(r);
+            watchCommands.put(r, options);
+            return Mono.just(r);
+        });
+
+    }
+
+
+
     public Mono<Boolean> stopWatch(long watchID)  {
         return this.watchStream.getStreamSource().flatMap((s)-> {
             s.onNext(Rpc.WatchRequest.newBuilder().setCancelRequest(Rpc.WatchCancelRequest.newBuilder().setWatchId(watchID).build()).build());
@@ -238,6 +332,10 @@ public class WatchManager {
         }).timeout(Duration.ofMillis(this.client.getTimeoutMillis()));
     }
 
+    public Mono<Boolean> safeStopWatch(long watchID) {
+        watchCommands.remove(watchID);
+        return stopWatch(watchID);
+    }
 
 
     public Flux<Rpc.WatchResponse> getEventSource() {
