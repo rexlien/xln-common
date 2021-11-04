@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -115,25 +115,20 @@ public class WatchManager {
 
         private long watchID = 0;
 
-        public BiConsumer<RewatchEvent, Long> getReconnectCB() {
-            return reconnectCB;
-        }
 
-        public WatchOptions setReconnectCB(BiConsumer<RewatchEvent, Long> reconnectCB) {
+        //RE_BEFORE_REWATCH event should return revision for rewatch or 0 if rewatch from now
+        public WatchOptions setReconnectCB(BiFunction<RewatchEvent, Long, Long> reconnectCB) {
             this.reconnectCB = reconnectCB;
             return this;
         }
 
-        public Consumer<Long> getDisconnectCB() {
-            return disconnectCB;
-        }
 
         public WatchOptions setDisconnectCB(Consumer<Long> disconnectCB) {
             this.disconnectCB = disconnectCB;
             return this;
         }
 
-        private BiConsumer<RewatchEvent, Long> reconnectCB;
+        private BiFunction<RewatchEvent, Long, Long> reconnectCB;
         private Consumer<Long> disconnectCB;
 
     }
@@ -209,7 +204,6 @@ public class WatchManager {
 
             }
 
-
             @Override
             public void onCompleted() {
                 super.onCompleted();
@@ -225,16 +219,20 @@ public class WatchManager {
                     watchCommands.forEach((k, v) -> {
 
                         if(v.reconnectCB != null) {
-                            v.reconnectCB.accept(WatchOptions.RewatchEvent.RE_BEFORE_REWATCH, v.watchID);
+                            var watchRevision = v.reconnectCB.apply(WatchOptions.RewatchEvent.RE_BEFORE_REWATCH, v.watchID);
+                            v.withStartRevision(watchRevision);
+                        } else {
+                            //clare revision to start rewatch just from now.
+                            //NOTE: is it useful to watch from received revision just before disconnected?
+                            v.withStartRevision(0L);
                         }
-                        //clare revision to start rewatch just from now.
-                        //NOTE: is it useful to watch from received revision just before disconnected?
-                        v.withStartRevision(0L);
+
+                        log.debug("rewatch will watch from revision: " + v.getStartRevision());
                         this.startWatch(v).block(Duration.ofMillis(3000));
 
                         log.debug("rewatch started");
                         if(v.reconnectCB != null) {
-                            v.reconnectCB.accept(WatchOptions.RewatchEvent.RE_AFTER_REWATCH, v.watchID);
+                            v.reconnectCB.apply(WatchOptions.RewatchEvent.RE_AFTER_REWATCH, v.watchID);
                         }
                     });
                 });

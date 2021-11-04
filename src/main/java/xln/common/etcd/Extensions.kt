@@ -42,17 +42,14 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
                                    beforeStartWatch: (initialResponse: Rpc.RangeResponse) -> Unit,
                                    watchFlux: (response: Rpc.WatchResponse) -> Unit): SafeWatchResult {
 
-    var response : Rpc.RangeResponse
+    val response : Rpc.RangeResponse
 
-    //since
     if(fullInitializeRequest) {
         response = client.kvManager.get(KVManager.createRangeRequest(path, 0)).awaitSingle()
     } else {
         response = client.kvManager.get(KVManager.createRangeRequest(path, 1)).awaitSingle()
     }
-        //} //else {
-        //response = client.kvManager.get(Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(path)).build()).awaitSingle()
-    //}
+
     var revision: Long
     revision = response.header.revision
     if(watchFromNextRevision) {
@@ -78,6 +75,7 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
                     watchFlux(it)
                 }
             }
+            val response : Rpc.RangeResponse
             runBlocking {
 
                 if(fullInitializeRequest) {
@@ -85,8 +83,17 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
                 } else {
                     response = client.kvManager.get(KVManager.createRangeRequest(path, 1)).awaitSingle()
                 }
-                beforeStartWatch(response)
+
             }
+            beforeStartWatch(response)
+            var revision: Long
+            revision = response.header.revision
+            if(watchFromNextRevision) {
+                revision += 1
+            }
+            return@setReconnectCB revision
+        } else {
+            return@setReconnectCB 0L
         }
 
     }

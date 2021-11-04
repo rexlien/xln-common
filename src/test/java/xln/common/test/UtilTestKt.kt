@@ -229,7 +229,7 @@ class UtilTestKt {
                     }
 
                 }, watchFlux = {
-                    logger.info("got event: ${it.watchId}: created: ${it.created} : ${it.eventsList}")
+                    logger.info("got event: ${it.watchId} revision: ${it.header.revision} created: ${it.created} : ${it.eventsList}")
                     it.eventsList.forEach {
                         if (it.type == Kv.Event.EventType.PUT) {
                            value = it.kv.value.toStringUtf8()
@@ -251,7 +251,9 @@ class UtilTestKt {
                 assert(result.take() == "2")
 
                 //check watcher still works
-                it.kvManager.put("watchDir.test", "3").awaitSingle()
+                val resp = it.kvManager.put("watchDir.test", "3").awaitSingle()
+                logger.info("put revision: $resp.header")
+
                 assert(result.take() == "3")
 
                 it.watchManager.safeUnWatch(watchRes.watchID)
