@@ -6,9 +6,6 @@ import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-
 @Slf4j
 public final class ProtoUtils {
 
@@ -37,6 +34,7 @@ public final class ProtoUtils {
             return null;
         }
     }
+
 
     public static String jsonUsingType(Message msg) {
 

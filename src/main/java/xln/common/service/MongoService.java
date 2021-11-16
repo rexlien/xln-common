@@ -1,25 +1,30 @@
 package xln.common.service;
 
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.WriteConcern;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
+import org.springframework.data.mongodb.core.SimpleReactiveMongoDatabaseFactory;
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
+import org.springframework.stereotype.Service;
+import xln.common.config.MongoConfig;
+import xln.common.config.MongoConfig.MongoServerConfig;
+import xln.common.converter.ApiReader;
+import xln.common.converter.ProtobufWriter;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import com.mongodb.*;
-import jodd.cli.Cli;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.*;
-import org.springframework.stereotype.Service;
-
-import lombok.extern.slf4j.Slf4j;
-import xln.common.config.MongoConfig;
-import xln.common.config.MongoConfig.MongoServerConfig;
 
 @Service
 @Slf4j
@@ -98,7 +103,18 @@ public class MongoService {
                 String mongoURI = strBuilder.toString();
 
                 reactiveMongoDBFactory = new SimpleReactiveMongoDatabaseFactory(new ConnectionString(mongoURI));
-                reactiveMongoTemplate = new ReactiveMongoTemplate(reactiveMongoDBFactory);
+                MongoCustomConversions conversions = new MongoCustomConversions(Arrays.asList(new ProtobufWriter(), new ApiReader()));
+
+                MongoMappingContext context = new MongoMappingContext();
+                context.setSimpleTypeHolder(conversions.getSimpleTypeHolder());
+                context.afterPropertiesSet();
+
+                MappingMongoConverter mongoConverter = new MappingMongoConverter(ReactiveMongoTemplate.NO_OP_REF_RESOLVER, context);
+                mongoConverter.setCustomConversions(conversions);
+                mongoConverter.setCodecRegistryProvider(this.reactiveMongoDBFactory);
+                mongoConverter.afterPropertiesSet();
+
+                reactiveMongoTemplate = new ReactiveMongoTemplate(reactiveMongoDBFactory, mongoConverter);
                 if (config.getWriteConcern() != null) {
                     String w = config.getWriteConcern();
                     try {
@@ -227,6 +243,10 @@ public class MongoService {
 
     public MongoTemplate getMongoTemplate(String name) {
         return mongoClients.get(name) != null?mongoClients.get(name).getMongoTemplate(MongoTemplate.class):null;
+    }
+
+    public ReactiveMongoTemplate getReactiveMongoTemplate(String name) {
+        return mongoClients.get(name) != null?mongoClients.get(name).getMongoTemplate(ReactiveMongoTemplate.class):null;
     }
 
     public <T> T getTemplate(String name, Class<T> type) {
