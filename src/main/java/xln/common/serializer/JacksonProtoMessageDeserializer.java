@@ -6,15 +6,11 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
-import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.common.serialization.Deserializer;
 import xln.common.utils.ProtoUtils;
 
 import java.io.IOException;
-import java.util.Map;
 
 @Slf4j
 public class JacksonProtoMessageDeserializer<T extends Message> extends JsonDeserializer<Message> {
@@ -23,7 +19,7 @@ public class JacksonProtoMessageDeserializer<T extends Message> extends JsonDese
     }
 
     @Override
-    public Message deserialize(JsonParser parser, DeserializationContext deserializer) {
+    public Message deserialize(JsonParser parser, DeserializationContext deserializer) throws IOException {
 
         ObjectCodec codec = parser.getCodec();
         try {
@@ -34,8 +30,8 @@ public class JacksonProtoMessageDeserializer<T extends Message> extends JsonDese
             return ProtoUtils.fromJson(node.toString(), className);
         }catch (Exception ex) {
             log.error("", ex);
+            throw new IOException();
         }
-        return null;
     }
 
     @Override

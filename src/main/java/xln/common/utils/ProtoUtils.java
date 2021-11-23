@@ -90,6 +90,21 @@ public final class ProtoUtils {
         return (T) builder.build();
     }
 
+    public static <T extends Message> T fromJson(String json, Class<T> clazz, JsonFormat.TypeRegistry registry) {
+        Message.Builder builder = null;
+        try {
+
+            builder = (Message.Builder) clazz.getMethod("newBuilder").invoke(null);
+            JsonFormat.parser().usingTypeRegistry(registry).ignoringUnknownFields().merge(json, builder);
+
+        } catch (Exception ex) {
+            log.error("", ex);
+            return null;
+        }
+        // the instance will be from the build
+        return (T) builder.build();
+    }
+
     public static <T extends Message> T fromJson(String json, String clazzName)  {
 
         Class<T> clazz;

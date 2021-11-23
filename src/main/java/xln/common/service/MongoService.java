@@ -16,7 +16,9 @@ import org.springframework.stereotype.Service;
 import xln.common.config.MongoConfig;
 import xln.common.config.MongoConfig.MongoServerConfig;
 import xln.common.converter.ApiReader;
+import xln.common.converter.ProtobufAnyReader;
 import xln.common.converter.ProtobufWriter;
+import xln.common.grpc.ProtobufService;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -35,6 +37,7 @@ public class MongoService {
     private ConcurrentMap<String, Client> mongoClients= new ConcurrentHashMap<>();
     private volatile MongoClient springClient;
     private static final String MONGO_SCHEME = "mongodb://";
+    private final ProtobufService protobufService;
     //private volatile String springTemplate;
 
     private interface Client {
@@ -51,7 +54,7 @@ public class MongoService {
         private ReactiveMongoTemplate reactiveMongoTemplate;
 
 
-        public MongoClient(MongoServerConfig config) {
+        public MongoClient(MongoServerConfig config, ProtobufService protobufService) {
 
             var joinedEndPoint = String.join(",", config.getEndPoint().hosts);
 
@@ -103,7 +106,8 @@ public class MongoService {
                 String mongoURI = strBuilder.toString();
 
                 reactiveMongoDBFactory = new SimpleReactiveMongoDatabaseFactory(new ConnectionString(mongoURI));
-                MongoCustomConversions conversions = new MongoCustomConversions(Arrays.asList(new ProtobufWriter(), new ApiReader()));
+                MongoCustomConversions conversions = new MongoCustomConversions(Arrays.asList(new ProtobufWriter(protobufService.getTypeRegistry()),
+                        new ApiReader(), new ProtobufAnyReader(protobufService.getTypeRegistry())));
 
                 MongoMappingContext context = new MongoMappingContext();
                 context.setSimpleTypeHolder(conversions.getSimpleTypeHolder());
@@ -213,8 +217,9 @@ public class MongoService {
     }
 */
 
-    public MongoService(MongoConfig config) {
+    public MongoService(MongoConfig config, ProtobufService protobufService) {
         this.config = config;
+        this.protobufService = protobufService;
 
     }
 
@@ -223,7 +228,7 @@ public class MongoService {
 
         for (Map.Entry<String, MongoServerConfig> entry : config.getMongoConfigs().entrySet()) {
 
-            MongoClient newClient = new MongoClient(entry.getValue());
+            MongoClient newClient = new MongoClient(entry.getValue(), protobufService);
             mongoClients.put(entry.getKey(), newClient);
             if(config.getAutoConfigSpringTemplate().equals(entry.getKey())) {
                 springClient = newClient;

@@ -1,7 +1,5 @@
 package xln.common.web.rest
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.mongodb.BasicDBObject
 import com.mongodb.internal.operation.OrderBy
 import kotlinx.coroutines.flow.toList
@@ -14,16 +12,15 @@ import org.bson.types.ObjectId
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestBody
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import xln.common.serializer.Utils
+import xln.common.grpc.ProtobufService
 import xln.common.service.MongoService
 import xln.common.web.BaseController
 
@@ -32,6 +29,9 @@ import xln.common.web.BaseController
  * base controller class for implementing REST data provider for React-admin
  */
 abstract class AdminRestController<T : Any>(protected val repository: RestMongoRepository<T>, private val entityClazz: Class<T>, protected val mongoService: MongoService) : BaseController() {
+
+    @Autowired
+    private val protobufService: ProtobufService? = null
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
@@ -120,9 +120,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
         val obj = repository.findById(ObjectId(id)).awaitSingle()
 
-        val objectMapper = ObjectMapper()
-        objectMapper.setDefaultTyping(Utils.createJsonCompliantResolverBuilder(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE))
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        val objectMapper = protobufService!!.createObjectMapper()//Utils.createObjectMapper()
         try {
             return objectMapper.writeValueAsString(obj)
         } catch (ex: Exception) {
@@ -132,7 +130,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     protected suspend fun putOne(id: String, body: String, beforeSave: suspend (oldObj:T?, obj: T) -> Unit = { _: T?, _: T -> }): ResponseEntity<Any?> {
 
-        val objectMapper =  Utils.createObjectMapper()
+        val objectMapper =  protobufService!!.createObjectMapper()
         var obj: T?
         try {
             obj = objectMapper.readValue(body, entityClazz)//readObject(body, objectMapper)
@@ -182,7 +180,7 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     protected suspend fun createOne(body: String, afterCreated: suspend (obj: T) -> Unit = {}): ResponseEntity<Any?> {
 
-        val objectMapper =  Utils.createObjectMapper()
+        val objectMapper =  protobufService!!.createObjectMapper()
         var obj: T? = null
         try {
             obj = objectMapper.readValue(body, entityClazz)
