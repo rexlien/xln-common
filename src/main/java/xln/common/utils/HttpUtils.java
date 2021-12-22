@@ -103,6 +103,21 @@ public class HttpUtils {
         return (responseSpec != null)?responseSpec.toEntity(type):Mono.empty();
     }
 
+    public static <T> Mono<ResponseEntity<T>> httpCallMonoResponseEntity(String url, Map<String, ?> urlValues, HttpMethod method, ParameterizedTypeReference<T> type,
+                                                                         Map<String, String> headers, Object body) {
+
+        WebClient.ResponseSpec responseSpec;
+        if(body instanceof String) {
+            var strBody = (String)body;
+            responseSpec = httpCallMono(url, urlValues, method, headers, strBody);
+        } else {
+            Gson gson = new Gson();
+            responseSpec = httpCallMono(url, urlValues, method, headers,gson.toJson(body));
+        }
+
+        return (responseSpec != null)?responseSpec.toEntity(type):Mono.empty();
+    }
+
     public static WebClient.ResponseSpec httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method,
                                                       Map<String, String> headers, String body) {
         try {
@@ -141,6 +156,12 @@ public class HttpUtils {
 
     public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
             Map<String, String> headers, String body) {
+
+        return httpCallMono(url, urlValues, method, headers, body).bodyToMono(type);
+    }
+
+    public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, ParameterizedTypeReference<T> type,
+                                           Map<String, String> headers, String body) {
 
         return httpCallMono(url, urlValues, method, headers, body).bodyToMono(type);
     }
