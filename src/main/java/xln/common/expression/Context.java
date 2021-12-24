@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class Context {
 
-    public static final String REGEX_PATTERN = "(\\$\\{[^}]+\\})";
+
     private Map<String, Object> contextMap = new HashMap<>();
 
     //private Evaluator evaluator;
@@ -37,54 +37,21 @@ public class Context {
 
     }
 
-    public static String patternReplace(String path, DataProvider provider) {
 
-        if(path == null) {
-            return null;
-        }
-
-        Pattern p = Pattern.compile(REGEX_PATTERN);
-        Matcher m = p.matcher(path);
-        StringBuffer sb = new StringBuffer();
-
-        while(m.find()) {
-
-            String placeholder = m.group(1);
-            if(placeholder != null) {
-                placeholder = placeholder.substring(2, placeholder.length() - 1);
-                m.appendReplacement(sb, (provider != null)?provider.getPathReplacement(placeholder):"");
-            }
-        }
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    public static Object patternReplace(Object obj, DataProvider provider) {
-        if(obj instanceof String) {
-            return patternReplace((String)obj, provider);
-        } else {
-
-            Gson gson = new Gson();
-            var json = gson.toJson(obj);
-            json = patternReplace(json, provider);
-            obj = gson.fromJson(json, obj.getClass());
-            return obj;
-        }
-
-    }
 
     public static String getSourceHashKey(String path, Map<String, String> headers, Object body) {
 
         return new StringBuilder().append(path).append(":").append(headers.hashCode()).append(":").append(body.hashCode()).toString();
     }
 
-    public static abstract class DataProvider {
+
+    public static abstract class DataProvider implements VariableProvider {
 
 
         public abstract CompletableFuture<Object> resolveURL(Context context, String scheme, String host, String path, MultiValueMap<String, ?> params, Map<String, String> headers, Object body);
 
-        public String getPathReplacement(String placeholder) {
+        @Override
+        public Object lookUp(String placeholder) {
             return "";
         }
 
@@ -102,13 +69,13 @@ public class Context {
                 return future;
             }
 
-            path = patternReplace(path, this);
+            path = VariableProvider.patternReplace(path, this);
             var replacedHeaders = new HashMap<String, String>();
             for(var kv : headers.entrySet()) {
                 replacedHeaders.put(context.patternReplace(kv.getKey()), context.patternReplace(kv.getValue()));
             }
 
-            body = patternReplace(body, this);
+            body = VariableProvider.patternReplace(body, this);
 
             URI uri;
             try {
@@ -175,7 +142,7 @@ public class Context {
 
 
     public String patternReplace(String content) {
-        return Context.patternReplace(content, provider);
+        return VariableProvider.patternReplace(content, provider);
     }
 
 

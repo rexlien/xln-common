@@ -124,9 +124,9 @@ open class GeneralDataProvider : Context.DataProvider {
         return null;
     }
 
-    override fun getPathReplacement(placeholder: String): String {
+    override fun lookUp(placeholder: String): Any {
         val res = placeHolderMap[placeholder]
-        return res ?: super.getPathReplacement(placeholder)
+        return res ?: super.lookUp(placeholder)
     }
 
 
