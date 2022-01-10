@@ -16,7 +16,7 @@ public class SparkExecutorApp {
 
     public static volatile ConfigurableApplicationContext context = null;
 
-    public static <T> T getService(Class<T> clazz) {
+    public static <T> T getBean(Class<T> clazz) {
         return context.getBean(clazz);
     }
 
