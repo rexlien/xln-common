@@ -320,6 +320,19 @@ public class RedisService {
 
     }
 
+    public <T> ReactiveRedisTemplate<String, T> createTemplate(String name, RedisSerializer<T> serializer) {
+
+
+        RedisSerializationContext<String, T> serializationContext = RedisSerializationContext
+                .<String, Any>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
+                .value((RedisSerializer)serializer)
+                .hashValue(serializer).build();
+
+        ReactiveRedisTemplate<String, T> template = new ReactiveRedisTemplate<String, T>(connectionFactories.get(name), serializationContext);
+        return template;
+
+    }
+
     private RedisTemplate<String, Object> getObjectTemplate(String name) {
         RedisClientSet set = redisClientSets.get(name);
         if (set == null) {
