@@ -1,35 +1,26 @@
 package xln.common.service;
 
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.ReadFrom;
 import lombok.Data;
 import org.redisson.Redisson;
-import org.redisson.RedissonReactive;
-import org.redisson.api.RedissonClient;
 import org.redisson.api.RedissonReactiveClient;
 import org.redisson.config.ClusterServersConfig;
 import org.redisson.config.Config;
 import org.redisson.config.SingleServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
+import org.springframework.data.redis.connection.RedisNode;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -37,10 +28,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scripting.ScriptSource;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import xln.common.cache.CacheController;
 import xln.common.config.ServiceConfig;
 import xln.common.serializer.GenericJackson2JsonRedisSerializer;
 import xln.common.serializer.ProtoRedisSerializer;
@@ -50,8 +38,6 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -322,7 +308,9 @@ public class RedisService {
 
     public <T> ReactiveRedisTemplate<String, T> createTemplate(String name, RedisSerializer<T> serializer) {
 
-
+        if(!connectionFactories.contains(name)) {
+            return null;
+        }
         RedisSerializationContext<String, T> serializationContext = RedisSerializationContext
                 .<String, Any>newSerializationContext(new StringRedisSerializer()).key(new StringRedisSerializer())
                 .value((RedisSerializer)serializer)
@@ -330,7 +318,6 @@ public class RedisService {
 
         ReactiveRedisTemplate<String, T> template = new ReactiveRedisTemplate<String, T>(connectionFactories.get(name), serializationContext);
         return template;
-
     }
 
     private RedisTemplate<String, Object> getObjectTemplate(String name) {
