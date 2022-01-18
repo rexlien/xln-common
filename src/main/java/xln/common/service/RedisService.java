@@ -308,7 +308,7 @@ public class RedisService {
 
     public <T> ReactiveRedisTemplate<String, T> createTemplate(String name, RedisSerializer<T> serializer) {
 
-        if(!connectionFactories.contains(name)) {
+        if(!connectionFactories.containsKey(name)) {
             return null;
         }
         RedisSerializationContext<String, T> serializationContext = RedisSerializationContext
