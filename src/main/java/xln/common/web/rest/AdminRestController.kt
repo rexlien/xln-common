@@ -102,6 +102,67 @@ abstract class AdminRestController<T : Any>(protected val repository: RestMongoR
 
     }
 
+    protected suspend fun getListString(end: Int,order: String, sort: String,
+                              start: Int,  filter: String): ResponseEntity<String> {
+
+        val mongoTemplate = mongoService.getSpringTemplate(ReactiveMongoTemplate::class.java)
+        val filterObj = Document.parse(filter)
+
+        val total = mongoTemplate.execute(entityClazz) {
+            it.countDocuments(filterObj)
+        }.awaitSingle()
+        val headers = object : HttpHeaders() {
+            init {
+                add("Access-Control-Expose-Headers", "X-Total-Count")
+                add("X-Total-Count", total.toString())
+            }
+        }
+
+        val pageSize = end - start
+        var sortObj : Bson
+        if (order == "ASC") {
+            //sortObj = Sort.by(Sort.Direction.ASC, sort)
+            sortObj = BasicDBObject("_id", OrderBy.ASC.intRepresentation)
+        } else {
+            //sortObj = Sort.by(Sort.Direction.DESC, sort)
+            sortObj = BasicDBObject("_id", OrderBy.DESC.intRepresentation)
+        }
+        val objects: MutableList<T> = mutableListOf()
+       
+        (mongoTemplate.execute(entityClazz) {
+
+            val subscriber = Sinks.many().multicast().directBestEffort<Document>()
+
+            val ret = subscriber.asFlux().flatMap {
+                Mono.just(mongoTemplate.converter.read(entityClazz, it))
+            }
+            it.find(filterObj).sort(sortObj).skip(start).limit(pageSize).subscribe(object : Subscriber<Document> {
+                override fun onSubscribe(s: Subscription?) {
+                    s?.request(Long.MAX_VALUE)
+                }
+
+                override fun onNext(t: Document?) {
+                    subscriber.tryEmitNext(t)
+                }
+
+                override fun onError(t: Throwable?) {
+                    subscriber.tryEmitError(t)
+                }
+
+                override fun onComplete() {
+                    subscriber.tryEmitComplete()
+                }
+
+            })
+            return@execute ret
+
+        } as Flux<T>).asFlow().toList(objects)
+
+        val objectMapper = protobufService!!.createObjectMapper()
+        return ResponseEntity.ok().headers(headers).body(objectMapper.writeValueAsString(objects))
+
+    }
+
     protected suspend fun getMany(ids: Array<String>) :List<T> {
 
         val objects: MutableList<T> = mutableListOf()
