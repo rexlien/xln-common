@@ -14,7 +14,6 @@ import org.springframework.cache.interceptor.CacheResolver;
 import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.stereotype.Service;
 import xln.common.cache.CustomCacheResolver;
@@ -142,6 +141,22 @@ public class CacheService {
             return null;
         }
         return manager.getCache(cacheName);
+    }
+
+    //only applies to local cache (i.e. Caffeine cache), note the returned map is supposed to be read-only
+    public <K, V> ConcurrentMap<K, V> asLocalMap(String cacheManagerName, String cacheName) {
+
+        Cache cache = getCache(cacheManagerName, cacheName);
+        if(cache == null) {
+            return null;
+        }
+
+        if(cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache) {
+            com.github.benmanes.caffeine.cache.Cache caffeineCache = (com.github.benmanes.caffeine.cache.Cache)cache.getNativeCache();
+            return caffeineCache.asMap();
+
+        }
+        return null;
     }
 
 

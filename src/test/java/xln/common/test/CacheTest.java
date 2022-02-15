@@ -60,7 +60,7 @@ public class CacheTest {
     @Test
     public void testCaffeineCache() {
         String cached = proxy.caffieneCache("key");
-        Cache cache =  cacheService.getCacheManager("ca0").getCache("myCache");
+        Cache cache =  cacheService.getCacheManager(CacheService.CAFFEINE_CACHE_MANAGER_NAME).getCache("ca0");
 
         Assert.assertTrue(cache.get("key", String.class).equals(cached));
 
@@ -70,6 +70,21 @@ public class CacheTest {
         caffeineCache.getNativeCache().cleanUp();
 
         Assert.assertTrue(caffeineCache.getNativeCache().estimatedSize() == 1);
+
+    }
+
+    @Test
+    public void testNativeCache() {
+
+        String cached = proxy.caffieneCache("key");
+
+        var map = cacheService.<String, Object>asLocalMap(CacheService.CAFFEINE_CACHE_MANAGER_NAME, "ca0");
+        for (var e : map.entrySet()) {
+            Assert.assertTrue(e.getKey() == "key");
+            Assert.assertTrue(e.getValue() == cached);
+        }
+        
+
 
     }
 
