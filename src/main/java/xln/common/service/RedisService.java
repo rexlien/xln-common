@@ -3,7 +3,11 @@ package xln.common.service;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
+import io.lettuce.core.ClientOptions;
 import io.lettuce.core.ReadFrom;
+import io.lettuce.core.TimeoutOptions;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
 import lombok.Data;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonReactiveClient;
@@ -38,6 +42,7 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -107,17 +112,29 @@ public class RedisService {
 
             }
         }
-        if(config.isSlaveRead()) {
-            LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                    .readFrom(ReadFrom.SLAVE)
-                    .build();
 
-            LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
-            factory.afterPropertiesSet();
-            return factory;
+        ClusterTopologyRefreshOptions topologyRefreshOptions =
+                ClusterTopologyRefreshOptions.builder()
+                        .enablePeriodicRefresh(Duration.ofSeconds(30))
+                        .enableAllAdaptiveRefreshTriggers()
+                        .build();
+
+        var clusterClientOptions = ClusterClientOptions.builder()
+                .topologyRefreshOptions(topologyRefreshOptions)
+                .validateClusterNodeMembership(false)
+                .timeoutOptions(TimeoutOptions.builder()
+                        .fixedTimeout(Duration.ofSeconds(10))
+                        .build()).build();
+
+
+        var clientConfigBuilder = LettuceClientConfiguration.builder();
+        clientConfigBuilder.clientOptions(clusterClientOptions);
+
+        if(config.isSlaveRead()) {
+            clientConfigBuilder.readFrom(ReadFrom.REPLICA);
         }
 
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig);
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfigBuilder.build());
         factory.afterPropertiesSet();
         return factory;
     }
