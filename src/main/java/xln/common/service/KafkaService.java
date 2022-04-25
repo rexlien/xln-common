@@ -4,17 +4,14 @@ import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import com.google.protobuf.StringValue;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.checkerframework.common.value.qual.StringVal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.stereotype.Service;
-import reactor.core.Disposable;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,10 +23,8 @@ import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
-//import reactor.util.retry.Retry;
 import reactor.retry.Retry;
 import xln.common.config.KafkaConfig;
-import xln.common.config.ServiceConfig;
 import xln.common.proto.command.Command;
 
 import javax.annotation.PostConstruct;
@@ -42,9 +37,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
-import static reactor.util.retry.Retry.max;
 import static reactor.util.retry.Retry.withThrowable;
 
 @Service
@@ -100,6 +93,13 @@ public class KafkaService {
                 props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, kv.getValue().getMaxBlockTime());
                 props.put(ProducerConfig.RETRIES_CONFIG, kv.getValue().getRetryCount());
 
+                var security = kv.getValue().getSecurity();
+                if(security != null) {
+                    props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, security.getProtocol());
+                    props.put(SaslConfigs.SASL_MECHANISM, security.getMechanism());
+
+                    props.put(SaslConfigs.SASL_JAAS_CONFIG, security.getJaasModule() + " required username=\"" + security.getUserName() + "\" password=\"" + security.getPassword() + "\";");
+                }
 
                 producerProps.put(kv.getKey(), props);
             }

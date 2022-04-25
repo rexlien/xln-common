@@ -3,7 +3,6 @@ package xln.common.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.validation.annotation.Validated;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +14,15 @@ import java.util.Map;
 public class KafkaConfig {
 
     @Data
+    public static class Security {
+        private volatile String protocol = "SASL_SSL";
+        private volatile String mechanism = "PLAIN";
+        private volatile String jaasModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
+        private volatile String userName = null;
+        private volatile String password = null;
+    }
+
+    @Data
     public static class KafkaProducerConfig
     {
         private volatile List<String> serverUrls = Collections.EMPTY_LIST;
@@ -22,6 +30,8 @@ public class KafkaConfig {
         private volatile int requestTimeout = 30000;
         private volatile int retryCount = 0;
         private volatile int maxBlockTime = 10000;
+
+        private volatile Security security = null;
         //private int batchMem =
         //private int lingerMs
 
