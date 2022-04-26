@@ -14,7 +14,7 @@ import java.util.concurrent.Executors
 private val scheduler = Schedulers.newSingle("xln-health-check")
 
 @Component
-@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["hosts"])
+@ConditionalOnProperty(prefix = "xln.etcd-config.endPoint", name = ["hosts[0]"])
 class EtcdHealthIndicator(private val etcdClient: EtcdClient) : AbstractReactiveHealthIndicator() {
 
 

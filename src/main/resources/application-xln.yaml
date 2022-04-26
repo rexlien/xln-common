@@ -11,7 +11,7 @@ management:
       enabled: true
     health:
       group:
-        readiness:
+        xln:
           include: "etcd,mongo"
       show-details: ALWAYS
       probes:
