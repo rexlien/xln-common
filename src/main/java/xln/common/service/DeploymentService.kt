@@ -25,13 +25,11 @@ class DeploymentService(private val etcdClient: EtcdClient, private val deployme
         //val timestamp = Instant.now().toEpochMilli()
 
         val ret = mutableListOf<String>()
+        val versionKey = "xln-deploy-version:${deploy.templateId}"
+        val version = etcdClient.kvManager.inc(versionKey).awaitSingle()
         deploy.deployUnits.forEach {
 
-            val versionKey = "xln-deploy-version:${deploy.templateId}"
-            val version = etcdClient.kvManager.inc(versionKey).awaitSingle()
-
-
-            val key = "xln-deploy:${deploy.templateId}:$version"
+            val key = "xln-deploy:${deploy.templateId}:$version:${it.name}"
 
             val builder = DeployOuterClass.Deploy.newBuilder().setTemplateKey(deploy.templateId)
                     .setPipelineId(deploy.pipelineId).putAllParameters(it.parameters)
