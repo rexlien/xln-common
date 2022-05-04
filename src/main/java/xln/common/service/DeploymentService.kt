@@ -52,7 +52,7 @@ class DeploymentService(private val etcdClient: EtcdClient, private val deployme
     suspend fun runDeployment(deploymentId: String) {
 
         val deploymentStr = etcdClient.kvManager.get(deploymentId).awaitSingle()
-        val deployment = ProtoUtils.fromJson(deploymentStr.toStringUtf8(), DeployOuterClass.Deploy::class.java)//gson.fromJson(deploymentStr.toStringUtf8(), Deployment::class.java)
+        val deployment = DeployOuterClass.Deploy.parseFrom(deploymentStr)//ProtoUtils.fromJson(deploymentStr.toStringUtf8(), DeployOuterClass.Deploy::class.java)//gson.fromJson(deploymentStr.toStringUtf8(), Deployment::class.java)
 
         val pipelineUrl = "${deploymentConfig.spinnakerConfig.url}/webhooks/webhook/${deployment.pipelineId}"
         val response = HttpUtils.httpCallMonoResponseEntity<Any>(pipelineUrl, null,
