@@ -142,7 +142,10 @@ public class HttpUtils {
                     }
                 }
                 if (body != null && !body.isEmpty()) {
-                    t.add("Content-Type", "application/json");
+                    //only default to json type when not specified
+                    if(!t.containsKey("Content-Type")) {
+                        t.add("Content-Type", "application/json");
+                    }
                 }
             });
 
