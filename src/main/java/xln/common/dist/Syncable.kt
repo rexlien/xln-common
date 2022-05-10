@@ -85,6 +85,9 @@ open class VersioneWrapper<T>(var value: T,
                               private var version: Long, private var modRevision: Long, private var createRevision: Long) : Versioned {
 
 
+
+    constructor(value: T, kv: Kv.KeyValue) : this(value, kv.version, kv.modRevision, kv.createRevision)
+
     fun set(value: T, version: Long, modRevision: Long, createRevision: Long) {
         this.value = value
         this.version = version

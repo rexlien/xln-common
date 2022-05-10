@@ -5,13 +5,13 @@ import com.google.protobuf.Message;
 import etcdserverpb.KVGrpc;
 import etcdserverpb.Rpc;
 import lombok.extern.slf4j.Slf4j;
+import mvccpb.Kv;
 import reactor.core.publisher.Mono;
 import xln.common.dist.KeyUtils;
 import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 import xln.common.utils.ProtoUtils;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -48,11 +48,11 @@ public class KVManager {
 
         public PutOptions withMessage(Message message) {
 
-            var json = ProtoUtils.json(message);
-            if(json == null) {
-                throw new RuntimeException();
-            }
-            return withValue(ByteString.copyFromUtf8(json));
+            //var json = ProtoUtils.json(message);
+            //if(json == null) {
+              //  throw new RuntimeException();
+            //}
+            return withValue(message.toByteString());//ByteString.copyFromUtf8(json));
         }
 
 
@@ -105,20 +105,32 @@ public class KVManager {
         static public PutOptions DEFAULT = new PutOptions();
     }
 
-    public static class TransactOptions {
+    public static class TransactDelete {
 
 
-        public long getCheckedCreateRevision() {
-            return this.checkedCreateRevision;
-        }
+        //public long getCheckedCreateRevision() {
+          //  return this.currentCreateRevision;
+        //}
 
-        public TransactOptions withCheckedCreateRevision(long checkedCreateRevision) {
-            this.checkedCreateRevision = checkedCreateRevision;
+        public TransactDelete enableCompareCreateRevision(long currentCreateRevision) {
+            this.compareCreateRevision = true;
+            this.currentCreateRevision = currentCreateRevision;
             return this;
         }
 
-        private long checkedCreateRevision;
+        private boolean compareCreateRevision = false;
+        private long currentCreateRevision = -1;
 
+
+        public TransactDelete enableCompareVersion(long currentVersion) {
+            this.compareVersion = true;
+            this.currentVersion = currentVersion;
+            return this;
+        }
+
+
+        private boolean compareVersion = false;
+        private long currentVersion = -1;
 
     }
 
@@ -175,6 +187,22 @@ public class KVManager {
 
             return this;
         }
+    }
+
+    public static class GetRangeResponse {
+
+        public GetRangeResponse(Rpc.RangeResponse response) {
+            this.response = response;
+        }
+
+        public Kv.KeyValue getValue(int index) {
+            if(index < response.getCount()) {
+                return response.getKvs(index);
+            }
+            return null;
+        }
+
+        private Rpc.RangeResponse response;
     }
 
 
@@ -339,6 +367,7 @@ public class KVManager {
         );
     }
 
+
     public Mono<Rpc.RangeResponse> getRaw(String key) {
 
         Rpc.RangeRequest request = Rpc.RangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build();
@@ -350,20 +379,32 @@ public class KVManager {
     }
 
 
-    public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactOptions options) {
+    public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactDelete options) {
 
-        log.debug("transact delete:" + request.getKey() + "-" + options.getCheckedCreateRevision());
+        log.debug("transact delete:" + request.getKey() + "-" + options.currentCreateRevision + ":" + options.currentVersion);
 
         var txnBuilder = Rpc.TxnRequest.newBuilder();
 
-        txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
-                setKey(request.getKey()).setCreateRevision(options.getCheckedCreateRevision()).setResult(Rpc.Compare.CompareResult.EQUAL)
-                .build());
+        if(options.compareCreateRevision) {
+            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.CREATE).
+                    setKey(request.getKey()).setCreateRevision(options.currentCreateRevision).setResult(Rpc.Compare.CompareResult.EQUAL)
+                    .build());
+        }
+
+        if(options.compareVersion) {
+            txnBuilder.addCompare(Rpc.Compare.newBuilder().setTarget(Rpc.Compare.CompareTarget.VERSION).
+                    setKey(request.getKey()).setVersion(options.currentVersion).setResult(Rpc.Compare.CompareResult.EQUAL)
+                    .build());
+        }
 
         var txnRequest = txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestDeleteRange(request)).build();
         var future = FutureUtils.toCompletableFuture(stub.txn(txnRequest), client.getScheduler());
         return Mono.fromFuture(future);
 
+    }
+
+    public Mono<Rpc.TxnResponse> transactDelete(String key, TransactDelete options) {
+        return transactDelete(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build(), options);
     }
 
 

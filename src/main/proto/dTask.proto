@@ -5,6 +5,13 @@ import "google/protobuf/wrappers.proto";
 
 package xln.common.proto.task;
 
+message ScheduleConfig {
+
+  int64 start = 1;
+  int64 end = 2;
+
+}
+
 message DTask {
 
   string id = 1;
@@ -13,6 +20,7 @@ message DTask {
   int32 targetProgress = 3;
   int64 createTime = 7;
 
+  ScheduleConfig scheduleConfig = 8;
   map<string,  google.protobuf.Any> inputs = 4;
   map<string,  google.protobuf.Any> outputs = 5;
   map<string,  google.protobuf.Any> doneActions = 6;
@@ -26,3 +34,5 @@ message DTaskProgress {
   int32 executorId = 4;
 
 }
+
+

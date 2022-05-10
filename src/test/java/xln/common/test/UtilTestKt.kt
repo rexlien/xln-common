@@ -5,6 +5,7 @@ import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import mvccpb.Kv
 import org.assertj.core.util.Lists
+import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
@@ -272,6 +273,11 @@ class UtilTestKt {
 
                 val taskMap = dTaskService.listTasks("my-service-group", "my-service", 0)
                 assert(taskMap.contains(res.taskPath))
+
+                taskMap.forEach { t, u ->
+                    Assert.assertFalse(u.hasScheduleConfig())
+
+                }
 
                 var progressRes = dTaskService.progress("my-service-group", "my-service", res.taskId, 0, 100)
                 assert(progressRes.succeeded)

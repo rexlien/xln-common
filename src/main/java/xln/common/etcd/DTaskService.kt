@@ -6,11 +6,10 @@ import kotlinx.coroutines.reactive.awaitSingle
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import xln.common.config.EtcdConfig
+import xln.common.dist.VersioneWrapper
 import xln.common.proto.task.DTaskOuterClass
 import xln.common.service.EtcdClient
-import xln.common.utils.ProtoUtils
 import java.time.Instant
-import java.util.*
 
 
 @Service
@@ -40,8 +39,10 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
         }
     }
 
-    data class AllcateTaskParam(val input: Map<String, com.google.protobuf.Any>, val doneAction: Map<String, com.google.protobuf.Any>)
+    data class AllcateTaskParam(val input: Map<String, com.google.protobuf.Any> = mutableMapOf(), val doneAction: Map<String, com.google.protobuf.Any> = mutableMapOf())
     data class AllocateTaskResult(val result: Int, val taskId: String, val taskPath: String)
+    //data class GetTaskResult(val result: DTaskOuterClass.DTask, val versionInfo : Pair<Long, Long>)
+    data class ScheduleTaskParam(val start: Long, val end: Long, val params: AllcateTaskParam)
 
     suspend fun allocateTask(serviceGroup: String, serviceName: String, option: AllcateTaskParam) : AllocateTaskResult {
 
@@ -60,8 +61,25 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
             setCreateTime(Instant.now().toEpochMilli()).build();
 
         val resp = etcdClient.kvManager.transactPut(KVManager.TransactPut(KVManager.PutOptions().withKey(taskPath).withMessage(msg)).putIfAbsent()).awaitSingle()
+
         if(!resp.succeeded) {
             return AllocateTaskResult(1, "", "")
+        }
+
+        return AllocateTaskResult(0, taskId, taskPath)
+    }
+
+    suspend fun scheduleTask(serviceGroup: String, serviceName: String, taskId: String, option: ScheduleTaskParam) : AllocateTaskResult? {
+
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
+
+        val scheduleConfig = DTaskOuterClass.ScheduleConfig.newBuilder().setStart(option.start).setEnd(option.end)
+        val msg = DTaskOuterClass.DTask.newBuilder().setId(taskPath).putAllInputs(option.params.input).putAllDoneActions(option.params.doneAction).
+            setCreateTime(Instant.now().toEpochMilli()).setScheduleConfig(scheduleConfig).build();
+
+        val resp = etcdClient.kvManager.put(taskPath, msg.toByteString()).awaitFirstOrNull()//transactPut(KVManager.TransactPut(KVManager.PutOptions().withKey(taskPath).withMessage(msg))).awaitSingle()
+        if(resp == null) {
+            return null
         }
 
         return AllocateTaskResult(0, taskId, taskPath)
@@ -103,22 +121,40 @@ class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: E
 
         val ret = mutableMapOf<String, DTaskOuterClass.DTask>()
         response.kvsList.forEach {
-            ret.put(it.key.toStringUtf8(), ProtoUtils.fromJson(it.value.toStringUtf8(), DTaskOuterClass.DTask::class.java));
+            ret.put(it.key.toStringUtf8(), DTaskOuterClass.DTask.parseFrom(it.value));
         }
         return ret
     }
 
-    suspend fun getTask(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTask {
+    suspend fun getTask(serviceGroup: String, serviceName: String, taskId: String) : VersioneWrapper<DTaskOuterClass.DTask>? {
         val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
-        val value = etcdClient.kvManager.get(taskPath).awaitSingle()
-        return ProtoUtils.fromJson(value.toStringUtf8(), DTaskOuterClass.DTask::class.java)
+        val value = etcdClient.kvManager.getRaw(taskPath).awaitSingle()
+
+        if(value.kvsCount == 0 ) {
+            return null
+        } else {
+            val kv = value.getKvs(0)
+            return VersioneWrapper(DTaskOuterClass.DTask.parseFrom(kv.value), kv)
+        }
+
+    }
+
+
+    //delete task only when it match the give create rev and version.
+    suspend fun safeDeleteTask(serviceGroup: String, serviceName: String, taskId: String, curVersion: VersioneWrapper<DTaskOuterClass.DTask> ) : Boolean {
+
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
+        val resp = etcdClient.kvManager.transactDelete(taskPath, KVManager.TransactDelete().
+            enableCompareCreateRevision(curVersion.getCreateRevision()).enableCompareVersion(curVersion.getVersion())).awaitSingle()
+
+        return resp.succeeded
 
     }
 
     suspend fun getProgress(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTaskProgress {
         val progressPath = progressPath(root, serviceGroup, serviceName, taskId)
         val value = etcdClient.kvManager.get(progressPath).awaitSingle()
-        return ProtoUtils.fromJson(value.toStringUtf8(), DTaskOuterClass.DTaskProgress::class.java)
+        return DTaskOuterClass.DTaskProgress.parseFrom(value)
     }
 
 

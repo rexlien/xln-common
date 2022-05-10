@@ -3,28 +3,16 @@ package xln.common.dist
 import com.google.protobuf.ByteString
 import com.google.protobuf.InvalidProtocolBufferException
 import etcdserverpb.Rpc
-import io.grpc.ManagedChannel
-import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
-import lombok.extern.slf4j.Slf4j
 import mu.KotlinLogging
 import mvccpb.Kv
-import org.slf4j.LoggerFactory
 import xln.common.etcd.KVManager
-import xln.common.etcd.KVManager.TransactOptions
-import xln.common.etcd.LeaseManager
-import xln.common.etcd.WatchManager
-import xln.common.etcd.watchPath
 import xln.common.proto.dist.Dist
 import xln.common.service.EtcdClient
 import xln.common.utils.FluxUtils
 import java.lang.Boolean
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentSkipListMap
-import java.util.function.Consumer
-import kotlin.collections.HashMap
 
 private val log = KotlinLogging.logger {}
 
@@ -249,7 +237,7 @@ class Node : Versioned {
                 if (createRevision != 0L) {
                     log.debug("delete create revision:$createRevision")
                     val txn = cluster.etcdClient.kvManager.transactDelete(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(storeKey)).build(),
-                            TransactOptions().withCheckedCreateRevision(createRevision)).block(Duration.ofSeconds(3))
+                            KVManager.TransactDelete().enableCompareCreateRevision(createRevision)).block(Duration.ofSeconds(3))
                     log.debug("transact delete:" + Boolean.toString(txn.succeeded))
                 } else {
                     cluster.etcdClient.kvManager.delete(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(storeKey)).build()).block(Duration.ofSeconds(3))
