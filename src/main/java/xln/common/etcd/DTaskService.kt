@@ -5,7 +5,6 @@ import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
-import xln.common.config.EtcdConfig
 import xln.common.dist.VersioneWrapper
 import xln.common.proto.task.DTaskOuterClass
 import xln.common.service.EtcdClient
@@ -13,10 +12,10 @@ import java.time.Instant
 
 
 @Service
-@ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]", "dTask.root"])
-class DTaskService(private val etcdConfig: EtcdConfig, private val etcdClient: EtcdClient) {
+@ConditionalOnProperty(prefix = "xln", name = ["etcd-config.endPoint.hosts[0]", "dtask-config.root"])
+class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient: EtcdClient) {
 
-    private val root = etcdConfig.getdTask().root
+    private val root = dTaskConfig.root
 
     private companion object {
         fun taskPath(root: String, serviceGroup: String, serviceName: String, taskId: String) : String {

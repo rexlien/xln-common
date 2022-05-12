@@ -106,8 +106,11 @@ xln:
     configWatchDirs:
       - "gu-admin"
     enableVersionMeter: true
-    dTask:
-      root: xln-test-dtask
   cluster-config:
     port: 0
-
+  dtask-config:
+    root: xln-dtask
+    schedulerConfigs:
+      - serviceGroup: "testGroup"
+        serviceName: "testService"
+        messageTopic: "testTopic"

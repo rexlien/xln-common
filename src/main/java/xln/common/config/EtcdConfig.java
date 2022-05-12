@@ -1,16 +1,12 @@
 package xln.common.config;
 
-import org.aspectj.lang.annotation.Aspect;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import xln.common.annotation.AspectField;
 import xln.common.annotation.AspectGetter;
 import xln.common.annotation.AspectSetter;
 import xln.common.proxy.EndPoint;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 @ConfigurationProperties(prefix="xln.etcd-config")
@@ -67,29 +63,5 @@ public class EtcdConfig {
     }
 
     private volatile boolean enableVersionMeter = false;
-
-    public static class DTaskConfig {
-        private String root = "xln-dtask";
-
-        public String getRoot() {
-            return root;
-        }
-
-        public DTaskConfig setRoot(String root) {
-            this.root = root;
-            return this;
-        }
-    }
-
-    public DTaskConfig getdTask() {
-        return dTask;
-    }
-
-    public EtcdConfig setdTask(DTaskConfig dTask) {
-        this.dTask = dTask;
-        return this;
-    }
-
-    private volatile DTaskConfig dTask = new DTaskConfig();
 
 }
