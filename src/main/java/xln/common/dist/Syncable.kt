@@ -2,8 +2,7 @@ package xln.common.dist
 
 import com.google.protobuf.AbstractMessage
 import com.google.protobuf.ByteString
-import com.google.protobuf.GeneratedMessage
-import com.google.protobuf.GeneratedMessageV3
+import etcdserverpb.Rpc
 import mvccpb.Kv
 import java.util.concurrent.ConcurrentSkipListMap
 import kotlin.math.max
@@ -81,12 +80,39 @@ class VersionHistory {
 }
 
 
-open class VersioneWrapper<T>(var value: T,
-                              private var version: Long, private var modRevision: Long, private var createRevision: Long) : Versioned {
+//open class VersioneWrapper<T>(var value: T,
+  //                            private var version: Long, private var modRevision: Long, private var createRevision: Long) : Versioned {
+open class VersioneWrapper<T>(var value: T) : Versioned {
 
+    private var version: Long = 0L
+    private var modRevision: Long = 0L
+    private var createRevision: Long = 0
 
+    //constructor(value: T) {
+      //  this.value = value
+    //}
+
+    constructor( value: T,
+        version: Long,   modRevision: Long,  createRevision: Long) : this(value) {
+        set(value, version, modRevision, createRevision)
+    }
 
     constructor(value: T, kv: Kv.KeyValue) : this(value, kv.version, kv.modRevision, kv.createRevision)
+
+    //construct with put response that used put value, it derived value's version from prevKV, assuming request has true prevKV
+    constructor(value: T, resp: Rpc.PutResponse) : this(value) {
+        if(resp.hasPrevKv()) {
+            val prevKV = resp.prevKv
+            if(prevKV.version == 0L) {
+                set(value, 1, resp.header.revision, resp.header.revision)
+            } else {
+                set(value, prevKV.version+1, resp.header.revision, prevKV.createRevision)
+            }
+
+        } else { //if prev not exist
+            set(value, 1, resp.header.revision, resp.header.revision)
+        }
+    }
 
     fun set(value: T, version: Long, modRevision: Long, createRevision: Long) {
         this.value = value

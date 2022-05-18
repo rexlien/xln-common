@@ -5,13 +5,30 @@ import "google/protobuf/wrappers.proto";
 
 package xln.common.proto.task;
 
-message ScheduleConfig {
-
-  int64 start = 1;
-  int64 end = 2;
-
+enum EventType {
+  SCHEDULED_EVENT = 0;
+  FIXED_EVENT = 1;
+  FORCED_EVENT = 2;
 }
 
+enum TaskStatus {
+  WAITING = 0;
+  RUNNING = 1;
+  FINISHED = 2;
+}
+
+message TaskVersion {
+  int64 revision = 1;
+  int64 taskCreateVersion = 2;
+  int64 taskVersion = 3;
+}
+
+message ScheduleConfig {
+  int64 start = 1;
+  int64 end = 2;
+}
+
+//serviceGroup.serviceName.tasks.taskId
 message DTask {
 
   string id = 1;
@@ -27,11 +44,38 @@ message DTask {
 
 }
 
+//serviceGroup.serviceName.state.taskId.
+message DTaskProgressState {
+
+  string taskId = 4; //corresponding taskId
+  TaskVersion taskVersion = 2; //corresponding task version
+  TaskStatus taskStatus = 3; //corresponding task status
+  map<string, google.protobuf.Any> states = 1;
+
+}
+
+
+//serviceGroup.serviceName.progress.taskId
 message DTaskProgress {
 
   string taskId = 2;
   int32 curProgress = 3;
   int32 executorId = 4;
+}
+
+
+
+
+message DTaskEvent {
+
+  EventType type = 3; //0: scheduled-heartbeat 1: fixed-heartbeat //2: forced-heartbeat
+
+  string taskKey = 1;
+  //task's version when sending task event
+  TaskVersion taskVersion = 4;
+  string serviceGroup = 5;
+  string serviceName = 6;
+  int64 timestamp = 7;
 
 }
 

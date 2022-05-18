@@ -275,7 +275,7 @@ class UtilTestKt {
                 assert(taskMap.contains(res.taskPath))
 
                 taskMap.forEach { t, u ->
-                    Assert.assertFalse(u.hasScheduleConfig())
+                    Assert.assertFalse(u.value.hasScheduleConfig())
 
                 }
 
