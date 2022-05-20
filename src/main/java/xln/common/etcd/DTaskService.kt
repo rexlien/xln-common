@@ -147,7 +147,12 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
     suspend fun getTask(serviceGroup: String, serviceName: String, taskId: String) : VersioneWrapper<DTaskOuterClass.DTask>? {
         val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
-        val value = etcdClient.kvManager.getRaw(taskPath).awaitSingle()
+        return getTask(taskPath)
+    }
+
+    suspend fun getTask(taskKey: String) : VersioneWrapper<DTaskOuterClass.DTask>? {
+
+        val value = etcdClient.kvManager.getRaw(taskKey).awaitSingle()
 
         if(value.kvsCount == 0 ) {
             return null
@@ -155,7 +160,6 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
             val kv = value.getKvs(0)
             return VersioneWrapper(DTaskOuterClass.DTask.parseFrom(kv.value), kv)
         }
-
     }
 
 
@@ -194,13 +198,13 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
         val statePath = statePath(root, serviceGroup, serviceName, task.value.id)
         val builder = createProgressStateBuilder(task, mutableMapOf(key to state))
-        etcdClient.kvManager.put(statePath, builder.build().toByteString())
+        etcdClient.kvManager.put(statePath, builder.build().toByteString()).awaitSingle()
     }
 
     suspend fun setProgressState(serviceGroup: String, serviceName: String, progressState: DTaskOuterClass.DTaskProgressState) {
 
         val statePath = statePath(root, serviceGroup, serviceName, progressState.taskId)
-        etcdClient.kvManager.put(statePath, progressState.toByteString())
+        etcdClient.kvManager.put(statePath, progressState.toByteString()).awaitSingle()
     }
 
     suspend fun getProgressState(serviceGroup: String, serviceName: String, taskId : String) : VersioneWrapper<DTaskOuterClass.DTaskProgressState>? {
