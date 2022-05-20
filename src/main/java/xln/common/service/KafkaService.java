@@ -12,6 +12,7 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -31,9 +32,7 @@ import javax.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -278,6 +277,27 @@ public class KafkaService {
 
         return flux;
 
+    }
+
+    public List<Flux<ReceiverRecord<String, Object>>> createConsumeStreams(String consumerName, String topic, int numOfConsumer,
+                                                                   Duration maxBackoff, Consumer<ReceiverRecord<String, Object>> processor) {
+        List<Flux<ReceiverRecord<String, Object>>> fluxes = new LinkedList<>();
+        for(int i = 0; i < numOfConsumer; i++) {
+            Flux<ReceiverRecord<String, Object>> records = startSafeConsume(consumerName,
+                    Collections.singletonList(topic), processor, maxBackoff);
+            fluxes.add(records);
+        }
+        return fluxes;
+    }
+
+    //return stream subscribers, caller must dispose it
+    public List<Disposable> startConsumerStreams(List<Flux<ReceiverRecord<String, Object>>> streams) {
+
+        var subscribers = new ArrayList<Disposable>();
+        for (Flux<ReceiverRecord<String, Object>> flux : streams) {
+            subscribers.add(flux.subscribe());
+        }
+        return subscribers;
     }
 
 
