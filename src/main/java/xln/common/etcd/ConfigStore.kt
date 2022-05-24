@@ -94,6 +94,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
     @PreDestroy
     private fun destroy() {
         cleanSubscribers()
+        serializeExecutor.shutdown()
     }
 
     private fun cleanSubscribers() {

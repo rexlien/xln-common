@@ -208,6 +208,9 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
         watchEvents.dispose()
 
         server.shutdownNow()//?.awaitTermination(30, TimeUnit.SECONDS)
+        serializeExecutor.shutdownNow()
+
+        log.info("cluster destroyed")
 
     }
 
