@@ -11,6 +11,7 @@ import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import mvccpb.Kv
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.web.context.WebServerInitializedEvent
 import org.springframework.context.ApplicationListener
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -62,6 +63,7 @@ interface ClusterService {
 
 @Service
 @ConditionalOnBean(EtcdClient::class)
+@ConditionalOnProperty(prefix = "xln", name = ["cluster-config.port"])
 class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProperty, val etcdClient: EtcdClient, val clusterServices: List<ClusterService>) : ApplicationListener<WebServerInitializedEvent> {
 
 
@@ -215,6 +217,7 @@ class Cluster(val clusterConfig: ClusterConfig, val clusterProperty: ClusterProp
     }
 
     private fun startNewLease() : Mono<LeaseManager.LeaseInfo> {
+        log.debug("start new lease called")
         val ret = createSelfLease().cache()
         ret.subscribe { _ -> log.debug("cluster inited")}
         return ret;

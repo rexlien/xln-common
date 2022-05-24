@@ -3,6 +3,7 @@ package xln.common.controller
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
 import org.springframework.boot.actuate.endpoint.web.annotation.RestControllerEndpoint
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.*
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -24,6 +25,7 @@ import xln.common.web.HttpException
 
 @Component
 @RestControllerEndpoint(id = "xln-cluster")
+@ConditionalOnBean(Cluster::class)
 @ConditionalOnProperty(prefix = "xln.etcd-config", name = ["endPoint.hosts[0]"])
 class ClusterController(private val cluster: Cluster, private val configStore: ConfigStore) : BaseController() {
 
