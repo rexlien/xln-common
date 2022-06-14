@@ -9,9 +9,7 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import xln.common.proto.api.Api
-import xln.common.serializer.JacksonProtoAnyDeserializer
-import xln.common.serializer.JacksonProtoAnySerializer
-import xln.common.serializer.Utils
+import xln.common.serializer.*
 import xln.common.utils.ProtoUtils
 
 interface ProtobufConfigAware {
@@ -52,6 +50,8 @@ class ProtobufService(private val protobufConfigAwares: List<ProtobufConfigAware
         val module = SimpleModule()
         module.addSerializer(com.google.protobuf.Any::class.java, JacksonProtoAnySerializer(protobufRegistry))
         module.addDeserializer(com.google.protobuf.Any::class.java, JacksonProtoAnyDeserializer(protobufRegistry))
+        module.addSerializer(com.google.protobuf.Message::class.java, JacksonProtoMessageSerializer(protobufRegistry))
+        module.addDeserializer(com.google.protobuf.Message::class.java, JacksonProtoMessageDeserializer(protobufRegistry))
         objMapper.registerModule(module)
         return objMapper
     }

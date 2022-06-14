@@ -22,8 +22,8 @@ open class Config {
         val objectMapper = ObjectMapper()
         val myModule = SimpleModule("XLN-Module")
 
-        myModule.addSerializer(Message::class.java, JacksonProtoMessageSerializer<Message>())
         myModule.addSerializer(com.google.protobuf.Any::class.java, JacksonProtoAnySerializer(protobufService.getTypeRegistry()))
+        myModule.addSerializer(Message::class.java, JacksonProtoMessageSerializer(protobufService.getTypeRegistry()))
         objectMapper.registerModule(myModule)
         objectMapper.registerModule(KotlinModule())
 

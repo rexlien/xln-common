@@ -2,17 +2,15 @@ package xln.common.web.rest
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.google.protobuf.Message
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
 import mu.KotlinLogging
-import org.bson.types.ObjectId
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import xln.common.serializer.*
+import xln.common.grpc.ProtobufService
+import xln.common.serializer.Utils
 import xln.common.service.EtcdClient
 import xln.common.utils.ProtoUtils
 import xln.common.web.BaseController
@@ -22,14 +20,14 @@ private val log = KotlinLogging.logger {  }
 open class EtcdDocument<T: Message> {
     var id: String? = null
 
-    @JsonSerialize(using = JacksonProtoMessageSerializer::class)
-    @JsonDeserialize(using = JacksonProtoMessageDeserializer::class)
+    //@JsonSerialize(using = JacksonProtoAnySerializer::class )
+    //@JsonDeserialize(using = JacksonProtoAnyDeserializer::class)
     var content: T? = null
 }
 
-abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, private val entityClazz: Class<T>, protected val rootPrefix: String) : BaseController() {
+abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, protected val protobufService: ProtobufService, private val entityClazz: Class<T>, protected val rootPrefix: String) : BaseController() {
 
-    open suspend fun get(limit: Int, prefixKey: String ): ResponseEntity<List<EtcdDocument<T>>> {
+    open suspend fun get(limit: Int, prefixKey: String ): ResponseEntity<String> {
 
         val total = etcd.kvManager.getPrefixCount("$rootPrefix$prefixKey").awaitSingle()
         val headers = object : HttpHeaders() {
@@ -42,12 +40,14 @@ abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, pr
         val kvs = etcd.kvManager.getPrefix("$rootPrefix$prefixKey").awaitSingle()
         val list = mutableListOf<EtcdDocument<T>>()
         kvs.kvsList.forEach {
-            val msg = ProtoUtils.fromJson(it.value.toStringUtf8(), entityClazz)
+            val msg = ProtoUtils.fromByteString(it.value, entityClazz)
             val document = createEtcdDocument(it.key.toStringUtf8(), msg)
             list.add(document)
-
         }
-        return ResponseEntity.ok().headers(headers).body(list)
+
+        val objectMapper = protobufService!!.createObjectMapper()
+
+        return ResponseEntity.ok().headers(headers).body(objectMapper.writeValueAsString(list))
     }
 
 

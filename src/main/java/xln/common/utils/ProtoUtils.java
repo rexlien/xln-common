@@ -1,6 +1,7 @@
 package xln.common.utils;
 
 import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -90,6 +91,24 @@ public final class ProtoUtils {
         return (T) builder.build();
     }
 
+    public static <T extends Message> T fromByteString(ByteString bString, Class<T> clazz)  {
+        Message.Builder builder = null;
+        try {
+            // Since we are dealing with a Message type, we can call newBuilder()
+            builder = (Message.Builder) clazz.getMethod("newBuilder").invoke(null);
+            var registry = JsonFormat.TypeRegistry.newBuilder().add(builder.getDescriptorForType()).build();
+
+            builder.mergeFrom(bString).build();
+            //JsonFormat.parser().usingTypeRegistry(registry).ignoringUnknownFields().merge(json, builder);
+
+        } catch (Exception ex) {
+            log.error("", ex);
+            return null;
+        }
+        // the instance will be from the build
+        return (T) builder.build();
+    }
+
     public static <T extends Message> T fromJson(String json, Class<T> clazz, JsonFormat.TypeRegistry registry) {
         Message.Builder builder = null;
         try {
@@ -106,6 +125,10 @@ public final class ProtoUtils {
     }
 
     public static <T extends Message> T fromJson(String json, String clazzName)  {
+        return fromJson(json, clazzName, null);
+    }
+
+    public static <T extends Message> T fromJson(String json, String clazzName, JsonFormat.TypeRegistry registry)  {
 
         Class<T> clazz;
         try {
@@ -114,8 +137,10 @@ public final class ProtoUtils {
             log.error("", ex);
             return null;
         }
-        return fromJson(json, clazz);
-
+        if(registry == null) {
+            return fromJson(json, clazz);
+        }
+        return fromJson(json, clazz, registry);
 
     }
 }

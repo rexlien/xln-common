@@ -7,15 +7,22 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.google.protobuf.Message;
+import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import xln.common.utils.ProtoUtils;
 
 import java.io.IOException;
 
 @Slf4j
-public class JacksonProtoMessageDeserializer<T extends Message> extends JsonDeserializer<Message> {
+public class JacksonProtoMessageDeserializer extends JsonDeserializer<Message> {
+    private JsonFormat.TypeRegistry typeRegistry = null;
+
     public JacksonProtoMessageDeserializer() {
 
+    }
+
+    public JacksonProtoMessageDeserializer(JsonFormat.TypeRegistry typeRegistry) {
+        this.typeRegistry = typeRegistry;
     }
 
     @Override
@@ -26,7 +33,9 @@ public class JacksonProtoMessageDeserializer<T extends Message> extends JsonDese
 
             JsonNode node = codec.readTree(parser);
             var className = node.get("java_class").asText();
-
+            if(typeRegistry != null) {
+                return ProtoUtils.fromJson(node.toString(), className, typeRegistry);
+            }
             return ProtoUtils.fromJson(node.toString(), className);
         }catch (Exception ex) {
             log.error("", ex);
