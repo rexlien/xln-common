@@ -280,23 +280,18 @@ public class KVManager {
         return put(key, ByteString.copyFromUtf8(value));
     }
 
-    public Mono<Rpc.PutResponse> put(String key, Message document) {
+    public Mono<Rpc.PutResponse> putMessage(String key, Message message) {
 
         var putOption = new PutOptions();
         putOption.key = key;
-        //document.getPayload().get
-
-        //var type = JsonFormat.TypeRegistry.newBuilder().add(document.getDescriptorForType()).
-         //       add(document.getPayload().unpack().getDescriptorForType()).build();
-
-        putOption.value = ByteString.copyFromUtf8(ProtoUtils.jsonUsingType(document));
+        putOption.value = message.toByteString();
         return put(putOption);
 
     }
 
-    public <T extends Message> Mono<T> getDocument(String key, Class<T> clazz) {
+    public <T extends Message> Mono<T> getMessage(String key, Class<T> clazz) {
         return get(key).switchIfEmpty(Mono.defer(Mono::empty)).flatMap(r -> {
-            return Mono.just(ProtoUtils.fromJson(r.toStringUtf8(), clazz));
+            return Mono.just(ProtoUtils.fromByteString(r, clazz));
         });
     }
 

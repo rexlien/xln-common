@@ -1,7 +1,5 @@
 package xln.common.web.rest
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.Message
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
@@ -10,7 +8,6 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import xln.common.grpc.ProtobufService
-import xln.common.serializer.Utils
 import xln.common.service.EtcdClient
 import xln.common.utils.ProtoUtils
 import xln.common.web.BaseController
@@ -52,15 +49,15 @@ abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, pr
 
 
     open suspend fun getOne(id: String): String? {
-        val value = etcd.kvManager.get(id).awaitSingle().toStringUtf8()
+        val value = etcd.kvManager.get(id).awaitSingle()
 
         val document = EtcdDocument<T>()
         document.id = id;
-        document.content = ProtoUtils.fromJson(value, entityClazz)
+        document.content = ProtoUtils.fromByteString(value, entityClazz)
 
-        val objectMapper = ObjectMapper()
-        objectMapper.setDefaultTyping(Utils.createJsonCompliantResolverBuilder(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE))
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        val objectMapper = protobufService!!.createObjectMapper()
+        //objectMapper.setDefaultTyping(Utils.createJsonCompliantResolverBuilder(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE))
+        //objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         try {
             return objectMapper.writeValueAsString(document)
         } catch (ex: Exception) {
@@ -70,7 +67,7 @@ abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, pr
 
     protected suspend fun putOne(id: String, body: String, beforeSave: suspend (oldObj:T?, obj: T) -> Unit = { _: T?, _: T -> }): ResponseEntity<Any?> {
 
-        val objectMapper =  Utils.createObjectMapper()
+        val objectMapper =  protobufService!!.createObjectMapper()
         var document: EtcdDocument<T>?
         try {
             document = objectMapper.readValue(body, EtcdDocument<T>().javaClass)//readObject(body, objectMapper)
@@ -87,10 +84,10 @@ abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, pr
                 val oldMessage = etcd.kvManager.get(id).awaitFirstOrNull()
                 var oldObj : T? = null
                 if(oldMessage != null) {
-                    oldObj = ProtoUtils.fromJson(oldMessage.toStringUtf8(), entityClazz)
+                    oldObj = ProtoUtils.fromByteString(oldMessage, entityClazz)
                 }
                 beforeSave(oldObj, document.content!!)
-                etcd.kvManager.put(id, document.content).awaitSingle()
+                etcd.kvManager.putMessage(id, document.content).awaitSingle()
 
                 //collectionChanged(oldObj, obj)
 
@@ -107,7 +104,7 @@ abstract class EtcdRestController<T: Message>(protected val etcd: EtcdClient, pr
 
     protected suspend fun deleteOne(id: String): ResponseEntity<kotlin.Any?> {
 
-        val document = etcd.kvManager.getDocument(id, entityClazz).awaitFirstOrNull()
+        val document = etcd.kvManager.getMessage(id, entityClazz).awaitFirstOrNull()
         if(document == null) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null)
         }

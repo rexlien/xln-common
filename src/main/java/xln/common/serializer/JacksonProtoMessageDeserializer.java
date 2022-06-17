@@ -50,11 +50,9 @@ public class JacksonProtoMessageDeserializer extends JsonDeserializer<Message> {
         ObjectCodec codec = p.getCodec();
 
         try {
-
             JsonNode node = codec.readTree(p);
             var className = node.get(typeProperty).asText();
-
-            return ProtoUtils.fromJson(node.toString(), className);
+            return ProtoUtils.fromJson(node.toString(), className, typeRegistry);
         }catch (Exception ex) {
             log.error("", ex);
         }
