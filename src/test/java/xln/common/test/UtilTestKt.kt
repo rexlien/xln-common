@@ -20,6 +20,8 @@ import xln.common.etcd.*
 import xln.common.proto.command.Command.TestKafkaPayLoad
 import xln.common.proto.config.ConfigOuterClass
 import xln.common.proto.task.DTaskOuterClass
+import xln.common.proto.task.DTaskOuterClass.DTask
+import xln.common.proto.task.DTaskOuterClass.DTaskProgress
 import xln.common.service.EtcdClient
 import xln.common.test.container.EtcdContainer
 import java.util.concurrent.ArrayBlockingQueue
@@ -106,12 +108,12 @@ class UtilTestKt {
         }
     }
 
-    @Test fun testEtcdDocument() {
+    @Test fun testEtcdProtoMessage() {
         runBlocking {
 
             val srcDtask = DTaskOuterClass.DTask.newBuilder().setId("test").build()
-            etcdClient?.kvManager?.put("xln-task.my-project.my-service", srcDtask)?.block()
-            val dtask = etcdClient?.kvManager?.getDocument("xln-task.my-project.my-service", DTaskOuterClass.DTask::class.java)?.block()
+            etcdClient?.kvManager?.putMessage("test.Message", srcDtask)?.block()
+            val dtask = etcdClient?.kvManager?.getMessage("test.Message", DTaskOuterClass.DTask::class.java)?.block()
 
             assert(srcDtask.id == dtask!!.id)
 
@@ -268,7 +270,7 @@ class UtilTestKt {
         runBlocking {
             assert(dTaskService != null)
             dTaskService?.let {
-                val res = dTaskService.allocateTask("my-service-group", "my-service", DTaskService.AllcateTaskParam(mutableMapOf(), mutableMapOf()))
+                val res = dTaskService.allocateTask("my-service-group", "my-service", DTaskService.AllocateTaskParam(mutableMapOf(), mutableMapOf()))
                 assert(res.result == 0)
 
                 val taskMap = dTaskService.listTasks("my-service-group", "my-service", 0)
@@ -283,13 +285,39 @@ class UtilTestKt {
                 assert(progressRes.succeeded)
 
                 var progress = dTaskService.getProgress("my-service-group", "my-service", res.taskId);
-                assert(progress.curProgress == 0)
+                assert(progress!!.curProgress == 0)
 
                 progressRes = dTaskService.progress("my-service-group", "my-service", res.taskId, 1, 100)
                 assert(progressRes.succeeded)
 
                 progress = dTaskService.getProgress("my-service-group", "my-service", res.taskId);
-                assert(progress.curProgress == 1)
+                assert(progress!!.curProgress == 1)
+
+            }
+        }
+    }
+
+
+
+    @Test fun testScheduleDTaskCreateAndCancel() {
+
+        runBlocking {
+
+            assert(dTaskService != null)
+            dTaskService?.let {
+                val res = dTaskService.scheduleTask("my-service-group", "my-schedule-service", "testId", DTaskService.ScheduleTaskParam(0, 0))
+
+                dTaskService.progress("my-service-group", "my-schedule-service", "testId", 0, 100)
+                dTaskService.setProgressState("my-service-group", "my-schedule-service", res.task!!, "testKey", DTaskOuterClass.DTask.getDefaultInstance())
+
+                dTaskService.cancelTask("my-service-group", "my-schedule-service", res.taskId)
+                val task = dTaskService.getTask("my-service-group", "my-schedule-service", res.taskId)
+                assert(task == null)
+                val progressState = dTaskService.getProgressState("my-service-group", "my-schedule-service", res.taskId)
+                assert(progressState == null)
+                val progress = dTaskService.getProgress("my-service-group", "my-schedule-service", "testId")
+                assert(progress == null)
+
 
             }
         }

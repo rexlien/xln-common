@@ -58,11 +58,11 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
     }
 
-    data class AllcateTaskParam(val input: Map<String, com.google.protobuf.Any> = mutableMapOf(), val doneAction: Map<String, com.google.protobuf.Any> = mutableMapOf())
+    data class AllocateTaskParam(val input: Map<String, com.google.protobuf.Any> = mutableMapOf(), val doneAction: Map<String, com.google.protobuf.Any> = mutableMapOf())
     data class AllocateTaskResult(val result: Int, val taskId: String, val taskPath: String, val task: VersioneWrapper<DTaskOuterClass.DTask>? = null)
-    data class ScheduleTaskParam(val start: Long, val end: Long, val params: AllcateTaskParam)
+    data class ScheduleTaskParam(val start: Long, val end: Long, val params: AllocateTaskParam = AllocateTaskParam())
 
-    suspend fun allocateTask(serviceGroup: String, serviceName: String, option: AllcateTaskParam) : AllocateTaskResult {
+    suspend fun allocateTask(serviceGroup: String, serviceName: String, option: AllocateTaskParam) : AllocateTaskResult {
 
         val idPath = uidPath(root, serviceGroup, serviceName)
         val taskId = etcdClient.kvManager.inc(idPath).awaitSingle().toString()
@@ -70,7 +70,7 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
         return allocateTask(serviceGroup, serviceName, taskId, option)
     }
 
-    suspend fun allocateTask(serviceGroup: String, serviceName: String, taskId: String, option: AllcateTaskParam) : AllocateTaskResult {
+    suspend fun allocateTask(serviceGroup: String, serviceName: String, taskId: String, option: AllocateTaskParam) : AllocateTaskResult {
 
         val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
         val msg = DTaskOuterClass.DTask.newBuilder().setId(taskId).putAllInputs(option.input).putAllDoneActions(option.doneAction).
@@ -174,10 +174,26 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
     }
 
-    suspend fun getProgress(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTaskProgress {
+    suspend fun cancelTask(serviceGroup: String, serviceName: String, taskId: String ) : Boolean {
+
+        val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
         val progressPath = progressPath(root, serviceGroup, serviceName, taskId)
-        val value = etcdClient.kvManager.get(progressPath).awaitSingle()
-        return DTaskOuterClass.DTaskProgress.parseFrom(value)
+        val statePath = statePath(root, serviceGroup, serviceName, taskId)
+        log.debug("deleting task resources with key: $taskPath, Progress: $progressPath , State $statePath", )
+        val resp = etcdClient.kvManager.transactDelete(taskPath, KVManager.TransactDelete(), listOf(progressPath, statePath)).awaitSingle()
+
+        return resp.succeeded
+
+    }
+
+    suspend fun getProgress(serviceGroup: String, serviceName: String, taskId: String) : DTaskOuterClass.DTaskProgress? {
+        val progressPath = progressPath(root, serviceGroup, serviceName, taskId)
+        val value = etcdClient.kvManager.getRaw(progressPath).awaitSingle()
+        if(value.kvsCount == 0) {
+            return null
+        } else {
+            return DTaskOuterClass.DTaskProgress.parseFrom(value.getKvs(0).value)
+        }
     }
 
     fun createProgressStateBuilder(task: VersioneWrapper<DTaskOuterClass.DTask>, states : Map<String,Message>) : DTaskOuterClass.DTaskProgressState.Builder {
@@ -232,6 +248,14 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
     fun getTaskBufferId(serviceGroup: String, serviceName: String) : String {
         val bufferId = taskBufferIdMap["$serviceGroup.$serviceName"]
         return bufferId ?: "$serviceGroup.$serviceName"
+    }
+
+    fun getServiceInfoFromKey(key: String) : Pair<String, String>? {
+        val tokens = key.split(".")
+        if(tokens.size >= 3) {
+            return Pair(tokens[1], tokens[2])
+        }
+        return null
     }
 
 }

@@ -12,6 +12,8 @@ import xln.common.service.EtcdClient;
 import xln.common.utils.FutureUtils;
 import xln.common.utils.ProtoUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -373,8 +375,10 @@ public class KVManager {
         );
     }
 
-
     public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactDelete options) {
+        return transactDelete(request,options, null);
+    }
+    public Mono<Rpc.TxnResponse> transactDelete(Rpc.DeleteRangeRequest request, TransactDelete options, List<Rpc.DeleteRangeRequest> subRequests) {
 
         log.debug("transact delete:" + request.getKey() + "-" + options.currentCreateRevision + ":" + options.currentVersion);
 
@@ -392,7 +396,14 @@ public class KVManager {
                     .build());
         }
 
-        var txnRequest = txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestDeleteRange(request)).build();
+        txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestDeleteRange(request));
+        if(subRequests != null) {
+            for(Rpc.DeleteRangeRequest subRequest : subRequests) {
+                txnBuilder.addSuccess(Rpc.RequestOp.newBuilder().setRequestDeleteRange(subRequest));
+            }
+        }
+
+        var txnRequest = txnBuilder.build();
         var future = FutureUtils.toCompletableFuture(stub.txn(txnRequest), client.getScheduler());
         return Mono.fromFuture(future);
 
@@ -401,6 +412,16 @@ public class KVManager {
     public Mono<Rpc.TxnResponse> transactDelete(String key, TransactDelete options) {
         return transactDelete(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build(), options);
     }
+
+    public Mono<Rpc.TxnResponse> transactDelete(String key, TransactDelete options, List<String> subKeys) {
+
+        var requestList = new ArrayList<Rpc.DeleteRangeRequest>();
+        for(String subKey : subKeys) {
+            requestList.add(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(subKey)).build());
+        }
+        return transactDelete(Rpc.DeleteRangeRequest.newBuilder().setKey(ByteString.copyFromUtf8(key)).build(), options, requestList);
+    }
+
 
 
     public Mono<Rpc.TxnResponse> transactPut(TransactPut put) {
