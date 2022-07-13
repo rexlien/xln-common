@@ -259,13 +259,13 @@ public class WatchManager {
     }
 
     public void shutdown() {
-        watchStream.getStreamSource().block().onCompleted();
         watchStream.onCompleted();
         watchCommands.clear();
         subscribers.forEach((k, v) -> {
             v.dispose();
         });
         sink.complete();
+        log.info("Watch manager shutdown");
 
     }
 

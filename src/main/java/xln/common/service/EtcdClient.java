@@ -98,9 +98,11 @@ public class EtcdClient {
     @PreDestroy
     private void destroy() throws InterruptedException{
 
+        log.info("etcd client destroying");
         this.leaseManager.shutdown();
         this.watchManager.shutdown();
         this.managedChannel.shutdown().awaitTermination(3, TimeUnit.SECONDS);
+        log.info("etcd client managed channel shutdown");
         this.scheduler.shutdown();
         log.info("etcd client destroyed");
     }

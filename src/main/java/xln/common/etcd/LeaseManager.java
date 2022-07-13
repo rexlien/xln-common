@@ -250,6 +250,7 @@ public class LeaseManager {
         this.keepAliveFuture.cancel(true);
         keepAliveStream.requestComplete();
         producerSink.complete();
+        log.info("Lease Manager shutdown");
     }
 
 
