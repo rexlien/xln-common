@@ -1,6 +1,7 @@
 package xln.common.test;
 
 import lombok.extern.slf4j.Slf4j;
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,35 +42,34 @@ public class SchedulerTest {
     }
 
     @Test
-    public void TestSchedule() {
-
+    public void TestScheduler() throws Exception
+    {
         CompletableFuture<Boolean> future = new CompletableFuture<Boolean>();
-            schedulerService.schedule("myjob", 500, false, ()-> {
-                logger.warn("Runner runs");
-                future.complete(true);
+        var key = schedulerService.schedule("myjob", Instant.now().getMillis(),Instant.now().getMillis() + 10000, 1000,
+                (o)-> {
 
+            logger.warn("Future Task executed: " + o.jobState + " : " + o.intervalState );
+            if(o.jobState == SchedulerService.JobState.SCHEDULED && o.intervalState == SchedulerService.IntervalState.LAST_INTERVAL) {
+                future.complete(true);
+                return true;
+            }
+            return false;
             });
 
-            try {
-                boolean res = future.get(10000, TimeUnit.MILLISECONDS);
-                Assert.assertEquals(res, true);
-            }catch (Exception e) {
-                e.printStackTrace();
-            }
+        Thread.sleep(2000);
+        //reschedule further
+        schedulerService.reSchedule(key,Instant.now().getMillis() + 10000, Instant.now().getMillis() + 20000, 1000);
 
-    }
-
-    @Test
-    public void TestScheduleFuture()
-    {
-        CompletableFuture<Void> future = schedulerService.scheduleFuture("myjob", 500, ()-> {logger.warn("Future Task excuted");});
         try {
-            future.thenRunAsync(()->{
-                logger.warn("Then accepted");
-            }).get();
+            future.get();
         }catch(Exception e) {
             e.printStackTrace();
         }
+
+        Thread.sleep(2000);
+        schedulerService.deleteJob(key);
+        logger.info("Done");
+
 
     }
 
