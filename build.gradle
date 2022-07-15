@@ -19,12 +19,12 @@ sourceCompatibility = 1.11
 targetCompatibility = 1.11
 
 
-apply from : "common.gradle"
+apply from : "buildSrc/common-gradle/common.gradle"
 
-apply from : "boot.gradle"
-apply from : "jar.gradle"
-apply from : "deps.gradle"
-apply from : "web.gradle"
+apply from : "buildSrc/common-gradle/boot.gradle"
+apply from : "buildSrc/common-gradle/jar.gradle"
+apply from : "buildSrc/common-gradle/deps.gradle"
+apply from : "buildSrc/common-gradle/web.gradle"
 
 
 sourceSets {
