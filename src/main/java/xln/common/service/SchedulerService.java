@@ -96,6 +96,7 @@ public class SchedulerService {
 
     }
 */
+    @DisallowConcurrentExecution
     private static class ServiceJob implements Job {
 
         @Override

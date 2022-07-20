@@ -165,7 +165,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
             configMap.putIfAbsent(directory, ConcurrentHashMap())
         }
 
-        val config = VersionedProto(kv) {ConfigOuterClass.Config.parseFrom(it)}
+        val config = VersionedProto(kv, ConfigOuterClass.Config.parseFrom(kv.value))
         configMap[directory]?.versionAdd(key, config)
 
         if(etcdConfig.isEnableVersionMeter) {

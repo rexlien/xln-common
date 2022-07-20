@@ -6,6 +6,7 @@ import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
+import mvccpb.Kv
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import xln.common.dist.VersioneWrapper
@@ -123,9 +124,24 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
         return res.watchID
     }
 
-    suspend fun watchServiceTask(serviceGroup: String, serviceName: String, watchFlux: (response: Rpc.WatchResponse) -> Unit) : Long {
+    suspend fun watchServiceTask(
+        serviceGroup: String,
+        serviceName: String,
+        watchFlux: (response: Kv.Event) -> Unit,
+        onDisconnected: () -> Unit
+    ): Long {
         val servicePath = serviceTaskPath(root, serviceGroup, serviceName)
-        val res = etcdClient.watchManager.safeWatch(servicePath, true, false, true, {}, watchFlux)
+        val res = etcdClient.watchManager.safeWatch(servicePath, true, true, true,
+            {
+                it.kvsList.forEach {
+                    watchFlux(Kv.Event.newBuilder().setType(Kv.Event.EventType.PUT).setKv(it).build())
+                }
+            },
+            {
+                it.eventsList.forEach {
+                    watchFlux(it)
+                }
+            }, onDisconnected)
         return res.watchID
     }
 

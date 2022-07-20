@@ -144,7 +144,8 @@ open class VersioneWrapper<T>(var value: T) : Versioned {
 class VersionedProto<T: AbstractMessage> : VersioneWrapper<T> {
 
     constructor(kv: Kv.KeyValue, valueParser: (ByteString) -> T ) : super(valueParser(kv.value), kv.version, kv.modRevision, kv.createRevision){
-
+    }
+    constructor(kv: Kv.KeyValue, versioned : T) : super(versioned, kv.version, kv.modRevision, kv.createRevision) {
     }
 
 
