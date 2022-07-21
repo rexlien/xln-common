@@ -364,17 +364,22 @@ class UtilTestKt {
 
     @Component
     class TestHandler : DTaskScheduler.Handler() {
-
-        val future = CompletableFuture<Boolean>()
-        //val futureEnd = Co
+        val forceFinishfuture = CompletableFuture<Boolean>()
+        val endTestFuture = CompletableFuture<Boolean>()
 
         override suspend fun handle(dTask: DTask) : Boolean{
-            logger.info(dTask.toString())
+            logger.info("Haneld: ${dTask.id}")
             return true
         }
 
         override suspend fun handleEnd(dTask: DTask) {
-            future.complete(true)
+
+            logger.info("HandleEnd: ${dTask.id}")
+            if(dTask.id == "finishedTask") {
+                forceFinishfuture.complete(true)
+            } else {
+                endTestFuture.complete(true)
+            }
         }
 
         override fun serviceFilters(): List<Pair<String, String>> {
@@ -394,12 +399,26 @@ class UtilTestKt {
                     "testId",
                     DTaskService.ScheduleTaskParam(Instant.now().toEpochMilli(), Instant.now().toEpochMilli()+ 10000)
                 )
+
+                //send infinity task for actively cancelling task later
+                val task2 = dTaskService.scheduleTask(
+                    "watch-service-group",
+                    "my-schedule-service",
+                    "finishedTask",
+                    DTaskService.ScheduleTaskParam(Instant.now().toEpochMilli(), Instant.now().toEpochMilli()+ 999999999)
+                )
             }
-            handler!!.future!!.get()
+
+            handler!!.endTestFuture!!.get()
+            val succeeded = dTaskService!!.cancelTask("watch-service-group", "my-schedule-service", "finishedTask")
+            assert(succeeded)
+            handler!!.forceFinishfuture!!.get()
             //wait to confirm task deleted when schedule end
             Thread.sleep(2000)
             val task = dTaskService?.getTask("watch-service-group", "my-schedule-service", "testId")
             assert(task == null)
+
+
         }
     }
 }

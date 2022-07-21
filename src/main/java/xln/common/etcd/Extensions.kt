@@ -43,7 +43,7 @@ data class SafeWatchResult(val watchID: Long, val revisionToWatch: Long)
 suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullInitializeRequest: Boolean,
                                    watchFromNextRevision: Boolean,
                                    beforeStartWatch: (initialResponse: Rpc.RangeResponse) -> Unit,
-                                   watchFlux: (response: Rpc.WatchResponse) -> Unit, onDisconnected : () -> Unit = {}): SafeWatchResult {
+                                   watchFlux: (response: Rpc.WatchResponse) -> Unit, onDisconnected : () -> Unit = {}, withPrevKv: Boolean = false): SafeWatchResult {
 
     val response : Rpc.RangeResponse
 
@@ -69,7 +69,7 @@ suspend fun WatchManager.safeWatch(path: String, prefixWatch: Boolean, fullIniti
     }
 
 
-    val option = WatchManager.WatchOptions(path).withStartRevision(revision ).withWatchID(watchID).setDisconnectCB {
+    val option = WatchManager.WatchOptions(path).withStartRevision(revision ).withWatchID(watchID).withPrevKV(withPrevKv).setDisconnectCB {
         client.watchManager.deSubscribeEventSource(it)
         try {
             onDisconnected()

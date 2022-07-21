@@ -22,9 +22,9 @@ fun <T: Versioned> ConcurrentHashMap<String, T>.versionAdd(key : String, version
 
 }
 
-fun <T: Versioned> ConcurrentHashMap<String, T>.versionRemove(key : String, versioned : T, onDelete: Consumer<Versioned>? = null) {
+fun <T: Versioned> ConcurrentHashMap<String, T>.versionRemove(key : String, versioned : T, onDelete: Consumer<Versioned>? = null) : T? {
 
-    this.computeIfPresent(key) { k, v ->
+    return this.computeIfPresent(key) { k, v ->
         if(v.getModRevision() > versioned.getModRevision()) {
             v
         } else {

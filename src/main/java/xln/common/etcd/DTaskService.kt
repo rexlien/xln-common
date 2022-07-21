@@ -132,16 +132,16 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
     ): Long {
         val servicePath = serviceTaskPath(root, serviceGroup, serviceName)
         val res = etcdClient.watchManager.safeWatch(servicePath, true, true, true,
-            {
+            beforeStartWatch = {
                 it.kvsList.forEach {
                     watchFlux(Kv.Event.newBuilder().setType(Kv.Event.EventType.PUT).setKv(it).build())
                 }
             },
-            {
+            watchFlux = {
                 it.eventsList.forEach {
                     watchFlux(it)
                 }
-            }, onDisconnected)
+            }, onDisconnected, withPrevKv = true)
         return res.watchID
     }
 

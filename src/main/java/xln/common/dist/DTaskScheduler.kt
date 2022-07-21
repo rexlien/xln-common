@@ -12,6 +12,7 @@ import xln.common.proto.task.DTaskOuterClass.DTask
 import xln.common.service.SchedulerService
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedDeque
 import javax.annotation.PreDestroy
 
 private val log = KotlinLogging.logger {}
@@ -25,6 +26,10 @@ class DTaskScheduler(
 ) {
 
     //data class TaskWrapper(val dTask: DTask, var done: Boolean)
+    enum class TaskType {
+        TASK_REMOVED
+    }
+    data class TaskEvent(val key: String, val versionTask: VersionedProto<DTask>, val taskType: TaskType)
     abstract class Handler {
 
         //true to filter and remove task task
@@ -64,36 +69,50 @@ class DTaskScheduler(
         }
     }
 
-
     private val taskSchedulerMap = ConcurrentHashMap<String, VersionedProto<DTask>>()
+    private val forceTaskEventsQueue = ConcurrentLinkedDeque<TaskEvent>()
 
     //since quartz is difficult to reason about and manipulate, for simplicity, iterate and check dtask schedule every second
     private val jobKey = schedulerService.schedule("xln-dTask-scheduler", Instant.now().toEpochMilli(), -1, 1000) {
         runBlocking {
             withContext(Dispatchers.Default) {
+
+                //iterate the forced remove task event to remove the task and call handleEnd for last time
+                while(!forceTaskEventsQueue.isEmpty()) {
+                    val event = forceTaskEventsQueue.poll()
+                    if(event.taskType == TaskType.TASK_REMOVED) {
+
+                        //this should only happen when removed by event triggered externally
+                        if(taskSchedulerMap.containsKey(event.key)) {
+                            log.debug("actively remove task: ${event.key}")
+                            taskSchedulerMap.versionRemove(event.key, event.versionTask)
+                            handlers.forEach {
+                                it.handleEnd(event.versionTask.value)
+                            }
+                        }
+                    }
+                }
                 taskSchedulerMap.toMap().forEach { (t, u) ->
                     val serviceInfo = dTaskService.getServiceInfoFromKey(t)
                     if (serviceInfo != null) {
                         log.debug("Handle for service: ${serviceInfo.first} - ${serviceInfo.second}")
+                        var shouldDeleteTask = false;
                         handlers.forEach {
                             try {
                                 if(!it.handle(u.value)) {
-                                    //should wrap cancelling logic as much as possible
-                                    taskSchedulerMap.versionRemove(t, u)
-                                    dTaskService.safeDeleteTask(serviceInfo.first, serviceInfo.second, u)
-                                    log.debug("task: $t safely deleted")
+                                    shouldDeleteTask = true
                                 }  else if(it.postFilterTask(u.value)) {
-                                    //
                                     it.handleEnd(u.value)
-
-                                    taskSchedulerMap.versionRemove(t, u)
-                                    dTaskService.safeDeleteTask(serviceInfo.first, serviceInfo.second, u)
-                                    log.debug("task: $t safely deleted")
+                                    shouldDeleteTask = true
                                 }
-
                             } catch (ex: Exception) {
                                 log.error("DTask handle error", ex)
                             }
+                        }
+                        if(shouldDeleteTask) {
+                            taskSchedulerMap.versionRemove(t, u)
+                            dTaskService.safeDeleteTask(serviceInfo.first, serviceInfo.second, u)
+                            log.debug("task: $t safely deleted")
                         }
                     }
                 }
@@ -106,6 +125,7 @@ class DTaskScheduler(
 
     suspend fun startScheduler(serviceGroup: String, service: String) {
 
+        //NOTE: when remove by etcd event, will put the task to a pending queue for executing lastEnd
         dTaskService.watchServiceTask(serviceGroup, service,
             watchFlux = {
                 if (it.type == Kv.Event.EventType.PUT) {
@@ -114,14 +134,17 @@ class DTaskScheduler(
                     if (dTask.hasScheduleConfig()) {
                         taskSchedulerMap.put(it.kv.key.toStringUtf8(), VersionedProto(it.kv, dTask))  //TaskWrapper(dTask, false)
                     } else {
-                        taskSchedulerMap.remove(it.kv.key.toStringUtf8())
+                        forceTaskEventsQueue.add(TaskEvent(it.kv.key.toStringUtf8(),VersionedProto(it.kv, dTask), TaskType.TASK_REMOVED))
                     }
                 } else if (it.type == Kv.Event.EventType.DELETE) {
-                    taskSchedulerMap.remove(it.kv.key.toStringUtf8())
+                    val dTask = DTask.parseFrom(it.prevKv.value)
+                    //taskSchedulerMap.remove(it.kv.key.toStringUtf8())
+                    forceTaskEventsQueue.add(TaskEvent(it.kv.key.toStringUtf8(), VersionedProto(it.prevKv, dTask), TaskType.TASK_REMOVED))
                 }
             },
             onDisconnected = {
                 taskSchedulerMap.clear()
+                forceTaskEventsQueue.clear()
 
             })
     }
