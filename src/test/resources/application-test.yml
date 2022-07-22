@@ -112,7 +112,7 @@ xln:
     root: xln-dtask
     dScheduler:
       enable: true
-      schedulerConfigs:
+      configs:
         - serviceGroup: "testGroup"
           serviceName: "testService"
           messageTopic: "testTopic"
