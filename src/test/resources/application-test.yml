@@ -110,7 +110,9 @@ xln:
     port: 0
   dtask-config:
     root: xln-dtask
-    schedulerConfigs:
-      - serviceGroup: "testGroup"
-        serviceName: "testService"
-        messageTopic: "testTopic"
+    dScheduler:
+      enable: true
+      schedulerConfigs:
+        - serviceGroup: "testGroup"
+          serviceName: "testService"
+          messageTopic: "testTopic"

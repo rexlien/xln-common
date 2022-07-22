@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import mu.KotlinLogging
 import mvccpb.Kv
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import xln.common.etcd.DTaskService
 import xln.common.proto.task.DTaskOuterClass.DTask
@@ -18,7 +19,8 @@ import javax.annotation.PreDestroy
 private val log = KotlinLogging.logger {}
 
 @Service
-//@ConditionalOnBean(DTaskService::class)
+@ConditionalOnBean(SchedulerService::class)
+@ConditionalOnProperty(prefix = "xln.dtask-config.dScheduler", name = ["enable"], havingValue = "true")
 class DTaskScheduler(
     private val dTaskService: DTaskService,
     private val schedulerService: SchedulerService,

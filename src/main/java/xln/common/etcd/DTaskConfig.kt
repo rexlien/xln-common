@@ -33,9 +33,19 @@ open class DTaskConfig {
         @Volatile var messageTopic: String? = null
     )
 
+    data class DScheduler(
+
+        @Volatile var enable : Boolean = true,
+
+        @Volatile var configs : List<DSchedulerConfig> = mutableListOf()
+
+    )
+
     @Volatile var root = "xln-dtask"
 
-    @Volatile var schedulerConfigs : List<DSchedulerConfig> = mutableListOf()
+    @Volatile var dScheduler : DScheduler = DScheduler()//List<DSchedulerConfig> = mutableListOf()
+
+
 
 }
 

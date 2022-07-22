@@ -25,7 +25,7 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
     private val taskBufferIdMap =  runBlocking {
 
         val ret = mutableMapOf<String, String?>()
-        dTaskConfig.schedulerConfigs.forEach {
+        dTaskConfig.dScheduler.configs.forEach {
 
             ret.put("${it.serviceGroup}.${it.serviceName}", it.messageTopic)
         }
