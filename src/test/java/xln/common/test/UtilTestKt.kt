@@ -386,6 +386,10 @@ class UtilTestKt {
             return mutableListOf(Pair("watch-service-group", "my-schedule-service"))
         }
 
+        override fun handleRate(): Long {
+            return 3000L
+        }
+
     }
 
     @Test

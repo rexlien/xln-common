@@ -56,7 +56,16 @@ class DTaskScheduler(
         open fun serviceFilters(): List<Pair<String, String>> {
             return mutableListOf()
         }
+
+        //handle frequency in millis, default to 1 min
+        open fun handleRate() : Long {
+            return 60000L
+        }
     }
+
+    //record last tick, DO NOT use in coroutine
+    private var lastTick = ThreadLocal.withInitial {0L}
+    private val handlerAccuTime = HashMap<Handler, ThreadLocal<Long>>()
 
     init {
         handlers.forEach {
@@ -68,14 +77,46 @@ class DTaskScheduler(
                     }
                 }
             }
+            handlerAccuTime[it] = ThreadLocal.withInitial{0L}
         }
     }
 
     private val taskSchedulerMap = ConcurrentHashMap<String, VersionedProto<DTask>>()
     private val forceTaskEventsQueue = ConcurrentLinkedDeque<TaskEvent>()
 
+
+
     //since quartz is difficult to reason about and manipulate, for simplicity, iterate and check dtask schedule every second
     private val jobKey = schedulerService.schedule("xln-dTask-scheduler", Instant.now().toEpochMilli(), -1, 1000) {
+
+        var deltaTime = 0L
+        //delta time always 0 when first time,
+        if(lastTick.get() == 0L) {
+            lastTick.set(Instant.now().toEpochMilli())
+        } else {
+            deltaTime = Instant.now().toEpochMilli() - lastTick.get()
+            lastTick.set(Instant.now().toEpochMilli())
+        }
+
+        //log.debug("$deltaTime")
+
+        //will only fire handle according to handle rate
+        val handlersShouldFire = mutableListOf<Handler>()
+        handlers.forEach {
+            val accuTime = handlerAccuTime[it]
+            if(accuTime != null) {
+                val curAccu = accuTime.get() + deltaTime
+                if(curAccu >= it.handleRate()) {
+                    //log.debug("fire handler")
+                    handlersShouldFire.add(it)
+                    //reset accu
+                    accuTime.set(0L)
+                } else {
+                    accuTime.set(curAccu)
+                }
+            }
+        }
+
         runBlocking {
             withContext(Dispatchers.Default) {
 
@@ -97,9 +138,11 @@ class DTaskScheduler(
                 taskSchedulerMap.toMap().forEach { (t, u) ->
                     val serviceInfo = dTaskService.getServiceInfoFromKey(t)
                     if (serviceInfo != null) {
-                        log.debug("Handle for service: ${serviceInfo.first} - ${serviceInfo.second}")
-                        var shouldDeleteTask = false;
-                        handlers.forEach {
+                        //log.debug("Handle for service: ${serviceInfo.first} - ${serviceInfo.second}")
+                        var shouldDeleteTask = false
+
+                        //TODO: maybe we still want to handleEnd in near real-time interval
+                        handlersShouldFire.forEach {
                             try {
                                 if(!it.handle(u.value)) {
                                     shouldDeleteTask = true
@@ -113,7 +156,7 @@ class DTaskScheduler(
                         }
                         if(shouldDeleteTask) {
                             taskSchedulerMap.versionRemove(t, u)
-                            dTaskService.safeDeleteTask(serviceInfo.first, serviceInfo.second, u)
+                            dTaskService.versionDeleteTask(serviceInfo.first, serviceInfo.second, u)
                             log.debug("task: $t safely deleted")
                         }
                     }

@@ -180,14 +180,30 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
 
     //delete task only when it match the give create rev and version.
-    suspend fun safeDeleteTask(serviceGroup: String, serviceName: String, curTask: VersioneWrapper<DTaskOuterClass.DTask> ) : Boolean {
+    suspend fun versionDeleteTask(serviceGroup: String, serviceName: String, curTask: VersioneWrapper<DTaskOuterClass.DTask> , includeSubResources: Boolean = false) : Boolean {
 
         val taskPath = taskPath(root, serviceGroup, serviceName, curTask.value.id)
-        val resp = etcdClient.kvManager.transactDelete(taskPath, KVManager.TransactDelete().
-            enableCompareCreateRevision(curTask.getCreateRevision()).enableCompareVersion(curTask.getVersion())).awaitSingle()
+        if(!includeSubResources) {
+            val resp = etcdClient.kvManager.transactDelete(
+                taskPath,
+                KVManager.TransactDelete().enableCompareCreateRevision(curTask.getCreateRevision())
+                    .enableCompareVersion(curTask.getVersion())
+            ).awaitSingle()
+            return resp.succeeded
+        } else {
 
-        return resp.succeeded
-
+            //NOTE: this has possibility that older subresource is not deleted if task is newer revision.
+            //however, this should be fine because the subresource/progress will be updated anyway when newly revised task is handled,
+            //another way could be add corresponding task's revision to subresources and check task version of subresource for deletion
+            val progressPath = progressPath(root, serviceGroup, serviceName, curTask.value.id)
+            val statePath = statePath(root, serviceGroup, serviceName, curTask.value.id)
+            val resp = etcdClient.kvManager.transactDelete(
+                taskPath,
+                KVManager.TransactDelete().enableCompareCreateRevision(curTask.getCreateRevision())
+                    .enableCompareVersion(curTask.getVersion()), mutableListOf(progressPath, statePath)
+            ).awaitSingle()
+            return resp.succeeded
+        }
     }
 
     suspend fun cancelTask(serviceGroup: String, serviceName: String, taskId: String ) : Boolean {
