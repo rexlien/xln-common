@@ -27,6 +27,7 @@ public class SparkMain {
         builder.registerShutdownHook(true);
         SpringApplication spring = builder.build();
         ConfigurableApplicationContext context = spring.run();
+        SparkExecutorApp.context = context;
         if(isWeb == null) {
             if (runnerClass != null) {
                 try {
@@ -49,7 +50,6 @@ public class SparkMain {
 
             }
         }
-        SparkExecutorApp.context = context;
         return context;
     }
 
