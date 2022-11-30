@@ -1,12 +1,10 @@
 package xln.common.expression;
 
 import lombok.extern.slf4j.Slf4j;
+import xln.common.expression.v2.ValueCondition;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.Stack;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 @Slf4j
 public class ConditionEvaluator extends Evaluator<Object>{
@@ -23,7 +21,7 @@ public class ConditionEvaluator extends Evaluator<Object>{
             return true;
         }
         else if(operator.left != null && operator.right != null) {
-            if(operator.op == Operator.OP_TYPE_AND) {
+            if(operator.op == Const.OP_TYPE_AND) {
                 return (boolean) operator.left.eval(this) && (boolean) operator.right.eval(this);
             } else {
                 return (boolean) operator.left.eval(this) || (boolean) operator.right.eval(this);
@@ -39,7 +37,7 @@ public class ConditionEvaluator extends Evaluator<Object>{
 
     @Override
     public Object eval(LogicalOperator operator) {
-        if(operator.getOp() != Operator.OP_TYPE_AND && operator.getOp() != Operator.OP_TYPE_OR) {
+        if(operator.getOp() != Const.OP_TYPE_AND && operator.getOp() != Const.OP_TYPE_OR) {
             log.error("Operator type can only be OR or AND");
             return false;
         }
@@ -53,7 +51,7 @@ public class ConditionEvaluator extends Evaluator<Object>{
                 if (ret == null) {
                     ret = (boolean) elem.eval(this);
                 } else {
-                    if (operator.getOp() == Operator.OP_TYPE_AND) {
+                    if (operator.getOp() == Const.OP_TYPE_AND) {
                         ret &= (boolean) elem.eval(this);
                     } else {
                         ret |= (boolean) elem.eval(this);
@@ -76,7 +74,7 @@ public class ConditionEvaluator extends Evaluator<Object>{
             log.error("could not get context source", e);
         }
         if(src != null) {
-            if(condition.getOp() == Operator.OP_TYPE_CONTAINS) {
+            if(condition.getOp() == Const.OP_TYPE_CONTAINS) {
 
                 if(src instanceof Map) {
                     Map map = (Map)src;
@@ -109,15 +107,15 @@ public class ConditionEvaluator extends Evaluator<Object>{
                     Comparable comp1 = (Comparable) src;
                     Comparable comp2 = (Comparable) target;
                     int res = comp1.compareTo(comp2);
-                    if (condition.getOp() == Operator.OP_TYPE_GREATER) {
+                    if (condition.getOp() == Const.OP_TYPE_GREATER) {
                         return res > 0;
-                    } else if (condition.getOp() == Operator.OP_TYPE_LESS) {
+                    } else if (condition.getOp() == Const.OP_TYPE_LESS) {
                         return res < 0;
-                    } else if (condition.getOp() == Operator.OP_TYPE_EQUAL) {
+                    } else if (condition.getOp() == Const.OP_TYPE_EQUAL) {
                         return res == 0;
-                    } else if (condition.getOp() == Operator.OP_TYPE_GREATER_OR_EQUAL) {
+                    } else if (condition.getOp() == Const.OP_TYPE_GREATER_OR_EQUAL) {
                         return (res >= 0);
-                    } else if(condition.getOp() == Operator.OP_TYPE_LESS_OR_EQUAL) {
+                    } else if(condition.getOp() == Const.OP_TYPE_LESS_OR_EQUAL) {
                         return (res <= 0);
                     }
 
@@ -129,8 +127,78 @@ public class ConditionEvaluator extends Evaluator<Object>{
 
     }
 
+    @Override
+    public Object eval(Element element) {
 
+        if(element instanceof ValueCondition) {
+            ValueCondition valueCondition = (ValueCondition) element;
+            Object src = null;
+            try {
+                var srcValue = valueCondition.getSrcValue();
+                if (srcValue instanceof HttpLinkValue) {
+                    HttpLinkValue linkValue = (HttpLinkValue)srcValue;
+                    src = context.getSource(linkValue.getSrcLink(), linkValue.getSrcHeaders(), linkValue.getSrcBody()).get(10, TimeUnit.SECONDS);
+                } else if(srcValue instanceof LogicalOperator) {
+                    src = srcValue.eval(this);
+                }
+            }
+            catch(Exception e){
+                log.error("could not get context source", e);
+            }
 
+            if(src != null) {
+                if(valueCondition.getOp() == Const.OP_TYPE_CONTAINS) {
+
+                    if(src instanceof Map) {
+                        Map map = (Map)src;
+                        return map.containsKey(valueCondition.getTargetValue());
+                    } else {
+                        log.error("Only map src can check contains condition");
+                        return false;
+                    }
+                } else {
+
+                    var target = valueCondition.getTargetValue();
+                    //only same type and string/numbers are comparable
+                    if (src.getClass() != target.getClass()) {
+
+                        if(!(src instanceof Number)) {
+                            return false;
+                        }
+                        if(!(target instanceof Number || target instanceof String)) {
+                            return false;
+                        }
+                        //special case for numbers
+                        target = Utils.castNumber(src.getClass(), target);
+                        if(target == null) {
+                            return false;
+                        }
+                    }
+
+                    //only type is comparable can compare
+                    if (src instanceof Comparable && target instanceof Comparable) {
+                        Comparable comp1 = (Comparable) src;
+                        Comparable comp2 = (Comparable) target;
+                        int res = comp1.compareTo(comp2);
+                        if (valueCondition.getOp() == Const.OP_TYPE_GREATER) {
+                            return res > 0;
+                        } else if (valueCondition.getOp() == Const.OP_TYPE_LESS) {
+                            return res < 0;
+                        } else if (valueCondition.getOp() == Const.OP_TYPE_EQUAL) {
+                            return res == 0;
+                        } else if (valueCondition.getOp() == Const.OP_TYPE_GREATER_OR_EQUAL) {
+                            return (res >= 0);
+                        } else if(valueCondition.getOp() == Const.OP_TYPE_LESS_OR_EQUAL) {
+                            return (res <= 0);
+                        }
+                    }
+                }
+            }
+
+        }
+
+        return null;
+    }
 
 
 }

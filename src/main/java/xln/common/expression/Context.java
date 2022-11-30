@@ -1,6 +1,5 @@
 package xln.common.expression;
 
-import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -11,9 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -121,6 +117,12 @@ public class Context {
                 var key = Context.getSourceHashKey(c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody());
                 if (!sources.containsKey(key)) {
                     sources.put(key, provider.resolve(this, c.getSrcPath(), c.getSrcHeaders(), c.getSrcBody()));
+                }
+            } else if(e instanceof HttpLinkValue) {
+                HttpLinkValue value = (HttpLinkValue)e;
+                var key = Context.getSourceHashKey(value.getSrcLink(), value.getSrcHeaders(), value.getSrcBody());
+                if (!sources.containsKey(key)) {
+                    sources.put(key, provider.resolve(this, value.getSrcLink(), value.getSrcHeaders(), value.getSrcBody()));
                 }
             }
         }, null);

@@ -64,6 +64,11 @@ public class Result {
         return progress;
     }
 
+    public Result setProgress(Progress progress) {
+        this.progress = progress;
+        return this;
+    }
+
     private Progress progress;
 
     public String getTag() {
@@ -83,9 +88,10 @@ public class Result {
 
     private List<Result> children = new LinkedList<>();
 
-    public void subResult(Result sub) {
+    public Result subResult(Result sub) {
 
         children.add(sub);
+        return this;
 
     }
     public void progress(long current, long target) {

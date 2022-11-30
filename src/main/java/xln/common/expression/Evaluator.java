@@ -1,5 +1,7 @@
 package xln.common.expression;
 
+import xln.common.expression.v2.ValueCondition;
+
 import java.util.Stack;
 import java.util.function.Consumer;
 
@@ -47,6 +49,10 @@ public abstract class Evaluator<T> {
                 for(Element elem : op.getElements()) {
                     s.push(elem);
                 }
+            } else if(e instanceof ValueCondition) {
+                ValueCondition cond = (ValueCondition)e;
+                visitCB.accept(e);
+                s.push(cond.getSrcValue());
             }
             else {
                 visitCB.accept(e);
@@ -60,6 +66,7 @@ public abstract class Evaluator<T> {
     abstract T eval(Operator operator);
     abstract T eval(LogicalOperator operator);
     abstract T eval(Condition condition);
+    public abstract T eval(Element element);
 
 
     protected Context context;

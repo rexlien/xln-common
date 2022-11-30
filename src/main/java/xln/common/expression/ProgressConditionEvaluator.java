@@ -1,6 +1,7 @@
 package xln.common.expression;
 
 import lombok.extern.slf4j.Slf4j;
+import xln.common.expression.v2.ValueCondition;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +22,7 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
             Result left = (Result) operator.left.eval(this);
             Result right = (Result) operator.right.eval(this);
 
-            if (operator.op == Operator.OP_TYPE_AND) {
+            if (operator.op == Const.OP_TYPE_AND) {
 
                 Result result = new Result(left.getResult() && right.getResult());
                 result.subResult(left);
@@ -56,7 +57,7 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
 
     @Override
     public Result eval(LogicalOperator operator) {
-        if (operator.getOp() != Operator.OP_TYPE_AND && operator.getOp() != Operator.OP_TYPE_OR) {
+        if (operator.getOp() != Const.OP_TYPE_AND && operator.getOp() != Const.OP_TYPE_OR) {
             log.error("Operator type can only be OR or AND");
             return new Result(false);
         }
@@ -75,8 +76,8 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
                 ret.subResult(child);
 
             } else {
-                if (operator.getOp() == Operator.OP_TYPE_AND) {
-                    ret.setResult(ret.getResult() & child.getResult());
+                if (operator.getOp() == Const.OP_TYPE_AND) {
+                    ret.setResult(ret.getResult() && child.getResult());
                 } else {
                     ret.setResult(ret.getResult() || child.getResult());
                 }
@@ -97,7 +98,7 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
             log.error("could not get context source", e);
         }
         if (src != null) {
-            if (condition.getOp() == Operator.OP_TYPE_CONTAINS) {
+            if (condition.getOp() == Const.OP_TYPE_CONTAINS) {
 
                 if (src instanceof Map) {
                     Map map = (Map) src;
@@ -133,15 +134,15 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
 
                     var progress = new Result.Progress(src, target);
                     int res = comp1.compareTo(comp2);
-                    if (condition.getOp() == Operator.OP_TYPE_GREATER) {
+                    if (condition.getOp() == Const.OP_TYPE_GREATER) {
                         return new Result(res > 0, progress).setTag(condition.getTag());
-                    } else if (condition.getOp() == Operator.OP_TYPE_LESS) {
+                    } else if (condition.getOp() == Const.OP_TYPE_LESS) {
                         return new Result(res < 0, progress).setTag(condition.getTag());
-                    } else if (condition.getOp() == Operator.OP_TYPE_EQUAL) {
+                    } else if (condition.getOp() == Const.OP_TYPE_EQUAL) {
                         return new Result(res == 0, progress).setTag(condition.getTag());
-                    } else if (condition.getOp() == Operator.OP_TYPE_GREATER_OR_EQUAL) {
+                    } else if (condition.getOp() == Const.OP_TYPE_GREATER_OR_EQUAL) {
                         return new Result((res >= 0), progress).setTag(condition.getTag());
-                    } else if (condition.getOp() == Operator.OP_TYPE_LESS_OR_EQUAL) {
+                    } else if (condition.getOp() == Const.OP_TYPE_LESS_OR_EQUAL) {
                         return new Result((res <= 0), progress).setTag(condition.getTag());
                     }
 
@@ -151,5 +152,88 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
         }
         //even source is null, target still returns in progress
         return new Result(false,  new Result.Progress(null, condition.getTarget())).setTag(condition.getTag());
+    }
+
+    @Override
+    public Result eval(Element element) {
+
+        if(element instanceof ValueCondition) {
+
+            ValueCondition condition = (ValueCondition) element;
+            Object src = null;
+            Result retResult = new Result();
+            try {
+                var srcValue = condition.getSrcValue();
+                if (srcValue instanceof HttpLinkValue) {
+                    HttpLinkValue linkValue = (HttpLinkValue)srcValue;
+                    src = context.getSource(linkValue.getSrcLink(), linkValue.getSrcHeaders(), linkValue.getSrcBody()).get(10, TimeUnit.SECONDS);
+                } else if(srcValue instanceof LogicalOperator) {
+                    var result = (Result)srcValue.eval(this);
+                    retResult.subResult(result);
+                    src = result.getResult();
+                }
+            }
+            catch(Exception e){
+                log.error("could not get context source", e);
+            }
+
+            if (src != null) {
+                if (condition.getOp() == Const.OP_TYPE_CONTAINS) {
+
+                    if (src instanceof Map) {
+                        Map map = (Map) src;
+                        return retResult.setResult(map.containsKey(condition.getTargetValue())).setProgress(new Result.Progress(map, condition.getTargetValue())).setTag(condition.getTag());
+                    } else {
+                        log.error("Only map src can check contains condition");
+                        //return src in progress?
+                        return retResult.setResult(false).setProgress(new Result.Progress(src, condition.getTargetValue())).setTag(condition.getTag());
+                    }
+                } else {
+
+                    var target = condition.getTargetValue();
+                    //only same type and string/numbers are comparable
+                    if (src.getClass() != target.getClass()) {
+
+                        if (!(src instanceof Number)) {
+                            return retResult.setResult(false).setTag(condition.getTag());
+                        }
+                        if (!(target instanceof Number || target instanceof String)) {
+                            return retResult.setResult(false).setTag(condition.getTag());
+                        }
+                        //special case for numbers
+                        target = Utils.castNumber(src.getClass(), target);
+                        if (target == null) {
+                            return retResult.setResult(false).setTag(condition.getTag());
+                        }
+                    }
+
+                    //only type is comparable can compare
+                    if (src instanceof Comparable && target instanceof Comparable) {
+                        Comparable comp1 = (Comparable) src;
+                        Comparable comp2 = (Comparable) target;
+
+                        var progress = new Result.Progress(src, target);
+                        int res = comp1.compareTo(comp2);
+                        if (condition.getOp() == Const.OP_TYPE_GREATER) {
+                            return retResult.setResult(res > 0).setProgress(progress).setTag(condition.getTag());
+                        } else if (condition.getOp() == Const.OP_TYPE_LESS) {
+                            return retResult.setResult(res < 0).setProgress(progress).setTag(condition.getTag());
+                        } else if (condition.getOp() == Const.OP_TYPE_EQUAL) {
+                            return retResult.setResult(res == 0).setProgress(progress).setTag(condition.getTag());
+                        } else if (condition.getOp() == Const.OP_TYPE_GREATER_OR_EQUAL) {
+                            return retResult.setResult(res >= 0).setProgress(progress).setTag(condition.getTag());
+                        } else if (condition.getOp() == Const.OP_TYPE_LESS_OR_EQUAL) {
+                            return retResult.setResult(res <= 0).setProgress(progress).setTag(condition.getTag());
+                        }
+
+                    }
+                }
+
+            }
+            //even source is null, target still returns in progress
+            return new Result(false,  new Result.Progress(null, condition.getTargetValue())).setTag(condition.getTag());
+        }
+
+        return null;
     }
 }

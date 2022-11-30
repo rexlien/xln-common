@@ -11,7 +11,7 @@ import java.util.*;
 public class LogicalOperator implements Element {
 
     private List<Element> elements = new ArrayList<>();
-    private int op = Operator.OP_TYPE_AND;
+    private int op = Const.OP_TYPE_AND;
 
     public LogicalOperator(int op, Element... elems) {
         this.op = op;
