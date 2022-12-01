@@ -1,6 +1,6 @@
-FROM centos:7
+FROM rockylinux:8
 
-RUN yum -y install java-11-openjdk
+RUN yum -y install java-17-openjdk
 
 ENV TZ=Asia/Taipei
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
