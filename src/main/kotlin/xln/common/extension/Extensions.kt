@@ -4,21 +4,14 @@ import kotlinx.coroutines.future.await
 import org.redisson.RedissonObject
 import org.redisson.RedissonPermitExpirableSemaphore
 import org.redisson.RedissonReactive
-import org.redisson.api.RFuture
 import org.redisson.api.RPermitExpirableSemaphoreReactive
-import org.redisson.client.codec.LongCodec
-import org.redisson.client.protocol.RedisCommands
 import org.redisson.command.CommandAsyncExecutor
 import org.redisson.reactive.ReactiveProxyBuilder
-import reactor.core.publisher.Mono
 import xln.common.expression.ConditionEvaluator
 import xln.common.expression.Element
 import xln.common.expression.ProgressConditionEvaluator
 import xln.common.expression.Result
 import xln.common.extension.AsyncAutoCloseable
-import xln.common.service.RateLimiter
-import xln.common.service.RateLimiter.AcquiredInfo
-import java.util.*
 
 
 suspend fun ConditionEvaluator.startEvalAsync(root : Element) : Any? {
@@ -40,9 +33,17 @@ suspend fun ProgressConditionEvaluator.startEvalAsync(root : Element) : Result {
 }
 
 fun RedissonReactive.getXLNSemaphore(name : String) : RPermitExpirableSemaphoreReactive {
-    return ReactiveProxyBuilder.create(commandExecutor, XLNSemaphore(commandExecutor, name), RPermitExpirableSemaphoreReactive::class.java)
+
+    return ReactiveProxyBuilder.create(
+        commandExecutor, RedissonPermitExpirableSemaphore(commandExecutor, name),
+        RPermitExpirableSemaphoreReactive::class.java
+    )
+    //return ReactiveProxyBuilder.create(commandExecutor, XLNSemaphore(commandExecutor, name), RPermitExpirableSemaphoreReactive::class.java)
 
 }
+
+
+//var EVAL_STRING_DATA: RedisStrictCommand<String> = RedisStrictCommand<String>("EVAL", StringDataDecoder())
 
 
 class XLNSemaphore(commandExecutor: CommandAsyncExecutor?, name: String?) : RedissonPermitExpirableSemaphore(commandExecutor, name) {
@@ -55,7 +56,7 @@ class XLNSemaphore(commandExecutor: CommandAsyncExecutor?, name: String?) : Redi
 
     private val timeoutName: String = RedissonObject.suffixName(name, "timeout")
     private val nonExpirableTimeout = 922337203685477L
-
+/*
     override
     fun tryAcquireAsync(permits:Int, timeoutDate:Long) : RFuture<String> {
 
@@ -93,7 +94,7 @@ class XLNSemaphore(commandExecutor: CommandAsyncExecutor?, name: String?) : Redi
                 Arrays.asList<Any>(name, timeoutName, getChannelName()), permits, timeoutDate, id, System.currentTimeMillis(), nonExpirableTimeout)
 
     }
-
+*/
 }
 
 

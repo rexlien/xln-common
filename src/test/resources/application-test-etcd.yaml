@@ -1,0 +1,22 @@
+xln:
+  etcd-config:
+    endPoint:
+      name: etcd
+      hosts:
+        - "127.0.0.1:2379"
+        - "127.0.0.1:2379"
+        - "127.0.0.1:2379"
+    configNamespace: "local"
+    configWatchDirs:
+      - "gu-admin"
+    enableVersionMeter: true
+  cluster-config:
+    port: 0
+  dtask-config:
+    root: xln-dtask
+    dScheduler:
+      enable: true
+      configs:
+        - serviceGroup: "testGroup"
+          serviceName: "testService"
+          messageTopic: "testTopic"
