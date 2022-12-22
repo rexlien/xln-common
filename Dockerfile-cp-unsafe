@@ -1,0 +1,25 @@
+FROM rockylinux:8
+
+RUN yum -y install java-17-openjdk
+
+ENV TZ=Asia/Taipei
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+WORKDIR /work
+VOLUME /work/data
+
+ARG JAR_FILE
+ARG JAR_BUILD
+##ARG JAR_DEP
+ARG ACTIVE_PROFILE
+ENV SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
+ENV _JAVA_OPTIONS="-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal"
+COPY ${JAR_FILE} /work/app.jar
+COPY ${JAR_BUILD} /work/build/libs
+
+
+#ENTRYPOINT ["java","-jar","-server","-d64","-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:MaxRAMFraction=1", "app.jar"]
+#ENTRYPOINT ["java","-jar", "-XX:MaxRAMPercentage=70", "-XX:MinRAMPercentage=20" "app.jar"]
+
+ENTRYPOINT java --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,address=*:5005,server=y,suspend=n -cp "app.jar" -Dloader.main=${XLN_MAIN_CLASS} org.springframework.boot.loader.PropertiesLauncher
+#["java", "-agentlib:jdwp=transport=dt_socket,address=*:5005,server=y,suspend=n","-cp", "app.jar"]
