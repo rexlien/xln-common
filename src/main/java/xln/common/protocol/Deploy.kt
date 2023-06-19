@@ -8,7 +8,7 @@ data class DeployUnit(val name: String, val parameters: Map<String, String>)
 data class DeploymentRegisterRequest(val templateId: String, val pipelineId: String, val deployUnits: List<DeployUnit>,
                                      val autoRun : Boolean, val sendChatRun: Boolean, val ttl: Long)
 
-data class DeploymentRegisterResponse(val deploymentIds: List<String>)
+data class DeploymentRegisterResponse(val deploymentIds: List<Pair<String, String>>)
 
 
 data class DeploymentRunRequest(val deploymentId: String)

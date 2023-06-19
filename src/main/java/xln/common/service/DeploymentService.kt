@@ -21,10 +21,10 @@ data class Deployment(val templateId: String, val pipelineId: String, val longev
 @ConditionalOnProperty(prefix = "xln.deployment-config", name = ["enable"], havingValue = "true")
 class DeploymentService(private val etcdClient: EtcdClient, private val deploymentConfig: DeploymentConfig) {
 
-    suspend fun registerDeployment(deploy: Deployment) : List<String> {
+    suspend fun registerDeployment(deploy: Deployment) : List<Pair<String, String>> {
         //val timestamp = Instant.now().toEpochMilli()
 
-        val ret = mutableListOf<String>()
+        val ret = mutableListOf<Pair<String,String>>()
         val versionKey = "xln-deploy-version:${deploy.templateId}"
         val version = etcdClient.kvManager.inc(versionKey).awaitSingle()
         deploy.deployUnits.forEach {
@@ -39,7 +39,7 @@ class DeploymentService(private val etcdClient: EtcdClient, private val deployme
                     KVManager.PutOptions().withKey(key).withTtlSecs(deploy.longevity).withValue(builder.build().toByteString()))).awaitSingle()
 
             if (response.succeeded) {
-                ret.add(key)
+                ret.add(Pair(it.name, key))
             } else {
                 log.error("register deployment failed")
             }
