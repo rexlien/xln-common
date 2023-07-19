@@ -1,20 +1,34 @@
 package xln.common.web;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import org.slf4j.event.Level;
 import org.springframework.http.HttpStatus;
 
 public class HttpException extends RuntimeException {
 
+    public enum LogLevel {
+        LL_INFO,
+        LL_WARN,
+        LL_ERROR
+    }
+
     public HttpException(HttpStatus status) {
+        super(status.toString());
         this.status = status;
     }
     public HttpException(HttpStatus status, String httpBody) {
+        super(httpBody);
         this.httpBody = httpBody;
+        this.logBody = httpBody;
         this.status = status;
+    }
+
+    public HttpException(HttpStatus status, String httpBody, String logBody) {
+        this(status, httpBody);
+        this.logBody = logBody;
+    }
+
+    public HttpException(HttpStatus status, String httpBody, String logBody, LogLevel logLevel) {
+        this(status, httpBody, logBody);
+        this.logLevel = logLevel;
     }
 
     private HttpStatus status;
@@ -26,7 +40,7 @@ public class HttpException extends RuntimeException {
     private String logBody;
 
     //default to log in error level
-    private Boolean errorLevel = true;
+    private LogLevel logLevel = LogLevel.LL_INFO;
 
     public HttpStatus getStatus() {
         return status;
@@ -55,12 +69,12 @@ public class HttpException extends RuntimeException {
         return this;
     }
 
-    public Boolean getErrorLevel() {
-        return errorLevel;
+    public LogLevel getLogLevel() {
+        return logLevel;
     }
 
-    public HttpException setErrorLevel(Boolean errorLevel) {
-        this.errorLevel = errorLevel;
+    public HttpException setLogLevel(LogLevel logLevel) {
+        this.logLevel = logLevel;
         return this;
     }
 }

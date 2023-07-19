@@ -6,9 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebInputException;
 
 import javax.validation.ConstraintViolationException;
@@ -42,10 +40,13 @@ public class BaseController
                 logBody = ex.getStatus().toString();
             }
         }
-        if(ex.getErrorLevel()) {
+        if(ex.getLogLevel() == HttpException.LogLevel.LL_ERROR) {
+            //only log stack trace when error
             log.error(logBody, ex);
+        } else if(ex.getLogLevel() == HttpException.LogLevel.LL_INFO) {
+            log.info(logBody);
         } else {
-            log.info(logBody, ex);
+            log.warn(logBody);
         }
         return new ResponseEntity(httpBody, ex.getStatus());
 
@@ -64,7 +65,7 @@ public class BaseController
     @ExceptionHandler(Exception.class)
     public ResponseEntity handleAllRequestException(Exception ex) {
 
-        log.error("", ex);
+        log.error("handleAllRequestException", ex);
         return new ResponseEntity("Internal Server Error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
