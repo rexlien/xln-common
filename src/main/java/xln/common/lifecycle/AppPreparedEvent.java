@@ -1,6 +1,7 @@
 package xln.common.lifecycle;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.github.jasync.sql.db.mysql.MySQLConnection;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
@@ -19,6 +20,11 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
 
     @Override
     public void onApplicationEvent(ApplicationPreparedEvent event) {
+        //init default system properties
+
+        //for jasync driver to avoid r2dbc issue https://github.com/spring-projects/spring-data-r2dbc/issues/253
+        System.setProperty(MySQLConnection.CLIENT_FOUND_ROWS_PROP_NAME, "true");
+
         ConfigurableEnvironment environment = event.getApplicationContext().getEnvironment();
         Properties props = new Properties();
         String strPort = environment.getProperty("server.port");
