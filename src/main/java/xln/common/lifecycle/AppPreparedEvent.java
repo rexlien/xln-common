@@ -93,6 +93,7 @@ public class AppPreparedEvent implements ApplicationListener<ApplicationPrepared
             overrideProps.put("springdoc.api-docs.enabled", "false");
             overrideProps.put("springdoc.swagger-ui.enabled", "false");
         }
+        overrideProps.put("springdoc.swagger-ui.disable-swagger-default-url", "true");
         environment.getPropertySources().addFirst(new PropertiesPropertySource("override-props", overrideProps));
 
         for(Iterator<PropertySource<?>> it = environment.getPropertySources().iterator(); it.hasNext(); ) {
