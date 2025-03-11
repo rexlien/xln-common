@@ -33,7 +33,9 @@ public class Context {
 
     }
 
+    public Context() {
 
+    }
 
     public static String getSourceHashKey(String path, Map<String, String> headers, Object body) {
 
