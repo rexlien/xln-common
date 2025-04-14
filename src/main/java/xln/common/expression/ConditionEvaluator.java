@@ -89,16 +89,18 @@ public class ConditionEvaluator extends Evaluator<Object>{
                 //only same type and string/numbers are comparable
                 if (src.getClass() != target.getClass()) {
 
-                    if(!(src instanceof Number)) {
-                        return false;
+                    if(src instanceof Number) {
+                        //special case for numbers
+                        target = Utils.castNumber(src.getClass(), target);
+                        if (target == null) {
+                            return false;
+                        }
                     }
-                    if(!(target instanceof Number || target instanceof String)) {
-                        return false;
-                    }
-                    //special case for numbers
-                    target = Utils.castNumber(src.getClass(), target);
-                    if(target == null) {
-                        return false;
+                    if(target instanceof Number) {
+                        src = Utils.castNumber(target.getClass(), src);
+                        if(src == null) {
+                            return false;
+                        }
                     }
                 }
 
@@ -138,7 +140,7 @@ public class ConditionEvaluator extends Evaluator<Object>{
                 if (srcValue instanceof HttpLinkValue) {
                     HttpLinkValue linkValue = (HttpLinkValue)srcValue;
                     src = context.getSource(linkValue.getSrcLink(), linkValue.getSrcHeaders(), linkValue.getSrcBody()).get(10, TimeUnit.SECONDS);
-                } else if(srcValue instanceof LogicalOperator) {
+                } else {//if(srcValue instanceof LogicalOperator || srcValue instanceof ConstantValue) {
                     src = srcValue.eval(this);
                 }
             }
@@ -159,19 +161,21 @@ public class ConditionEvaluator extends Evaluator<Object>{
                 } else {
 
                     var target = valueCondition.getTargetValue();
-                    //only same type and string/numbers are comparable
-                    if (src.getClass() != target.getClass()) {
 
-                        if(!(src instanceof Number)) {
-                            return false;
+                    if (src.getClass() != target.getClass()) {
+                        //cast string<->number if src and target is different
+                        if(src instanceof Number) {
+                            //special case for numbers
+                            target = Utils.castNumber(src.getClass(), target);
+                            if (target == null) {
+                                return false;
+                            }
                         }
-                        if(!(target instanceof Number || target instanceof String)) {
-                            return false;
-                        }
-                        //special case for numbers
-                        target = Utils.castNumber(src.getClass(), target);
-                        if(target == null) {
-                            return false;
+                        if(target instanceof Number) {
+                            src = Utils.castNumber(target.getClass(), src);
+                            if(src == null) {
+                                return false;
+                            }
                         }
                     }
 

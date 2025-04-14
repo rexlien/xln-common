@@ -111,19 +111,22 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
             } else {
 
                 var target = condition.getTarget();
-                //only same type and string/numbers are comparable
+
+                //cast to number if possible, otherwise resulting false
                 if (src.getClass() != target.getClass()) {
 
-                    if (!(src instanceof Number)) {
-                        return new Result(false).setTag(condition.getTag());
+                    if(src instanceof Number) {
+                        target = Utils.castNumber(src.getClass(), target);
+                        if (target == null) {
+                            return new Result(false).setTag(condition.getTag());
+                        }
                     }
-                    if (!(target instanceof Number || target instanceof String)) {
-                        return new Result(false).setTag(condition.getTag());
-                    }
-                    //special case for numbers
-                    target = Utils.castNumber(src.getClass(), target);
-                    if (target == null) {
-                        return new Result(false).setTag(condition.getTag());
+
+                    if(target instanceof Number) {
+                        src = Utils.castNumber(target.getClass(), src);
+                        if(src == null) {
+                            return new Result(false).setTag(condition.getTag());
+                        }
                     }
                 }
 
@@ -191,19 +194,21 @@ public class ProgressConditionEvaluator extends Evaluator<Result> {
                 } else {
 
                     var target = condition.getTargetValue();
-                    //only same type and string/numbers are comparable
+                    //cast to number if possible, otherwise resulting false
                     if (src.getClass() != target.getClass()) {
 
-                        if (!(src instanceof Number)) {
-                            return retResult.setResult(false).setTag(condition.getTag());
+                        if(src instanceof Number) {
+                            target = Utils.castNumber(src.getClass(), target);
+                            if (target == null) {
+                                return retResult.setResult(false).setTag(condition.getTag());
+                            }
                         }
-                        if (!(target instanceof Number || target instanceof String)) {
-                            return retResult.setResult(false).setTag(condition.getTag());
-                        }
-                        //special case for numbers
-                        target = Utils.castNumber(src.getClass(), target);
-                        if (target == null) {
-                            return retResult.setResult(false).setTag(condition.getTag());
+
+                        if(target instanceof Number) {
+                            src = Utils.castNumber(target.getClass(), src);
+                            if(src == null) {
+                                return retResult.setResult(false).setTag(condition.getTag());
+                            }
                         }
                     }
 
