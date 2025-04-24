@@ -2,14 +2,13 @@ package xln.common.utils;
 
 import com.google.gson.Gson;
 import io.netty.channel.ChannelOption;
-import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.NestedRuntimeException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
@@ -89,8 +88,13 @@ public class HttpUtils {
 
     public static <T> Mono<T> httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
             Map<String, String> headers, Object body) {
-        Gson gson = new Gson();
-        return httpCallMono(url, urlValues, method, type, headers, gson.toJson(body));
+        if(body instanceof MultiValueMap<?,?>) {
+            var formBody = (MultiValueMap<String, String>)body;
+            return httpCallMonoForm(url, urlValues, method, headers, formBody).bodyToMono(type);
+        } else {
+            Gson gson = new Gson();
+            return httpCallMono(url, urlValues, method, type, headers, gson.toJson(body));
+        }
     }
 
     public static <T> Mono<ResponseEntity<T>> httpCallMonoResponseEntity(String url, Map<String, ?> urlValues, HttpMethod method, Class type,
@@ -100,7 +104,11 @@ public class HttpUtils {
         if(body instanceof String) {
             var strBody = (String)body;
             responseSpec = httpCallMono(url, urlValues, method, headers, strBody);
-        } else {
+        } else if(body instanceof MultiValueMap<?, ?>) {
+            var formBody = (MultiValueMap<String, String>)body;
+            responseSpec = httpCallMonoForm(url, urlValues, method, headers, formBody);
+        }
+        else {
             Gson gson = new Gson();
             responseSpec = httpCallMono(url, urlValues, method, headers,gson.toJson(body));
         }
@@ -115,12 +123,54 @@ public class HttpUtils {
         if(body instanceof String) {
             var strBody = (String)body;
             responseSpec = httpCallMono(url, urlValues, method, headers, strBody);
-        } else {
+        } else if(body instanceof MultiValueMap<?, ?>) {
+            var formBody = (MultiValueMap<String, String>)body;
+            responseSpec = httpCallMonoForm(url, urlValues, method, headers, formBody);
+        }
+        else {
             Gson gson = new Gson();
             responseSpec = httpCallMono(url, urlValues, method, headers,gson.toJson(body));
         }
 
         return (responseSpec != null)?responseSpec.toEntity(type):Mono.empty();
+    }
+
+    public static WebClient.ResponseSpec httpCallMonoForm(String url, Map<String, ?> urlValues, HttpMethod method,
+                                                      Map<String, String> headers, MultiValueMap<String, String> body)
+    {
+        try {
+            log.debug("Call http url:" + url);
+            var methodCall = reactiveClient.method(method);
+            WebClient.RequestBodySpec requestSpec;
+            if (urlValues == null) {
+                requestSpec = methodCall.uri(url);
+            } else {
+                requestSpec = methodCall.uri(url, urlValues);
+            }
+
+            requestSpec = requestSpec.headers((t) -> {
+                if(headers != null) {
+                    for (Map.Entry<String, String> e : headers.entrySet()) {
+                        t.add(e.getKey(), e.getValue());
+                    }
+                }
+                if (body != null && !body.isEmpty()) {
+                    //form data when body type is string value map
+                    if(!t.containsKey("Content-Type")) {
+                        t.add("Content-Type", "application/x-www-form-urlencoded");
+                    }
+                }
+            });
+
+            if (body != null && !body.isEmpty()) {
+                requestSpec.body(BodyInserters.fromValue(body));
+            }
+            return requestSpec.retrieve();
+
+        } catch (Exception ex) {
+            log.error("", ex);
+            return null;
+        }
     }
 
     public static WebClient.ResponseSpec httpCallMono(String url, Map<String, ?> urlValues, HttpMethod method,
