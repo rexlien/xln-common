@@ -31,6 +31,13 @@ public class LogStash {
         log.trace(appendEntries(fields).and(metrics), "");
     }
 
+    //log with flat top-level fields (no body wrapper)
+    public static void esLogFlat(String index, Map<String, Object> fields) {
+        var allFields = new HashMap<String, Object>(fields);
+        allFields.put(KEY_ES_INDEX, index);
+        log.trace(appendEntries(allFields).and(metrics), "");
+    }
+
     //log raw by gson
     public static void esLogRaw(String index, Object payload) {
 
