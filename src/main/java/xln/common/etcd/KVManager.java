@@ -472,7 +472,7 @@ public class KVManager {
                     }
                 });
             } else {
-                T msg = ProtoUtils.fromJson(r.getKvs(0).getValue().toStringUtf8(), clazz);
+                T msg = ProtoUtils.fromByteString(r.getKvs(0).getValue(), clazz);
                 if (modifyCB != null) {
                     msg = modifyCB.apply(msg);
                 }
