@@ -43,7 +43,11 @@ open class DTaskConfig {
 
     @Volatile var root = "xln-dtask"
 
-    @Volatile var dScheduler : DScheduler = DScheduler()//List<DSchedulerConfig> = mutableListOf()
+    @Volatile var dScheduler : DScheduler = DScheduler()
+
+    @Volatile var claimTtl : Long = 30
+
+    @Volatile var resyncInterval : Long = 300000
 
 
 

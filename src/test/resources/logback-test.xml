@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- suppress DEBUG noise from Spring/Hibernate/Netty/gRPC internals -->
+  <logger name="org.springframework" level="WARN"/>
+  <logger name="org.testcontainers" level="INFO"/>
+  <logger name="com.github.dockerjava" level="WARN"/>
+  <logger name="io.grpc" level="WARN"/>
+  <logger name="io.netty" level="WARN"/>
+  <logger name="reactor" level="WARN"/>
+  <logger name="org.mongodb" level="WARN"/>
+  <logger name="org.quartz" level="WARN"/>
+  <logger name="org.apache.kafka" level="WARN"/>
+
+  <!-- project code at INFO -->
+  <logger name="xln" level="INFO"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

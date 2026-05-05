@@ -42,6 +42,8 @@ message DTask {
   map<string,  google.protobuf.Any> outputs = 5;
   map<string,  google.protobuf.Any> doneActions = 6;
 
+  TaskStatus taskStatus = 9;
+
 }
 
 //serviceGroup.serviceName.state.taskId.

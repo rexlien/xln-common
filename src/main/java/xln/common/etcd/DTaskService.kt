@@ -52,6 +52,14 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
             return "$root.$serviceGroup.$serviceName.state.$taskId"
         }
 
+        fun claimPath(root: String, serviceGroup: String, serviceName: String, taskId: String) : String {
+            return "$root.$serviceGroup.$serviceName.claim.$taskId"
+        }
+
+        fun serviceClaimPath(root: String, serviceGroup: String, serviceName: String) : String {
+            return "$root.$serviceGroup.$serviceName.claim."
+        }
+
         //fun serverProgressPath(root: String, serviceGroup: String, serviceName: String) : String {
           //  return "$root.$serviceGroup.$serviceName.progress."
         //}
@@ -75,7 +83,7 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
 
         val taskPath = taskPath(root, serviceGroup, serviceName, taskId)
         val msg = DTaskOuterClass.DTask.newBuilder().setId(taskId).putAllInputs(option.input).putAllDoneActions(option.doneAction).
-            setCreateTime(Instant.now().toEpochMilli()).build();
+            setCreateTime(Instant.now().toEpochMilli()).setTaskStatus(DTaskOuterClass.TaskStatus.WAITING).build();
 
         val resp = etcdClient.kvManager.transactPut(KVManager.TransactPut(KVManager.PutOptions().withKey(taskPath).withMessage(msg)).putIfAbsent()).awaitSingle()
 
@@ -288,6 +296,56 @@ class DTaskService(private val dTaskConfig: DTaskConfig, private val etcdClient:
             return Pair(tokens[1], tokens[2])
         }
         return null
+    }
+
+    suspend fun claimTask(serviceGroup: String, serviceName: String, taskId: String, leaseId: Long) : Boolean {
+        val claimPath = claimPath(root, serviceGroup, serviceName, taskId)
+        val resp = etcdClient.kvManager.transactPut(
+            KVManager.TransactPut(KVManager.PutOptions().withKey(claimPath).withValue(com.google.protobuf.ByteString.copyFromUtf8(taskId)).withLeaseID(leaseId)).putIfAbsent()
+        ).awaitSingle()
+        return resp.succeeded
+    }
+
+    suspend fun releaseTaskClaim(serviceGroup: String, serviceName: String, taskId: String) {
+        val claimPath = claimPath(root, serviceGroup, serviceName, taskId)
+        etcdClient.kvManager.delete(claimPath).awaitFirstOrNull()
+    }
+
+    suspend fun setTaskStatus(serviceGroup: String, serviceName: String, task: VersioneWrapper<DTaskOuterClass.DTask>, newStatus: DTaskOuterClass.TaskStatus) {
+        val taskPath = taskPath(root, serviceGroup, serviceName, task.value.id)
+        val updated = task.value.toBuilder().setTaskStatus(newStatus).build()
+        etcdClient.kvManager.transactPut(
+            KVManager.TransactPut(KVManager.PutOptions().withKey(taskPath).withMessage(updated)).putIfSameVersion(task.getVersion())
+        ).awaitSingle()
+    }
+
+    suspend fun watchClaimKeys(serviceGroup: String, serviceName: String, onDelete: (taskId: String) -> Unit) : Long {
+        val servicePath = serviceClaimPath(root, serviceGroup, serviceName)
+        val res = etcdClient.watchManager.safeWatch(servicePath, true, false, true,
+            beforeStartWatch = {},
+            watchFlux = { response ->
+                response.eventsList.forEach { event ->
+                    if (event.type == Kv.Event.EventType.DELETE) {
+                        val key = event.kv.key.toStringUtf8()
+                        val taskId = key.substringAfterLast(".")
+                        onDelete(taskId)
+                    }
+                }
+            })
+        return res.watchID
+    }
+
+    data class TaskSummary(
+        val task: VersioneWrapper<DTaskOuterClass.DTask>?,
+        val progress: DTaskOuterClass.DTaskProgress?,
+        val state: VersioneWrapper<DTaskOuterClass.DTaskProgressState>?
+    )
+
+    suspend fun getTaskSummary(serviceGroup: String, serviceName: String, taskId: String) : TaskSummary? {
+        val task = getTask(serviceGroup, serviceName, taskId) ?: return null
+        val progress = getProgress(serviceGroup, serviceName, taskId)
+        val state = getProgressState(serviceGroup, serviceName, taskId)
+        return TaskSummary(task, progress, state)
     }
 
 }

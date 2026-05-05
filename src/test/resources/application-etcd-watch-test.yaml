@@ -1,0 +1,17 @@
+xln:
+  etcd-config:
+    endPoint:
+      name: etcd
+    configNamespace: "local"
+    enableVersionMeter: false
+  cluster-config:
+    port: 0
+  dtask-config:
+    root: xln-dtask-watch-test
+    claimTtl: 10
+    resyncInterval: 60000
+    dScheduler:
+      enable: false
+
+xln.service-config:
+  resourcePath: []

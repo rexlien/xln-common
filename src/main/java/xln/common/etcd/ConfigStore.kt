@@ -67,16 +67,19 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
     init {
         watchManager.connectionEventSource.subscribe {
             if (it == GrpcFluxStream.ConnectionEvent.RE_CONNECTED) {
-                serializeExecutor.submit {
-                    runBlocking {
-                        restartWatch()
+                if (!serializeExecutor.isShutdown) {
+                    serializeExecutor.submit {
+                        runBlocking {
+                            restartWatch()
+                        }
                     }
                 }
-
             } else if(it == GrpcFluxStream.ConnectionEvent.DISCONNECTED) {
-                serializeExecutor.submit {
-                    //subscriber?.dispose()
-                    cleanSubscribers()
+                if (!serializeExecutor.isShutdown) {
+                    serializeExecutor.submit {
+                        //subscriber?.dispose()
+                        cleanSubscribers()
+                    }
                 }
             }
         }
@@ -239,7 +242,7 @@ class ConfigStore(private val etcdConfig: EtcdConfig, private val etcdClient: Et
 
             //if there's error restart watch
 
-            if (watchID == it.watchId) {
+            if (watchID == it.watchId && !serializeExecutor.isShutdown) {
                 serializeExecutor.submit {
 
                     if (watchHandler != null) {
