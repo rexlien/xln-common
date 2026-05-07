@@ -7,9 +7,9 @@ xln:
   cluster-config:
     port: 0
   dtask-config:
-    root: xln-dtask-util-test
+    root: xln-dtask-startup-test
     claimTtl: 10
-    resyncInterval: 60000
+    resyncInterval: 300000
 
 xln.service-config:
   resourcePath: []

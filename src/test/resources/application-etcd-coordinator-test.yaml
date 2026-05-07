@@ -10,11 +10,6 @@ xln:
     root: xln-dtask-coordinator-test
     claimTtl: 10
     resyncInterval: 60000
-    dScheduler:
-      enable: true
-      configs:
-        - serviceGroup: "coordinator-test-group"
-          serviceName: "coordinator-test-service"
 
 xln.service-config:
   resourcePath: []

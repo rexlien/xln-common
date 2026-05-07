@@ -16,7 +16,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.testcontainers.containers.Network
-import xln.common.dist.DTaskScheduler
+import xln.common.dist.ScheduledTaskHandler
 import xln.common.etcd.DTaskService
 import xln.common.proto.task.DTaskOuterClass
 import xln.common.proto.task.DTaskOuterClass.DTask
@@ -64,7 +64,7 @@ class UtilTestKt {
     }
 
     @Component
-    class TestHandler : DTaskScheduler.Handler() {
+    class TestHandler : ScheduledTaskHandler() {
         val forceFinishFuture = CompletableFuture<Boolean>()
         val endTestFuture = CompletableFuture<Boolean>()
 
