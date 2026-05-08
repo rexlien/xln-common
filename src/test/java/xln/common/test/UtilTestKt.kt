@@ -16,6 +16,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.testcontainers.containers.Network
+import xln.common.dist.HandleResult
 import xln.common.dist.ScheduledTaskHandler
 import xln.common.etcd.DTaskService
 import xln.common.proto.task.DTaskOuterClass
@@ -68,9 +69,9 @@ class UtilTestKt {
         val forceFinishFuture = CompletableFuture<Boolean>()
         val endTestFuture = CompletableFuture<Boolean>()
 
-        override suspend fun handle(dTask: DTask): Boolean {
+        override suspend fun handle(dTask: DTask): HandleResult {
             log.info("handle: ${dTask.id}")
-            return true
+            return HandleResult.CONTINUE
         }
 
         override suspend fun handleEnd(dTask: DTask) {

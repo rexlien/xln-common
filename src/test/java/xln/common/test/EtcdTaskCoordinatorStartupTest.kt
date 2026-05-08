@@ -21,6 +21,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.testcontainers.containers.Network
+import xln.common.dist.HandleResult
 import xln.common.dist.OneTimeTaskHandler
 import xln.common.dist.ScheduledTaskHandler
 import xln.common.etcd.DTaskService
@@ -135,10 +136,10 @@ class EtcdTaskCoordinatorStartupTest {
         fun waitForHandle(taskId: String): CompletableFuture<String> =
             pending.computeIfAbsent(taskId) { CompletableFuture() }
 
-        override suspend fun handle(dTask: DTask): Boolean {
+        override suspend fun handle(dTask: DTask): HandleResult {
             log.info("StartupScheduledHandler.handle: ${dTask.id}")
             pending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
-            return true
+            return HandleResult.CONTINUE
         }
 
         override fun serviceFilters() = listOf(Pair(SERVICE_GROUP, SERVICE_NAME))

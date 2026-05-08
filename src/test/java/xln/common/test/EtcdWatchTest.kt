@@ -17,6 +17,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.testcontainers.containers.Network
+import xln.common.dist.HandleResult
 import xln.common.dist.ScheduledTaskHandler
 import xln.common.etcd.*
 import xln.common.proto.task.DTaskOuterClass.DTask
@@ -60,7 +61,7 @@ class EtcdWatchTest {
     @org.springframework.stereotype.Component
     class NoOpHandler : ScheduledTaskHandler() {
         override fun serviceFilters(): List<Pair<String, String>> = emptyList()
-        override suspend fun handle(dTask: DTask) = true
+        override suspend fun handle(dTask: DTask) = HandleResult.CONTINUE
     }
 
     @Autowired

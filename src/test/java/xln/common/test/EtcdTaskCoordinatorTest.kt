@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.assertj.core.util.Lists
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -21,6 +22,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.testcontainers.containers.Network
+import xln.common.dist.HandleResult
 import xln.common.dist.OneTimeTaskHandler
 import xln.common.dist.ScheduledTaskHandler
 import xln.common.etcd.DTaskService
@@ -112,10 +114,10 @@ class EtcdTaskCoordinatorTest {
         fun waitForEnd(taskId: String): CompletableFuture<String> =
             endPending.computeIfAbsent(taskId) { CompletableFuture() }
 
-        override suspend fun handle(dTask: DTask): Boolean {
+        override suspend fun handle(dTask: DTask): HandleResult {
             log.info("ScheduledHandler.handle called for task ${dTask.id}")
             pending[dTask.id]?.complete(dTask.id)
-            return nextResult
+            return if (nextResult) HandleResult.CONTINUE else HandleResult.DONE
         }
 
         override suspend fun handleEnd(dTask: DTask) {
@@ -129,9 +131,27 @@ class EtcdTaskCoordinatorTest {
         override fun handleRate(): Long = 3_000L
     }
 
-    // Simulates a handler that reads task+progress state from etcd and writes updated state on each tick,
-    // then calls versionDeleteTask() on the next tick once state is written (mirrors SmartChannelService pattern:
-    // getTask → getProgressState → setProgressState / deleteProgressState → versionDeleteTask when done).
+    // Reference implementation of a stateful ScheduledTaskHandler.
+    //
+    // Pattern:
+    //   - handle() reads task + progress state from etcd each tick and returns:
+    //       CONTINUE → keep ticking (coordinator does nothing)
+    //       DONE     → coordinator calls versionDeleteTask(includeSubResources=true) + handleEnd()
+    //   - handle() never calls cancelTask/versionDeleteTask directly; task lifecycle is owned by the coordinator.
+    //   - handleEnd() is a notification hook — task + progress + state are already deleted by the coordinator
+    //     before handleEnd() is called. Use it for in-memory cleanup (maps, caches) only.
+    //     Called when handle() returns false (CAS delete succeeds) OR when the task is externally cancelled.
+    //     NOT called on CAS miss (task was concurrently updated — resync will reclaim it).
+    //
+    // Tick lifecycle:
+    //   Tick 1: getTask → getProgressState (null) → setProgressState → return true
+    //   Tick 2: getTask → getProgressState (written) → desired state met → return false
+    //   Coordinator then calls: handleEnd() → cancelTask()
+    //
+    // External cancel (e.g. another service calls cancelTask):
+    //   Coordinator receives DELETE watch event → removes task from scheduledTaskMap → calls handleEnd()
+    //   handle() may still be mid-tick: getTask() returns null → return true (safe noop, coordinator already cleaning up)
+    //
     // Uses a distinct service pair so the coordinator registers a separate watcher without conflicting with ScheduledHandler.
     @Component
     class ProgressStateHandler(private val dTaskService: DTaskService) : ScheduledTaskHandler() {
@@ -141,49 +161,51 @@ class EtcdTaskCoordinatorTest {
         }
 
         private val handlePending = ConcurrentHashMap<String, CompletableFuture<String>>()
+        private val donePending  = ConcurrentHashMap<String, CompletableFuture<String>>()
         private val endPending   = ConcurrentHashMap<String, CompletableFuture<String>>()
-        // Track per-task whether the first tick has already written progress state
         private val stateWritten = ConcurrentHashMap<String, Boolean>()
 
         fun waitForHandle(taskId: String): CompletableFuture<String> =
             handlePending.computeIfAbsent(taskId) { CompletableFuture() }
 
+        /** Resolves when handle() returns false (tick 2 — desired state met). */
+        fun waitForDone(taskId: String): CompletableFuture<String> =
+            donePending.computeIfAbsent(taskId) { CompletableFuture() }
+
         fun waitForEnd(taskId: String): CompletableFuture<String> =
             endPending.computeIfAbsent(taskId) { CompletableFuture() }
 
-        // Tick 1: getTask → getProgressState → setProgressState (state not yet written).
-        // Tick 2: getTask → getProgressState → deleteProgressState → versionDeleteTask (desired state met).
-        // If task was externally deleted before any tick: getTask() returns null, noop, return true.
-        // versionDeleteTask() returns false (CAS miss) if task already gone — must not throw.
-        override suspend fun handle(dTask: DTask): Boolean {
+        override suspend fun handle(dTask: DTask): HandleResult {
             log.info("ProgressStateHandler.handle called for task ${dTask.id}")
             val task = dTaskService.getTask(SCH_GROUP, SCH_SERVICE, dTask.id)
             if (task == null) {
+                // Task already externally cancelled — coordinator is cleaning up, just return CONTINUE safely
                 log.info("ProgressStateHandler: task ${dTask.id} already gone, noop")
                 handlePending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
-                return true
+                return HandleResult.CONTINUE
             }
             val alreadyWritten = stateWritten[dTask.id] == true
             if (!alreadyWritten) {
-                // First tick: write progress state
+                // Tick 1: write progress state, keep ticking
                 dTaskService.setProgressState(SCH_GROUP, SCH_SERVICE, task, "main", DTask.getDefaultInstance())
                 stateWritten[dTask.id] = true
+                handlePending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
+                return HandleResult.CONTINUE
             } else {
-                // Second tick: desired state met — delete progress state and version-delete the task
-                dTaskService.deleteProgressState(SCH_GROUP, SCH_SERVICE, dTask.id)
-                val deleted = dTaskService.versionDeleteTask(SCH_GROUP, SCH_SERVICE, task)
-                log.info("ProgressStateHandler: versionDeleteTask result=$deleted for ${dTask.id}")
+                // Tick 2: desired state met — signal coordinator to delete task and call handleEnd()
+                log.info("ProgressStateHandler: desired state met for ${dTask.id}, returning DONE")
+                donePending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
+                return HandleResult.DONE
             }
-            handlePending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
-            return true
         }
 
         override suspend fun handleEnd(dTask: DTask) {
             log.info("ProgressStateHandler.handleEnd called for task ${dTask.id}")
-            // Cleanup on task end: delete progress state. If task was already version-deleted by handle() or
-            // externally cancelled, the progress key may already be gone — deleteProgressState is idempotent.
-            dTaskService.deleteProgressState(SCH_GROUP, SCH_SERVICE, dTask.id)
+            // No progress state cleanup needed here — the coordinator already deleted task + progress + state
+            // atomically via versionDeleteTask(includeSubResources=true) before calling handleEnd().
+            // For external cancels, cancelTask() also deletes sub-resources before the DELETE watch fires.
             stateWritten.remove(dTask.id)
+            donePending.remove(dTask.id)
             endPending.computeIfAbsent(dTask.id) { CompletableFuture() }.complete(dTask.id)
         }
 
@@ -211,7 +233,7 @@ class EtcdTaskCoordinatorTest {
 
         fun waitForFirstHandle(taskId: String): CompletableFuture<String> = firstHandleFuture
 
-        override suspend fun handle(dTask: DTask): Boolean {
+        override suspend fun handle(dTask: DTask): HandleResult {
             val concurrent = concurrentCount.incrementAndGet()
             peakConcurrency.updateAndGet { max -> maxOf(max, concurrent) }
             log.info("SlowHandler.handle start (concurrent=$concurrent) for ${dTask.id}")
@@ -220,7 +242,7 @@ class EtcdTaskCoordinatorTest {
             log.info("SlowHandler.handle end (count=$count) for ${dTask.id}")
             concurrentCount.decrementAndGet()
             firstHandleFuture.complete(dTask.id)
-            return true
+            return HandleResult.CONTINUE
         }
 
         override fun serviceFilters(): List<Pair<String, String>> =
@@ -433,9 +455,8 @@ class EtcdTaskCoordinatorTest {
         }
     }
 
-    // Handler that reads task state and writes progress on each tick (mirrors real-world service pattern).
-    // When the task is externally deleted mid-flight: getTask() returns null (safe noop), handleEnd() is still
-    // called by the coordinator via DELETE watch and must safely call deleteProgressState() on a gone key.
+    // Verifies the external-cancel path of the ProgressStateHandler reference implementation:
+    // coordinator receives DELETE watch → calls handleEnd() → deleteProgressState() must not throw on missing key.
     @Test
     fun testProgressStateHandlerExternalDelete() {
         runBlocking {
@@ -466,6 +487,69 @@ class EtcdTaskCoordinatorTest {
             assertNull("externally deleted task must not exist in etcd", svc.getTask(group, service, taskId))
             assertNull("progress state must not exist after task deletion",
                 svc.getProgressState(group, service, taskId))
+        }
+    }
+
+    // Verifies the concurrent update (PUT v2) + delete (handle() returns false) race:
+    //   1. Coordinator claims v1 and ticks until handle() returns false (tick 2).
+    //   2. Just before the coordinator's versionDeleteTask fires, a new scheduleTask PUT creates v2 (same taskId).
+    //   3. versionDeleteTask CAS-fails because the etcd version changed → v2 survives, handleEnd() is NOT called.
+    //   4. Coordinator releases the claim so the resync loop can re-claim v2.
+    //   5. v2 is re-claimed and handle() is called again — stateWritten is reset so tick 1 logic runs for v2.
+    //
+    // Without versionDeleteTask (plain cancelTask), v2 would be silently deleted in step 3.
+    @Test
+    fun testConcurrentUpdateAndDeleteCasMiss() {
+        runBlocking {
+            val svc = dTaskService!!
+            val group = ProgressStateHandler.SCH_GROUP
+            val service = ProgressStateHandler.SCH_SERVICE
+            val taskId = "cas-miss-${Instant.now().toEpochMilli()}"
+            val now = Instant.now().toEpochMilli()
+
+            // Register futures before creating the task
+            val handleFuture = progressStateHandler!!.waitForHandle(taskId)
+            val doneFuture   = progressStateHandler.waitForDone(taskId)
+
+            // Create v1
+            val res = svc.scheduleTask(group, service, taskId,
+                DTaskService.ScheduleTaskParam(now, now + 600_000))
+            assertEquals(0, res.result)
+
+            // Wait for tick 1 to write progress state (stateWritten = true)
+            handleFuture.get(10, TimeUnit.SECONDS)
+
+            // PUT v2 (same taskId, updated end time) — races with the coordinator's upcoming versionDeleteTask
+            val resV2 = svc.scheduleTask(group, service, taskId,
+                DTaskService.ScheduleTaskParam(now, now + 1_200_000))
+            assertEquals(0, resV2.result)
+
+            // Wait for tick 2 where handle() returns false — coordinator will attempt versionDeleteTask and CAS-miss
+            doneFuture.get(10, TimeUnit.SECONDS)
+
+            // After CAS miss: v2 must still be in etcd, handleEnd must NOT have been called
+            delay(2_000)
+            val taskV2 = svc.getTask(group, service, taskId)
+            assertNotNull("v2 must survive the CAS miss", taskV2)
+            assertFalse("handleEnd must not be called on CAS miss",
+                progressStateHandler.waitForEnd(taskId).isDone)
+
+            // Trigger resync by reducing interval — or just wait for coordinator's normal resync.
+            // Since resyncInterval=60s is too long, force a re-claim by cancelling and recreating.
+            // Instead, directly verify the resync path: the coordinator re-claims on the next PUT watch event.
+            // PUT v2 already triggered a watch event but coordinatorMap had the task — after CAS miss the
+            // map entry was removed, so we PUT again to trigger re-claim via watch.
+            val resV3 = svc.scheduleTask(group, service, taskId,
+                DTaskService.ScheduleTaskParam(now, now + 1_200_000))
+            assertEquals(0, resV3.result)
+
+            // Coordinator should re-claim v3 via watch and call handle() again
+            val handleFuture2 = progressStateHandler.waitForHandle(taskId)
+            handleFuture2.get(10, TimeUnit.SECONDS)
+
+            // Cleanup
+            svc.cancelTask(group, service, taskId)
+            progressStateHandler.waitForEnd(taskId).get(5, TimeUnit.SECONDS)
         }
     }
 

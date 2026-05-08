@@ -235,20 +235,26 @@ class EtcdTaskCoordinator(
     private suspend fun tickScheduledTask(taskId: String, entry: ScheduledTaskEntry, handler: ScheduledTaskHandler) {
         val now = Instant.now().toEpochMilli()
         val shouldDelete = try {
-            val keepGoing = handler.handle(entry.task.value)
-            !keepGoing || now > entry.task.value.scheduleConfig.end
+            handler.handle(entry.task.value) == HandleResult.DONE || now > entry.task.value.scheduleConfig.end
         } catch (ex: Exception) {
             log.error("TaskCoordinator: scheduled handler error for $taskId", ex)
             false
         }
         if (shouldDelete) {
-            // Remove from maps before cancelTask so the DELETE watch event finds empty entries and skips handleEnd
+            // Remove from maps first so the DELETE watch event finds empty entries and skips handleEnd
             scheduledTaskMap.remove(taskId)
             activeTickJobs.remove(taskId)
-            try { handler.handleEnd(entry.task.value) } catch (ex: Exception) { log.warn("TaskCoordinator: handleEnd error for $taskId", ex) }
-            dTaskService.cancelTask(entry.serviceGroup, entry.serviceName, taskId)
+            // Version-delete with sub-resources: atomically removes task + progress + state only if the
+            // task has not been concurrently updated (e.g. user PUT a new version of the same task).
+            // If CAS fails, the new version survives and the resync loop will reclaim it — skip handleEnd.
+            val deleted = dTaskService.versionDeleteTask(entry.serviceGroup, entry.serviceName, entry.task, includeSubResources = true)
+            if (deleted) {
+                log.info("TaskCoordinator: scheduled task $taskId deleted")
+                try { handler.handleEnd(entry.task.value) } catch (ex: Exception) { log.warn("TaskCoordinator: handleEnd error for $taskId", ex) }
+            } else {
+                log.info("TaskCoordinator: versionDeleteTask CAS miss for $taskId — task was updated, resync will reclaim")
+            }
             dTaskService.releaseTaskClaim(entry.serviceGroup, entry.serviceName, taskId)
-            log.info("TaskCoordinator: scheduled task $taskId deleted")
         }
     }
 
