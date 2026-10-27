@@ -6,8 +6,10 @@ import com.google.protobuf.StringValue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.RangeAssignor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
@@ -91,6 +93,11 @@ public class KafkaService {
                 props.put(ProducerConfig.ACKS_CONFIG, kv.getValue().getAcks());
                 props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, kv.getValue().getMaxBlockTime());
                 props.put(ProducerConfig.RETRIES_CONFIG, kv.getValue().getRetryCount());
+                // Preserve Kafka 2.6 delivery and partitioning defaults when clients are upgraded.
+                props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false);
+                props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, DefaultPartitioner.class);
+                props.put("enable.metrics.push", false);
+                props.put("retry.backoff.max.ms", 100);
 
                 var security = kv.getValue().getSecurity();
                 if(security != null) {
@@ -122,6 +129,10 @@ public class KafkaService {
             Map<String, Object> props = new HashMap<>();
             props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, builder.toString());
             props.put(ConsumerConfig.GROUP_ID_CONFIG, kv.getValue().getGroupID());
+            props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 10000);
+            props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, Collections.singletonList(RangeAssignor.class));
+            props.put("enable.metrics.push", false);
+            props.put("retry.backoff.max.ms", 100);
 
             try {
                 props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Class.forName(kv.getValue().getKeyDeserializer()));
